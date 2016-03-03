@@ -23,10 +23,10 @@
  */
 package com.fulcrumgenomics.cmdline
 
-import com.fulcrumgenomics.cmdline.FGBioMain.FailureException
+import com.fulcrumgenomics.cmdline.FgBioMain.FailureException
 
 /** All fgbio tools should extend this. */
-trait FGBioTool {
+trait FgBioTool {
   def execute(): Unit
 
   /** Fail with just an exit code. */

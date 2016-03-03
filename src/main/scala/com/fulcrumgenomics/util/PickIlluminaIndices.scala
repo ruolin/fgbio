@@ -2,7 +2,7 @@ package com.fulcrumgenomics.util
 
 import scala.collection.JavaConversions._
 
-import com.fulcrumgenomics.cmdline.{ClpGroups, FGBioTool}
+import com.fulcrumgenomics.cmdline.{ClpGroups, FgBioTool}
 import dagr.commons.CommonsDef.{DirPath, FilePath}
 import dagr.sopt.{arg, clp}
 import picard.util.IlluminaUtil.IlluminaAdapterPair
@@ -35,7 +35,7 @@ class PickIlluminaIndices
   val adapters: Seq[String] = Seq(IlluminaAdapterPair.DUAL_INDEXED.get5PrimeAdapter, IlluminaAdapterPair.DUAL_INDEXED.get3PrimeAdapter),
   @arg(          doc="Sequences that should be avoided.  Any kmer of 'length' that appears in these sequences and their " + "reverse complements will be thrown out.")
   val avoidSequence: Seq[String] = IlluminaAdapterPair.values().flatMap(p => Seq(p.get5PrimeAdapter(), p.get3PrimeAdapter()))
-) extends FGBioTool{
+) extends FgBioTool{
 
   override def execute(): Unit = {
     val cmd = new PickIlluminaIndicesCommand()
