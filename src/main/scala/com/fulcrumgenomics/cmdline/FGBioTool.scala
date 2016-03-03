@@ -23,10 +23,10 @@
  */
 package com.fulcrumgenomics.cmdline
 
-import com.fulcrumgenomics.cmdline.JeanLucMain.FailureException
+import com.fulcrumgenomics.cmdline.FGBioMain.FailureException
 
-/** All Jean Luc tools should extend this. */
-trait JeanLucTool {
+/** All fgbio tools should extend this. */
+trait FGBioTool {
   def execute(): Unit
 
   /** Fail with just an exit code. */

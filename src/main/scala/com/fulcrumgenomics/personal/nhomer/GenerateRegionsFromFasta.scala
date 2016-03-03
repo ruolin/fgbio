@@ -27,7 +27,7 @@ package com.fulcrumgenomics.personal.nhomer
 import java.nio.file.Path
 
 import com.fulcrumgenomics.cmdline.ClpGroups.Personal
-import com.fulcrumgenomics.cmdline.JeanLucTool
+import com.fulcrumgenomics.cmdline.FGBioTool
 import dagr.commons.CommonsDef.PathToFasta
 import dagr.commons.io.Io
 import dagr.commons.util.LazyLogging
@@ -44,7 +44,7 @@ class GenerateRegionsFromFasta
 ( @arg(doc = "The input FASTA.") val input: PathToFasta,
   @arg(doc = "The output.") val output: Path = Io.StdOut,
   @arg(doc = "The size of the regions to output.") val regionSize: Int = 100000
-) extends JeanLucTool with LazyLogging {
+) extends FGBioTool with LazyLogging {
 
   Io.assertReadable(input)
   Io.assertCanWriteFile(output)

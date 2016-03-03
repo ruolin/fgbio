@@ -30,7 +30,7 @@ package com.fulcrumgenomics.personal.nhomer
 import java.nio.file.Path
 
 import com.fulcrumgenomics.cmdline.ClpGroups.Personal
-import com.fulcrumgenomics.cmdline.JeanLucTool
+import com.fulcrumgenomics.cmdline.FGBioTool
 import dagr.commons.CommonsDef.PathToBam
 import dagr.commons.io.Io
 import dagr.sopt._
@@ -55,7 +55,7 @@ class HasSequence
   @arg(            doc = "Count no calls as mismatches unless both bases are no calls.") val includeNoCalls: Boolean = false,
   @arg(            doc = "Search for mismatches at the start only") val startOnly: Boolean = true,
   @arg(            doc = "The tag to store the result.") val hasSequenceTag: String = "XW"
-) extends JeanLucTool {
+) extends FGBioTool {
   Io.assertReadable(input)
   Io.assertCanWriteFile(output)
   Io.assertCanWriteFile(metrics)

@@ -24,28 +24,28 @@
 
 package com.fulcrumgenomics.cmdline
 
-import com.fulcrumgenomics.cmdline.JeanLucMain.FailureException
+import com.fulcrumgenomics.cmdline.FGBioMain.FailureException
 import dagr.commons.util.LazyLogging
 import dagr.sopt.cmdline.CommandLineParser
 
 /**
-  * Main program for JeanLuc that loads everything up and runs the appropriate sub-command
+  * Main program for fgbio that loads everything up and runs the appropriate sub-command
   */
-object JeanLucMain {
+object FGBioMain {
   /** The main method */
-  def main(args: Array[String]): Unit = new JeanLucMain().makeItSo(args)
+  def main(args: Array[String]): Unit = new FGBioMain().makeItSo(args)
 
   /**
-    * Exception class intended to be used by [[JeanLucMain]] and [[JeanLucTool]] to communicate
+    * Exception class intended to be used by [[FGBioMain]] and [[FGBioTool]] to communicate
     * non-exceptional(!) failures when running a tool.
     */
   private[cmdline] case class FailureException(exit:Int = 1, message:Option[String] = None) extends RuntimeException
 }
 
-class JeanLucMain extends LazyLogging {
+class FGBioMain extends LazyLogging {
   /** The main method */
   def makeItSo(args: Array[String]): Unit = {
-    val parser = new CommandLineParser[JeanLucTool]("JeanLuc")
+    val parser = new CommandLineParser[FGBioTool]("fgbio")
 
     parser.parseSubCommand(args=args, packageList=packageList) match {
       case None => System.exit(1)
