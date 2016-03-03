@@ -24,7 +24,7 @@
 
 package com.fulcrumgenomics.personal.nhomer
 
-import com.fulcrumgenomics.cmdline.{ClpGroups, JeanLucTool}
+import com.fulcrumgenomics.cmdline.{ClpGroups, FGBioTool}
 import dagr.commons.CommonsDef.PathToBam
 import dagr.commons.io.Io
 import dagr.sopt._
@@ -46,7 +46,7 @@ class SplitTag
   @arg(doc = "Tag to split.") val tagToSplit: String,
   @arg(doc = "Tag(s) to output.  There should be one per produced token.", minElements = 1) val tagsToOutput: List[String],
   @arg(doc = "The delimiter used to split the string.") val delimiter: String = IlluminaUtil.BARCODE_DELIMITER
-) extends JeanLucTool {
+) extends FGBioTool {
 
   Io.assertReadable(input)
   Io.assertCanWriteFile(output)
