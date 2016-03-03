@@ -60,7 +60,7 @@ class HasSequence
   Io.assertCanWriteFile(metrics)
 
   // TODO: progress logging and metrics file header
-  override def execute: Unit = {
+  override def execute(): Unit = {
     val sequencesReadOne = Source.fromFile(this.sequences.toFile).getLines().map(_.trim)
     val sequencesReadTwo = for (sequence <- sequencesReadOne) yield SequenceUtil.reverseComplement(sequence)
     val reader = SamReaderFactory.makeDefault.open(input.toFile)

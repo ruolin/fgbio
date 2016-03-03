@@ -49,7 +49,7 @@ class GenerateRegionsFromFasta
   Io.assertReadable(input)
   Io.assertCanWriteFile(output)
 
-  override def execute: Unit = {
+  override def execute(): Unit = {
     val referenceSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(input.toFile)
     val sequenceDictionary = referenceSequenceFile.getSequenceDictionary
     sequenceDictionary.getSequences.foreach { sequenceRecord =>
