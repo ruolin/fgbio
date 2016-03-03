@@ -43,7 +43,7 @@ releaseProcess := Seq[ReleaseStep](
 // For the aggregate (root) jar, override the name.  For the sub-projects,
 // see the build.sbt in each project folder.
 ////////////////////////////////////////////////////////////////////////////////////////////////
-assemblyJarName in assembly := "jeanluc-" + version.value + ".jar"
+assemblyJarName in assembly := "fgbio-" + version.value + ".jar"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 // Sonatype settings
@@ -81,7 +81,7 @@ val docScalacOptions = Seq("-groups", "-implicits")
 lazy val commonSettings = Seq(
   organization         := "com.fulcrumgenomics",
   organizationName     := "Fulcrum Genomics LLC",
-  homepage             := Some(url("http://github.com/fulcrumgenomics/jeanluc")),
+  homepage             := Some(url("http://github.com/fulcrumgenomics/fgbio")),
   startYear            := Some(2015),
   scalaVersion         := "2.11.7",
   scalacOptions        += "-target:jvm-1.8",
@@ -112,16 +112,16 @@ lazy val assemblySettings = Seq(
   test in assembly     := {},
   logLevel in assembly := Level.Info
 )
-lazy val root = Project(id="jeanluc", base=file("."))
+lazy val root = Project(id="fgbio", base=file("."))
   .settings(commonSettings: _*)
   .settings(unidocSettings: _*)
   .settings(assemblySettings: _*)
-  .settings(description := "Jean Luc.")
+  .settings(description := "fgbio")
   .settings(
     libraryDependencies ++= Seq(
       "org.scala-lang"            %  "scala-reflect" %  scalaVersion.value,
-	    "com.fulcrumgenomics"       %% "dagr-commons"  % "0.1.0-SNAPSHOT",
-	    "com.fulcrumgenomics"       %% "dagr-sopt"     % "0.1.0-SNAPSHOT",
+	    "com.fulcrumgenomics"       %% "dagr-commons"  % "0.1.0",
+	    "com.fulcrumgenomics"       %% "dagr-sopt"     % "0.1.0",
       "com.github.samtools"       %  "htsjdk"        % "2.1.0" excludeAll(htsjdkAndPicardExcludes: _*),
       "com.github.broadinstitute" %  "picard"        % "2.1.0" excludeAll(htsjdkAndPicardExcludes: _*),
       //---------- Test libraries -------------------//
