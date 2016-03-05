@@ -92,9 +92,7 @@ lazy val commonSettings = Seq(
   // uncomment for full stack traces
   //testOptions in Test  += Tests.Argument("-oD"),
   fork in Test         := true,
-  resolvers            += Resolver.jcenterRepo,
-  // uncomment this to use the  local resolver
-  resolvers            += Resolver.mavenLocal,
+  resolvers            += Resolver.sonatypeRepo("public"),
   shellPrompt          := { state => "%s| %s> ".format(GitCommand.prompt.apply(state), version.value) },
   updateOptions        := updateOptions.value.withCachedResolution(true)
 ) ++ Defaults.coreDefaultSettings
@@ -120,7 +118,7 @@ lazy val root = Project(id="fgbio", base=file("."))
   .settings(
     libraryDependencies ++= Seq(
       "org.scala-lang"            %  "scala-reflect" %  scalaVersion.value,
-	    "com.fulcrumgenomics"       %% "dagr-commons"  % "0.1.0",
+	    "com.fulcrumgenomics"       %% "dagr-commons"  % "0.1.1-SNAPSHOT",
 	    "com.fulcrumgenomics"       %% "dagr-sopt"     % "0.1.0",
       "com.github.samtools"       %  "htsjdk"        % "2.1.0" excludeAll(htsjdkAndPicardExcludes: _*),
       "com.github.broadinstitute" %  "picard"        % "2.1.0" excludeAll(htsjdkAndPicardExcludes: _*),
