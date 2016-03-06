@@ -27,7 +27,7 @@ package com.fulcrumgenomics.bam
 import java.nio.file.Path
 import java.text.DecimalFormat
 
-import com.fulcrumgenomics.cmdline.{ClpGroups, FGBioTool}
+import com.fulcrumgenomics.cmdline.{ClpGroups, FgBioTool}
 import dagr.commons.CommonsDef.{PathToIntervals, PathToBam}
 import dagr.commons.io.Io
 import dagr.commons.util.LazyLogging
@@ -59,7 +59,7 @@ class FilterBam
   @arg(doc = "Remove all unmapped reads.")                              var removeUnmappedReads: Boolean = true,
   @arg(doc = "Remove all reads with MAPQ lower than this number.")      var minMapQ: Int = 1,
   @arg(doc = "Remove all reads marked as secondary alignments.")        var removeSecondaryAlignments: Boolean = true
-) extends FGBioTool with LazyLogging {
+) extends FgBioTool with LazyLogging {
 
   Io.assertReadable(input)
   Io.assertCanWriteFile(output)
