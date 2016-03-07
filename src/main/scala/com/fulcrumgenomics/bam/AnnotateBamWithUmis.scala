@@ -37,18 +37,23 @@ import dagr.sopt._
 
 @clp(description =
   """
-    |Annotated existing BAM files with UMIs (Unique Molecular Indices, aka Molecular IDs, Molecular barcodes).
-    |Takes an existing BAM file and a FASTQ file consisting of UMI reads, matches the reads between the files
-    |based on read names, and produces an output BAM file where each record with annotated with an optional
-    |tag (specified by 'attribute') that contains the read sequence of the UMI.
+    |Annotates existing BAM files with UMIs (Unique Molecular Indices, aka Molecular IDs,
+    |Molecular barcodes). Takes an existing BAM file and a FASTQ file consisting of UMI
+    |reads, matches the reads between the files based on read names, and produces an output
+    |BAM file where each record is annotated with an optional tag (specified by
+    |'attribute') that contains the read sequence of the UMI.  Trailing read numbers (/1
+    |or /2) are removed from FASTQ read names, as is any text after whitespace, before
+    |matching.
     |
-    |At the end of execution, reports how many records were processed and how many were missing UMIs. If
-    |any read from the BAM file did not have a matching UMI read in the FASTQ file, the program will exit
-    |with a non-zero exit status.  The 'fail-fast' option may be specified to cause the program to terminate
-    |the first time it finds a records without a matching UMI.
+    |At the end of execution, reports how many records were processed and how many were
+    |missing UMIs. If any read from the BAM file did not have a matching UMI read in the
+    |FASTQ file, the program will exit with a non-zero exit status.  The 'fail-fast' option
+    |may be specified to cause the program to terminate the first time it finds a records
+    |without a matching UMI.
     |
-    |In order to avoid sorting the input files, the entire UMI fastq file is read into memory. As a result
-    |the program needs to be run with memory proportional the size of the (uncompressed) fastq.
+    |In order to avoid sorting the input files, the entire UMI fastq file is read into
+    |memory. As a result the program needs to be run with memory proportional the size of
+    |the (uncompressed) fastq.
   """,
   group = ClpGroups.SamOrBam)
 class AnnotateBamWithUmis(
