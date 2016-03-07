@@ -115,7 +115,7 @@ lazy val root = Project(id="fgbio", base=file("."))
   .settings(unidocSettings: _*)
   .settings(assemblySettings: _*)
   .settings(description := "fgbio")
-  .settings(version := "0.1.0")
+  .settings(version := "0.1.1-SNAPSHOT")
   .settings(
     libraryDependencies ++= Seq(
       "org.scala-lang"            %  "scala-reflect" %  scalaVersion.value,
