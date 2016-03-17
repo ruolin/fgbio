@@ -21,6 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 package com.fulcrumgenomics.cmdline
 
 import dagr.sopt.cmdline.ClpGroup
@@ -38,6 +39,11 @@ object ClpGroups {
     override val description: String = "Tools for manipulating SAM, BAM, or related data."
   }
 
+  class _VariantAssessment extends ClpGroup {
+    override val name: String = "Variant Assessment"
+    override val description: String = "Tools for assessing variant calls and related data."
+  }
+
   class _FastaGroup extends ClpGroup {
     override val name: String = "FASTA"
     override val description: String = "Tools for manipulating FASTA files."
@@ -53,10 +59,11 @@ object ClpGroups {
     override val description: String = "Various utility programs."
   }
 
-  final val Personal  = classOf[_PersonalGroup]
-  final val SamOrBam  = classOf[_SamOrBamGroup]
-  final val Fasta     = classOf[_FastaGroup]
-  final val Fastq     = classOf[_FastqGroup]
-  final val Utilities = classOf[_UtilitiesGroup]
+  final val Fasta             = classOf[_FastaGroup]
+  final val Fastq             = classOf[_FastqGroup]
+  final val Personal          = classOf[_PersonalGroup]
+  final val SamOrBam          = classOf[_SamOrBamGroup]
+  final val Utilities         = classOf[_UtilitiesGroup]
+  final val VariantAssessment = classOf[_VariantAssessment]
 }
 
