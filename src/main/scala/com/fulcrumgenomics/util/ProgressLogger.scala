@@ -37,4 +37,7 @@ class ProgressLogger(val logger: Logger,
   override def log(message: String*): Unit = {
     this.logger.info(message:_*)
   }
+
+  /** Method to use to record progress when genome location isn't available or relevant. */
+  def record(): Unit = record(null, -1)
 }
