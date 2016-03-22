@@ -20,7 +20,8 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
- */package com.fulcrumgenomics.util
+ */
+package com.fulcrumgenomics.util
 
 import java.io.{OutputStream, InputStream}
 import java.nio.file.{Files, Path}
@@ -29,15 +30,14 @@ import java.util.zip.{GZIPOutputStream, GZIPInputStream}
 import dagr.commons.io.{PathUtil, IoUtil}
 
 /**
-  * Common IO Utility methods.
+  * Provides common IO utility methods.  Can be instantiated to create a custom factory, or
+  * the companion object can be used as a singleton version.
   */
-object Io extends IoUtil {
-  val BufferSize = 16 * 1024
-
+class Io(val compressionLevel: Int = 5, override val bufferSize: Int = 128*1024) extends IoUtil {
   /** Adds the automatic handling of gzipped files when opening files for reading. */
   override def toInputStream(path: Path): InputStream = {
     PathUtil.extensionOf(path) match {
-      case Some(".gz") => new GZIPInputStream(Files.newInputStream(path), BufferSize)
+      case Some(".gz") => new GZIPInputStream(Files.newInputStream(path), bufferSize)
       case _           => super.toInputStream(path)
     }
   }
@@ -45,8 +45,11 @@ object Io extends IoUtil {
   /** Adds the automatic handling of gzipped files when opening files for writing. */
   override def toOutputStream(path: Path): OutputStream = {
     PathUtil.extensionOf(path) match {
-      case Some(".gz") => new GZIPOutputStream(Files.newOutputStream(path), BufferSize)
+      case Some(".gz") => new GZIPOutputStream(Files.newOutputStream(path), bufferSize) { this.`def`.setLevel(compressionLevel) }
       case _           => super.toOutputStream(path)
     }
   }
 }
+
+/** Singleton object that can be used when the default buffer size and compression are desired. */
+object Io extends Io(compressionLevel=5, bufferSize=128*1024)

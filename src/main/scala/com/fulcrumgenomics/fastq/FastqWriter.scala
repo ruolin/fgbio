@@ -23,23 +23,37 @@
  */
 package com.fulcrumgenomics.fastq
 
+import java.io.{BufferedWriter, Closeable, Writer}
+import java.nio.file.Path
+
+import com.fulcrumgenomics.util.Io
+
 /**
-  * Represents a record that can be read from or written to a fastq file.
+  * Companion object for manufacturing FastqWriter instances.
   */
-case class FastqRecord(name: String, bases: String, quals: String, comment: Option[String], readNumber: Option[Int]) {
-  /** Constructs the header line from the name, read number and comment. */
-  def header: String = name + readNumber.map("/" + _).getOrElse("") + comment.map(" " + _).getOrElse("")
+object FastqWriter {
+  /** Constructs a FastqWriter that will write to the provided path. */
+  def apply(path: Path): FastqWriter = apply(Io.toWriter(path))
 
-  /** Returns the length of the sequence represented by this record. */
-  def length: Int = bases.length
-
-  /** Trims the record to a given length. If the record is already shorter than the length provided,
-    * returns a record at the current length.
-    * @param len the length to trim to
-    * @return a record with length <= len
-    */
-  def trimmedTo(len: Int) : FastqRecord = {
-    if (len > this.length) this
-    else copy(bases=this.bases.substring(0, len), quals=this.quals.substring(0, len))
+  /** Constructs a FastqWriter from a Writer. */
+  def apply(writer: Writer): FastqWriter = {
+    if (writer.isInstanceOf[BufferedWriter]) new FastqWriter(writer.asInstanceOf[BufferedWriter])
+    else new FastqWriter(new BufferedWriter(writer))
   }
+}
+
+/**
+  * Implements a writer for fastq records.
+  */
+class FastqWriter private(val out: BufferedWriter) extends Closeable {
+  /** Writes a single record to the output. */
+  def write(rec: FastqRecord) = {
+    out.append('@').append(rec.header).append('\n')
+    out.append(rec.bases).append('\n')
+    out.append('+').append('\n')
+    out.append(rec.quals).append('\n')
+  }
+
+  /** Closes the underlying writer. */
+  override def close(): Unit = out.close()
 }

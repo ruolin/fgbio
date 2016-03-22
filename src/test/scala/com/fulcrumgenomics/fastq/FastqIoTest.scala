@@ -1,9 +1,32 @@
+/*
+ * The MIT License
+ *
+ * Copyright (c) 2016 Fulcrum Genomics LLC
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 package com.fulcrumgenomics.fastq
 
 import com.fulcrumgenomics.testing.UnitSpec
 import dagr.commons.io.Io
 
-object FastqSourceTest {
+object FastqIoTest {
   val someFastq =
     """
       |@Foo:279:000000000-ABCDE:1:1101:15033:1749 1:N:0:18
@@ -30,18 +53,18 @@ object FastqSourceTest {
 /**
   * Tests for the FastqSource
   */
-class FastqSourceTest extends UnitSpec {
+class FastqIoTest extends UnitSpec {
   "FastqSource" should "read valid fastq from various kinds of input resources" in {
     val fq = makeTempFile("some", ".fq")
-    Io.writeLines(fq, FastqSourceTest.someFastq)
+    Io.writeLines(fq, FastqIoTest.someFastq)
 
-    Seq(FastqSource(fq), FastqSource(fq.toFile), FastqSource(Io.toInputStream(fq)), FastqSource(FastqSourceTest.someFastq)).foreach(source => {
+    Seq(FastqSource(fq), FastqSource(fq.toFile), FastqSource(Io.toInputStream(fq)), FastqSource(FastqIoTest.someFastq)).foreach(source => {
       source.hasNext shouldBe true
-      source.next shouldBe FastqSourceTest.someFastqRecords(0)
+      source.next shouldBe FastqIoTest.someFastqRecords(0)
       source.hasNext shouldBe true
-      source.next shouldBe FastqSourceTest.someFastqRecords(1)
+      source.next shouldBe FastqIoTest.someFastqRecords(1)
       source.hasNext shouldBe true
-      source.next shouldBe FastqSourceTest.someFastqRecords(2)
+      source.next shouldBe FastqIoTest.someFastqRecords(2)
       source.hasNext shouldBe false
       an[NoSuchElementException] shouldBe thrownBy { source.next() }
     })
@@ -69,5 +92,15 @@ class FastqSourceTest extends UnitSpec {
     val fq = makeTempFile("some", ".fq")
     Io.writeLines(fq, Seq("@foo", "ACGT", "+foo", "12345"))
     an[IllegalStateException] shouldBe thrownBy { FastqSource(fq) }
+  }
+
+  "FastqWriter" should "write valid records to a file" in {
+    val files = Seq(makeTempFile("some", ".fq"), makeTempFile("some", ".fq.gz"))
+    files.foreach(fq => {
+      val writer = FastqWriter(fq)
+      FastqIoTest.someFastqRecords.foreach(writer.write)
+      writer.close()
+      FastqSource(fq).toSeq shouldBe FastqIoTest.someFastqRecords
+    })
   }
 }
