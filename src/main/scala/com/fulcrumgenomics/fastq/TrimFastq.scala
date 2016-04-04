@@ -40,7 +40,7 @@ import dagr.sopt._
 )
 class TrimFastq
 (   @arg(flag="i", doc="One or more input fastq files.")       val input:  Seq[PathToFastq],
-    @arg(flag="o", doc="A matching number of outpuf files.")   val output: Seq[PathToFastq],
+    @arg(flag="o", doc="A matching number of output files.")   val output: Seq[PathToFastq],
     @arg(flag="l", doc="Length to trim reads to.")             val length: Int,
     @arg(flag="x", doc="Exclude reads below the trim length.") val exclude: Boolean = false
 ) extends FgBioTool with LazyLogging {
