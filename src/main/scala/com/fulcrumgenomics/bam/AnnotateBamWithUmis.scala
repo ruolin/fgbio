@@ -38,12 +38,12 @@ import dagr.sopt._
 @clp(description =
   """
     |Annotates existing BAM files with UMIs (Unique Molecular Indices, aka Molecular IDs,
-    |Molecular barcodes). Takes an existing BAM file and a FASTQ file consisting of UMI
-    |reads, matches the reads between the files based on read names, and produces an output
-    |BAM file where each record is annotated with an optional tag (specified by
-    |'attribute') that contains the read sequence of the UMI.  Trailing read numbers (/1
-    |or /2) are removed from FASTQ read names, as is any text after whitespace, before
-    |matching.
+    |Molecular barcodes) from a separate FASTQ file. Takes an existing BAM file and a FASTQ
+    |file consisting of UMI reads, matches the reads between the files based on read names,
+    |and produces an output BAM file where each record is annotated with an optional tag
+    |(specified by 'attribute') that contains the read sequence of the UMI.  Trailing read
+    |numbers (/1 or /2) are removed from FASTQ read names, as is any text after whitespace,
+    |before matching.
     |
     |At the end of execution, reports how many records were processed and how many were
     |missing UMIs. If any read from the BAM file did not have a matching UMI read in the
