@@ -58,11 +58,17 @@ object ClpGroups {
     override def description: String = "Tools for manipulating UMIs & reads tagged with UMIs"
   }
 
+  class _VcfOrBcfGroup extends ClpGroup {
+    override val name: String = "VCF/BCF"
+    override val description: String = "Tools for manipulating VCF, BCF, or related data."
+  }
+
   final val Personal  = classOf[_PersonalGroup]
   final val SamOrBam  = classOf[_SamOrBamGroup]
   final val Fasta     = classOf[_FastaGroup]
   final val Fastq     = classOf[_FastqGroup]
   final val Umi       = classOf[_Umi]
   final val Utilities = classOf[_UtilitiesGroup]
+  final val VcfOrBcf  = classOf[_VcfOrBcfGroup]
 }
 
