@@ -37,7 +37,6 @@ import dagr.sopt._
 import htsjdk.samtools._
 import htsjdk.samtools.metrics.{MetricBase, MetricsFile}
 import htsjdk.samtools.util._
-import picard.PicardException
 
 import scala.io.Source
 
@@ -67,7 +66,7 @@ class HasSequence
     val reader = SamReaderFactory.makeDefault.open(input.toFile)
     val header = reader.getFileHeader
     if (header.getSortOrder ne SAMFileHeader.SortOrder.queryname) {
-      throw new PicardException("Expects a queryname sorted input file, was: " + header.getSortOrder.name)
+      fail("Expects a queryname sorted input file, was: " + header.getSortOrder.name)
     }
     val writer = new SAMFileWriterFactory().makeSAMOrBAMWriter(header, false, output.toFile)
     val histogram = new Histogram[String]
