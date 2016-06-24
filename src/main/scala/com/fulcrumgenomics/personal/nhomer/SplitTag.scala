@@ -31,7 +31,6 @@ import dagr.sopt._
 import dagr.sopt.cmdline.ValidationException
 import htsjdk.samtools.util.CloserUtil
 import htsjdk.samtools.{SAMFileWriter, SAMFileWriterFactory, SamReader, SamReaderFactory}
-import picard.util.IlluminaUtil
 
 import scala.collection.JavaConversions._
 
@@ -44,7 +43,7 @@ class SplitTag
   @arg(doc = "Output SAM or BAM.") val output: PathToBam,
   @arg(doc = "Tag to split.") val tagToSplit: String,
   @arg(doc = "Tag(s) to output.  There should be one per produced token.", minElements = 1) val tagsToOutput: List[String],
-  @arg(doc = "The delimiter used to split the string.") val delimiter: String = IlluminaUtil.BARCODE_DELIMITER
+  @arg(doc = "The delimiter used to split the string.") val delimiter: String = "-"
 ) extends FgBioTool {
 
   Io.assertReadable(input)

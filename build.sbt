@@ -100,7 +100,7 @@ lazy val commonSettings = Seq(
 ////////////////////////////////////////////////////////////////////////////////////////////////
 // root project
 ////////////////////////////////////////////////////////////////////////////////////////////////
-lazy val htsjdkAndPicardExcludes = Seq(
+lazy val htsjdkExcludes = Seq(
   ExclusionRule(organization="org.apache.ant"),
   ExclusionRule(organization="gov.nih.nlm.ncbi"),
   ExclusionRule(organization="org.testng"),
@@ -121,8 +121,7 @@ lazy val root = Project(id="fgbio", base=file("."))
       "org.scala-lang"            %  "scala-reflect" %  scalaVersion.value,
 	    "com.fulcrumgenomics"       %% "dagr-commons"  % "0.1.1-SNAPSHOT",
 	    "com.fulcrumgenomics"       %% "dagr-sopt"     % "0.1.1-SNAPSHOT",
-      "com.github.samtools"       %  "htsjdk"        % "2.1.0" excludeAll(htsjdkAndPicardExcludes: _*),
-      "com.github.broadinstitute" %  "picard"        % "2.1.0" excludeAll(htsjdkAndPicardExcludes: _*),
+      "com.github.samtools"       %  "htsjdk"        % "2.1.0" excludeAll(htsjdkExcludes: _*),
       //---------- Test libraries -------------------//
       "org.scalatest"             %%  "scalatest"    %  "2.2.4" % "test->*" excludeAll ExclusionRule(organization="org.junit", name="junit")
     )
