@@ -31,8 +31,6 @@ import dagr.sopt._
 import dagr.sopt.cmdline.ValidationException
 import htsjdk.samtools.util.CloserUtil
 import htsjdk.samtools.{SAMFileWriter, SAMFileWriterFactory, SamReader, SamReaderFactory}
-import picard.PicardException
-import picard.util.IlluminaUtil
 
 import scala.collection.JavaConversions._
 
@@ -45,7 +43,7 @@ class SplitTag
   @arg(doc = "Output SAM or BAM.") val output: PathToBam,
   @arg(doc = "Tag to split.") val tagToSplit: String,
   @arg(doc = "Tag(s) to output.  There should be one per produced token.", minElements = 1) val tagsToOutput: List[String],
-  @arg(doc = "The delimiter used to split the string.") val delimiter: String = IlluminaUtil.BARCODE_DELIMITER
+  @arg(doc = "The delimiter used to split the string.") val delimiter: String = "-"
 ) extends FgBioTool {
 
   Io.assertReadable(input)
@@ -60,9 +58,9 @@ class SplitTag
     val writer: SAMFileWriter = new SAMFileWriterFactory().makeSAMOrBAMWriter(reader.getFileHeader, true, output.toFile)
     reader.foreach { record =>
       val value: String = record.getStringAttribute(tagToSplit)
-      if (value == null) throw new PicardException(String.format("Record '%s' was missing the tag '%s'", record.getReadName, tagToSplit))
+      if (value == null) fail(String.format("Record '%s' was missing the tag '%s'", record.getReadName, tagToSplit))
       val tokens: Array[String] = value.split(delimiter)
-      if (tokens.length != tagsToOutput.size) throw new PicardException(s"Record '${record.getReadName}' did not have '${tagsToOutput.size}' tokens")
+      if (tokens.length != tagsToOutput.size) fail(s"Record '${record.getReadName}' did not have '${tagsToOutput.size}' tokens")
       tagsToOutput.zip(tokens).foreach { case (tagToOutput, token) => record.setAttribute(tagToOutput, token) }
       writer.addAlignment(record)
     }

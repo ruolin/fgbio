@@ -5,7 +5,6 @@ import scala.collection.JavaConversions._
 import com.fulcrumgenomics.cmdline.{ClpGroups, FgBioTool}
 import dagr.commons.CommonsDef.{DirPath, FilePath}
 import dagr.sopt.{arg, clp}
-import picard.util.IlluminaUtil.IlluminaAdapterPair
 
 /**
   * Program for picking sets of indices of arbitrary length that meet certain constraints
@@ -32,9 +31,9 @@ class PickIlluminaIndices
   @arg(          doc="The installation directory for ViennaRNA.")                      val viennaRnaDir: DirPath,
   @arg(          doc="The lowest acceptable secondary structure deltaG.")              val minDeltaG: Double = -10,
   @arg(          doc="The indexed adapter sequence into which the indices will be integrated.")
-  val adapters: Seq[String] = Seq(IlluminaAdapterPair.DUAL_INDEXED.get5PrimeAdapter, IlluminaAdapterPair.DUAL_INDEXED.get3PrimeAdapter),
+  val adapters: Seq[String] = IlluminaAdapters.DualIndexed.both,
   @arg(          doc="Sequences that should be avoided.  Any kmer of 'length' that appears in these sequences and their " + "reverse complements will be thrown out.")
-  val avoidSequence: Seq[String] = IlluminaAdapterPair.values().flatMap(p => Seq(p.get5PrimeAdapter(), p.get3PrimeAdapter()))
+  val avoidSequence: Seq[String] = IlluminaAdapters.all.flatMap(_.both)
 ) extends FgBioTool{
 
   override def execute(): Unit = {
