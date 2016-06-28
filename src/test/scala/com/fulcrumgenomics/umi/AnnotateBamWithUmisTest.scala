@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2016 Fulcrum Genomics LLC
+ * Copyright (c) 2016 Fulcrum Genomics
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,21 +20,23 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
+ *
  */
-package com.fulcrumgenomics.bam
+package com.fulcrumgenomics.umi
 
 import com.fulcrumgenomics.cmdline.FgBioMain.FailureException
 import com.fulcrumgenomics.testing.UnitSpec
 import com.fulcrumgenomics.util.Io
 import dagr.commons.io.PathUtil
 import htsjdk.samtools.SamReaderFactory
+
 import scala.collection.JavaConversions._
 
 /**
   * Tests for AnnotateBamWithUmis
   */
 class AnnotateBamWithUmisTest extends UnitSpec {
-  val dir = PathUtil.pathTo("src/test/resources/com/fulcrumgenomics/bam")
+  val dir = PathUtil.pathTo("src/test/resources/com/fulcrumgenomics/umi")
   val sam = dir.resolve("annotate_umis.sam")
   val fq  = dir.resolve("annotate_umis.fastq")
   val umiTag    = "RX"
