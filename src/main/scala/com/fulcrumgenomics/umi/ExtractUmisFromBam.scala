@@ -113,15 +113,15 @@ class ExtractUmisFromBam
       case Seq(r1: SAMRecord, r2: SAMRecord) =>
         // verify everything is in order
         Seq(r1, r2).foreach(r => {
-          if (!r.getReadPairedFlag) throw new IllegalStateException(s"Read ${r.getReadName} was not paired")
-          if (!r1.getReadUnmappedFlag) throw new IllegalStateException(s"Read ${r.getReadName} was not mapped")
+          if (!r.getReadPairedFlag) throw fail(s"Read ${r.getReadName} was not paired")
+          if (!r.getReadUnmappedFlag) throw fail(s"Read ${r.getReadName} was not unmapped")
         })
-        if (!r1.getFirstOfPairFlag) throw new IllegalStateException(s"Read ${r1.getReadName} was not the first end of a pair")
-        if (!r2.getSecondOfPairFlag) throw new IllegalStateException(s"Read ${r2.getReadName} was not the second end of a pair")
-        if (!r1.getReadName.equals(r2.getReadName)) throw new IllegalStateException(s"Read names did not match: '${r1.getReadName}' and '${r2.getReadName}'")
+        if (!r1.getFirstOfPairFlag) throw fail(s"Read ${r1.getReadName} was not the first end of a pair")
+        if (!r2.getSecondOfPairFlag) throw fail(s"Read ${r2.getReadName} was not the second end of a pair")
+        if (!r1.getReadName.equals(r2.getReadName)) throw fail(s"Read names did not match: '${r1.getReadName}' and '${r2.getReadName}'")
         // now do some work
-        val bases1 = annotateRecord(record=r1, readStructure=rs1, molecularBarcodeTags=molecularBarcodeTags1)
-        val bases2 = annotateRecord(record=r2, readStructure=rs2, molecularBarcodeTags=molecularBarcodeTags2)
+        val bases1 = ExtractUmisFromBam.annotateRecord(record=r1, readStructure=rs1, molecularBarcodeTags=molecularBarcodeTags1)
+        val bases2 = ExtractUmisFromBam.annotateRecord(record=r2, readStructure=rs2, molecularBarcodeTags=molecularBarcodeTags2)
         if (annotateReadNames) {
           // Developer Note: the delimiter must be an ascii character less than what is usually in the read names.  For
           // example "|" doesn't work.  I am not completely sure why.
@@ -137,14 +137,16 @@ class ExtractUmisFromBam
     out.close()
     CloserUtil.close(iterator)
   }
+}
 
+object ExtractUmisFromBam {
   /**
     * Extracts bases associated with molecular barcodes and adds them as SAM tags.  The read's bases will only contain
     * template bases as defined in the given read structure.
     */
-  private def annotateRecord(record: SAMRecord,
-                             readStructure: ReadStructure,
-                             molecularBarcodeTags: Seq[String]): String = {
+  private[umi] def annotateRecord(record: SAMRecord,
+                                  readStructure: ReadStructure,
+                                  molecularBarcodeTags: Seq[String]): String = {
     val bases = record.getReadString
     val qualities = record.getBaseQualityString
     // get the bases associated with each segment
@@ -155,7 +157,8 @@ class ExtractUmisFromBam
     molecularBarcodeTags match {
       case Seq(tag) => record.setAttribute(tag, molecularBarcodeBases.mkString)
       case _ =>
-        assert(molecularBarcodeTags.length == molecularBarcodeBases.length)
+        if (molecularBarcodeTags.length < molecularBarcodeBases.length) throw new IllegalStateException("Found fewer molecular barcode SAM tags than molecular barcodes in the read structure.")
+        else if (molecularBarcodeTags.length > molecularBarcodeBases.length) throw new IllegalStateException("Found fewer molecular barcodes in the read structure than molecular barcode SAM tags.")
         molecularBarcodeTags.zip(molecularBarcodeBases).foreach { case (tag, b) => record.setAttribute(tag, b) }
     }
     // keep only template bases and qualities in the output read
