@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2016 Fulcrum Genomics LLC
+ * Copyright (c) 2016 Fulcrum Genomics
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,20 +20,20 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
+ *
  */
-package com.fulcrumgenomics.bam
+package com.fulcrumgenomics.umi
 
+import com.fulcrumgenomics.cmdline.{ClpGroups, FgBioTool}
 import com.fulcrumgenomics.fastq.FastqSource
 import com.fulcrumgenomics.util.ProgressLogger
-import htsjdk.samtools.{SAMFileWriterFactory, SamReaderFactory}
-
-import scala.collection.JavaConversions._
-
-import com.fulcrumgenomics.cmdline.{FgBioTool, ClpGroups}
-import dagr.commons.CommonsDef.{PathToFastq, PathToBam}
+import dagr.commons.CommonsDef.{PathToBam, PathToFastq}
 import dagr.commons.io.Io
 import dagr.commons.util.LazyLogging
 import dagr.sopt._
+import htsjdk.samtools.{SAMFileWriterFactory, SamReaderFactory}
+
+import scala.collection.JavaConversions._
 
 @clp(description =
   """
