@@ -28,7 +28,7 @@ class PickIlluminaIndices
   @arg(          doc="The minimum GC fraction for a barcode to be accepted.")          val minGc: Double = 0,
   @arg(          doc="The maximum GC fraction for a barcode to be accepted.")          val maxGc: Double = 0.7,
   @arg(flag="t", doc="Number of threads to use.")                                      val threads: Int = 4,
-  @arg(          doc="The installation directory for ViennaRNA.")                      val viennaRnaDir: DirPath,
+  @arg(          doc="The installation directory for ViennaRNA.")                      val viennaRnaDir: Option[DirPath] = None,
   @arg(          doc="The lowest acceptable secondary structure deltaG.")              val minDeltaG: Double = -10,
   @arg(          doc="The indexed adapter sequence into which the indices will be integrated.")
   val adapters: Seq[String] = IlluminaAdapters.DualIndexed.both,
@@ -49,7 +49,7 @@ class PickIlluminaIndices
     cmd.MAX_GC                    = maxGc
     cmd.OUTPUT                    = output.toFile
     cmd.NUM_THREADS               = threads
-    cmd.VIENNA_RNA_DIR            = viennaRnaDir.toFile
+    cmd.VIENNA_RNA_DIR            = viennaRnaDir.map(_.toFile).orNull
     cmd.MIN_DELTAG                = minDeltaG
     cmd.INDEX_ADAPTER             = adapters
     cmd.AVOID_SEQUENCE            = avoidSequence

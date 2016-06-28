@@ -264,7 +264,7 @@ class PickIlluminaIndicesCommand {
         }
 
         // Filter out indices that have very bad secondary structure
-        {
+        if (VIENNA_RNA_DIR != null) {
             DnaFoldPredictor predictor = new DnaFoldPredictor(VIENNA_RNA_DIR, LIGATION_TEMPERATURE);
             final Iterator<Index> iterator = indexes.iterator();
             while (iterator.hasNext()) {
@@ -342,12 +342,17 @@ class PickIlluminaIndicesCommand {
                 out.write('\t');
                 out.write(pct.format(SequenceUtil.calculateGc(bc.sequence)));
                 for (int i=0; i<adapters; ++i) {
-                    out.write('\t');
-                    out.write(bc.folds.get(i).sequence());
-                    out.write('\t');
-                    out.write(bc.folds.get(i).structure());
-                    out.write('\t');
-                    out.write(dec.format(bc.folds.get(i).deltaG()));
+                    if (VIENNA_RNA_DIR == null) {
+                        out.write("\tNA\tNA\tNA");
+                    }
+                    else {
+                        out.write('\t');
+                        out.write(bc.folds.get(i).sequence());
+                        out.write('\t');
+                        out.write(bc.folds.get(i).structure());
+                        out.write('\t');
+                        out.write(dec.format(bc.folds.get(i).deltaG()));
+                    }
                 }
                 out.newLine();
             }
@@ -569,6 +574,7 @@ class PickIlluminaIndicesCommand {
 
     /** Simple factorial() implementation. */
     final int fac(final int n) {
+        if (n == 0) return 1;
         int result = n;
         for (int i=n-1; i>1; --i) result *= i;
         return result;
