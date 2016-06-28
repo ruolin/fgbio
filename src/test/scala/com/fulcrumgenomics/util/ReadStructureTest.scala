@@ -57,6 +57,15 @@ class ReadStructureTest extends UnitSpec {
     Try { ReadStructure("23T2TT23T") }.failed.get.getMessage should include ("23T2T[T]23T")
   }
 
+  it should "collect segments of a single type" in {
+    val rs = ReadStructure("10M9T8B7S10M9T8B7S")
+    rs.template should contain theSameElementsInOrderAs Seq(Template(10, 9), Template(44, 9))
+    rs.molecularBarcode should contain theSameElementsInOrderAs Seq(MolecularBarcode(0, 10), MolecularBarcode(34, 10))
+    rs.sampleBarcode should contain theSameElementsInOrderAs Seq(SampleBarcode(19, 8), SampleBarcode(53, 8))
+    rs.skip should contain theSameElementsInOrderAs Seq(Skip(27, 7), Skip(61, 7))
+  }
+
+
   "ReadStructure.totalBases" should "return the total bases described by the read structure" in {
     ReadStructure("1T").totalBases shouldBe 1
     ReadStructure("1B").totalBases shouldBe 1
@@ -67,7 +76,7 @@ class ReadStructureTest extends UnitSpec {
     ReadStructure("10T10B10B10S10M").totalBases shouldBe 50
   }
 
-  "ReadStructure.extract" should "get extract the bases for each segment" in {
+  "ReadStructure.structureRead" should "get extract the bases for each segment" in {
     val rs = ReadStructure("2T2B2M2S")
     rs.structureRead("AACCGGTT").foreach {
       case (bases: String, segment: ReadSegment) =>
@@ -79,5 +88,108 @@ class ReadStructureTest extends UnitSpec {
         }
     }
     an[IllegalStateException] should be thrownBy rs.structureRead("AAAAAAA")
+    // the last segment is truncated
+    rs.structureRead("AACCGGT", strict=false).foreach {
+      case (bases: String, segment: ReadSegment) =>
+        segment match {
+          case t: Template         => bases shouldBe "AA"
+          case s: SampleBarcode    => bases shouldBe "CC"
+          case m: MolecularBarcode => bases shouldBe "GG"
+          case x: Skip             => bases shouldBe "T"
+        }
+    }
+    // the last segment is skipped
+    rs.structureRead("AACCGG", strict=false).foreach {
+      case (bases: String, segment: ReadSegment) =>
+        segment match {
+          case t: Template         => bases shouldBe "AA"
+          case s: SampleBarcode    => bases shouldBe "CC"
+          case m: MolecularBarcode => bases shouldBe "GG"
+          case x: Skip             => throw new IllegalStateException("Skip should not be found")
+        }
+    }
+  }
+
+
+  "ReadStructure.structureReadWithQualities" should "get extract the bases and qualities for each segment" in {
+    val rs = ReadStructure("2T2B2M2S")
+    rs.structureReadWithQualities("AACCGGTT", "11223344").foreach {
+      case (bases: String, quals: String, segment: ReadSegment) =>
+        segment match {
+          case t: Template         => bases shouldBe "AA"; quals shouldBe "11"
+          case s: SampleBarcode    => bases shouldBe "CC"; quals shouldBe "22"
+          case m: MolecularBarcode => bases shouldBe "GG"; quals shouldBe "33"
+          case x: Skip             => bases shouldBe "TT"; quals shouldBe "44"
+        }
+    }
+    an[IllegalStateException] should be thrownBy rs.structureReadWithQualities("AAAAAAA", "AAAAAAA")
+    // the last segment is truncated
+    rs.structureReadWithQualities("AACCGGT", "1122334", strict=false).foreach {
+      case (bases: String, quals: String, segment: ReadSegment) =>
+        segment match {
+          case t: Template         => bases shouldBe "AA"; quals shouldBe "11"
+          case s: SampleBarcode    => bases shouldBe "CC"; quals shouldBe "22"
+          case m: MolecularBarcode => bases shouldBe "GG"; quals shouldBe "33"
+          case x: Skip             => bases shouldBe "T"; quals shouldBe "4"
+        }
+    }
+    // the last segment is skipped
+    rs.structureReadWithQualities("AACCGG", "112233", strict=false).foreach {
+      case (bases: String, quals: String, segment: ReadSegment) =>
+        segment match {
+          case t: Template         => bases shouldBe "AA"; quals shouldBe "11"
+          case s: SampleBarcode    => bases shouldBe "CC"; quals shouldBe "22"
+          case m: MolecularBarcode => bases shouldBe "GG"; quals shouldBe "33"
+          case x: Skip             => throw new IllegalStateException("Skip should not be found")
+        }
+    }
+  }
+
+  "ReadStructure.length" should "return the number of segments" in {
+    ReadStructure("1T").length shouldBe 1
+    ReadStructure("1B").length shouldBe 1
+    ReadStructure("1M").length shouldBe 1
+    ReadStructure("1S").length shouldBe 1
+    ReadStructure("101T").length shouldBe 1
+    ReadStructure("5B101T").length shouldBe 2
+    ReadStructure("123456789T").length shouldBe 1
+    ReadStructure("10T10B10B10S10M").length shouldBe 5
+  }
+
+  "ReadStructure.apply(idx: Int)" should "return the segment at the 0-based index" in {
+    ReadStructure("1T")(0) shouldBe Template(0, 1)
+    ReadStructure("1B")(0) shouldBe SampleBarcode(0, 1)
+    ReadStructure("1M")(0) shouldBe MolecularBarcode(0, 1)
+    ReadStructure("1S")(0) shouldBe Skip(0, 1)
+    ReadStructure("101T")(0) shouldBe Template(0, 101)
+
+    ReadStructure("5B101T")(0) shouldBe SampleBarcode(0, 5)
+    ReadStructure("5B101T")(1) shouldBe Template(5, 101)
+
+    ReadStructure("123456789T")(0) shouldBe Template(0, 123456789)
+
+    ReadStructure("10T10B10B10S10M")(0) shouldBe Template(0, 10)
+    ReadStructure("10T10B10B10S10M")(1) shouldBe SampleBarcode(10, 10)
+    ReadStructure("10T10B10B10S10M")(2) shouldBe SampleBarcode(20, 10)
+    ReadStructure("10T10B10B10S10M")(3) shouldBe Skip(30, 10)
+    ReadStructure("10T10B10B10S10M")(4) shouldBe MolecularBarcode(40, 10)
+
+    an[Exception] should be thrownBy ReadStructure("101T")(1)
+  }
+
+  "ReadSegment.apply(offset: Int, length: Int, s: String)" should "create a new ReadSegment" in {
+    ReadSegment(1, 2, "T") shouldBe Template(1, 2)
+    ReadSegment(1, 2, "M") shouldBe MolecularBarcode(1, 2)
+    ReadSegment(1, 2, "S") shouldBe Skip(1, 2)
+    ReadSegment(1, 2, "B") shouldBe SampleBarcode(1, 2)
+    ReadSegment(1, 2, "TGARBAGE") shouldBe Template(1, 2)
+    an[Exception] should be thrownBy ReadSegment(1, 2, "GARBAGE")
+  }
+
+  "ReadSegment.apply(segment: ReadSegment, length: Int)" should "create a new ReadSegment" in {
+    ReadSegment(ReadSegment(1, 2, "T"), 3) shouldBe Template(1, 3)
+    ReadSegment(ReadSegment(1, 2, "M"), 3) shouldBe MolecularBarcode(1, 3)
+    ReadSegment(ReadSegment(1, 2, "S"), 3) shouldBe Skip(1, 3)
+    ReadSegment(ReadSegment(1, 2, "B"), 3) shouldBe SampleBarcode(1, 3)
   }
 }
