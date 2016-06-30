@@ -24,9 +24,14 @@
 
 package com.fulcrumgenomics.cmdline
 
+import java.net.InetAddress
+import java.text.DecimalFormat
+import java.util.Date
+
 import com.fulcrumgenomics.cmdline.FgBioMain.FailureException
-import dagr.commons.util.LazyLogging
-import dagr.sopt.cmdline.CommandLineParser
+import com.fulcrumgenomics.util.Io
+import dagr.commons.util.{LazyLogging, StringUtil}
+import dagr.sopt.cmdline.{CommandLineParser, CommandLineProgramParserStrings}
 
 /**
   * Main program for fgbio that loads everything up and runs the appropriate sub-command
@@ -50,21 +55,51 @@ class FgBioMain extends LazyLogging {
 
   /** A main method that returns an exit code instead of exiting. */
   def makeItSo(args: Array[String]): Int = {
+    // Turn down HTSJDK logging
+    htsjdk.samtools.util.Log.setGlobalLogLevel(htsjdk.samtools.util.Log.LogLevel.WARNING)
+
+    val startTime = System.currentTimeMillis()
     val parser = new CommandLineParser[FgBioTool]("fgbio")
 
-    parser.parseSubCommand(args=args, packageList=packageList) match {
+    val exitCode = parser.parseSubCommand(args=args, packageList=packageList) match {
       case None => 1
       case Some(tool) =>
+        val name = tool.getClass.getSimpleName
         try {
+          printStartupLines(name, args)
           tool.execute()
+          printEndingLines(startTime, name, true)
           0
         }
         catch {
           case ex: FailureException =>
             ex.message.foreach(logger.fatal)
+            printEndingLines(startTime, name, false)
             ex.exit
+          case ex: Throwable =>
+            printEndingLines(startTime, name, false)
+            throw ex
         }
     }
+
+    exitCode
+  }
+
+  /** Prints a line of useful information when a tool starts executing. */
+  protected def printStartupLines(tool: String, args: Array[String]): Unit = {
+    val version    = CommandLineProgramParserStrings.version(getClass, color=false).replace("Version: ", "")
+    val host       = InetAddress.getLocalHost.getHostName
+    val user       = System.getProperty("user.name")
+    val jreVersion = System.getProperty("java.runtime.version")
+    logger.info(s"Executing $tool from fgbio version $version as $user@$host on JRE $jreVersion")
+  }
+
+  /** Prints a line of useful information when a tool stops executing. */
+  protected def printEndingLines(startTime: Long, name: String, success: Boolean): Unit = {
+    val elapsedMinutes: Double = (System.currentTimeMillis() - startTime) / (1000d * 60d)
+    val elapsedString: String = new DecimalFormat("#,##0.00").format(elapsedMinutes)
+    val verb = if (success) "completed" else "failed"
+    logger.info(s"$name $verb. Elapsed time: $elapsedString minutes.")
   }
 
   /** The packages we wish to include in our command line **/
