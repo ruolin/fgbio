@@ -22,13 +22,56 @@
  * THE SOFTWARE.
  */
 
-package com.fulcrumgenomics
+package com.fulcrumgenomics.util
 
-import dagr.commons.CommonsDef
+import com.fulcrumgenomics.FgBioDef._
 
-/**
-  * Place to put common function, type and implicit definitions that can be
-  * imported into other classes easily.
-  */
-object FgBioDef extends CommonsDef {
+object MathUtil {
+  def mean(bytes: Array[Byte]): Byte = {
+    var sum: Int = 0
+    var i: Int = 0
+    while (i < bytes.length) {
+      sum += bytes(i)
+      i += 1
+    }
+
+    (sum / bytes.length).toByte
+  }
+
+  /** Finds the minimum element in the array and returns it with its index. */
+  def minWithIndex(vs: Array[Double]): (Double,Int) = {
+    var min     = Double.MaxValue
+    var minIndex = -1
+    val len = vs.length
+    var idx = 0
+    while (idx < len) {
+      val v = vs(idx)
+      if (v < min) {
+        min = v
+        minIndex = idx
+      }
+      idx += 1
+    }
+
+    (min, minIndex)
+  }
+
+
+  /** Finds the maximum element in the array and returns it with its index. */
+  def maxWithIndex(vs: Array[Double]): (Double,Int) = {
+    var max      = Double.MinValue
+    var maxIndex = -1
+    val len = vs.length
+    var idx = 0
+    while (idx < len) {
+      val v = vs(idx)
+      if (v > max) {
+        max = v
+        maxIndex = idx
+      }
+      idx += 1
+    }
+
+    (max, maxIndex)
+  }
 }

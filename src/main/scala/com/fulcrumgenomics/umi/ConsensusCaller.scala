@@ -26,10 +26,8 @@
 package com.fulcrumgenomics.umi
 
 import com.fulcrumgenomics.umi.ConsensusCallerOptions._
-import com.fulcrumgenomics.util.LogDouble._
-import com.fulcrumgenomics.util.PhredScore._
-import com.fulcrumgenomics.util.{LogDouble, PhredScore, ProgressLogger}
-import com.fulcrumgenomics.FgBioDef._
+import com.fulcrumgenomics.util.NumericTypes._
+import com.fulcrumgenomics.util.{MathUtil, ProgressLogger}
 import htsjdk.samtools._
 import htsjdk.samtools.util.SequenceUtil
 
@@ -37,15 +35,17 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 object ConsensusCallerOptions {
+  type PhredScore = Byte
+
   /** Various default values for the consensus caller. */
   val DefaultTag: String                             = "MI"
-  val DefaultErrorRatePreUmi: PhredScore             = 45
-  val DefaultErrorRatePostUmi: PhredScore            = 40
-  val DefaultMaxBaseQuality: PhredScore              = 40
-  val DefaultBaseQualityShift: PhredScore            = 10
-  val DefaultMinConsensusBaseQuality: PhredScore     = 13
+  val DefaultErrorRatePreUmi: PhredScore             = 45.toByte
+  val DefaultErrorRatePostUmi: PhredScore            = 40.toByte
+  val DefaultMaxBaseQuality: PhredScore              = 40.toByte
+  val DefaultBaseQualityShift: PhredScore            = 10.toByte
+  val DefaultMinConsensusBaseQuality: PhredScore     = 13.toByte
   val DefaultMinReads: Int                           = 1
-  val DefaultMinMeanConsensusBaseQuality: PhredScore = 13
+  val DefaultMinMeanConsensusBaseQuality: PhredScore = 13.toByte
   val DefaultRequireConsensusForBothPairs: Boolean   = true
 }
 
@@ -59,246 +59,34 @@ case class ConsensusCallerOptions(tag: String                             = Defa
                                   minReads: Int                           = DefaultMinReads,
                                   minMeanConsensusBaseQuality: PhredScore = DefaultMinMeanConsensusBaseQuality,
                                   requireConsensusForBothPairs: Boolean   = DefaultRequireConsensusForBothPairs
-                                 )
+                                 ) {
+
+  val errorRatePreUmiLn  = LogDouble.fromPhredScore(errorRatePreUmi)
+  val errorRatePostUmiLn = LogDouble.fromPhredScore(errorRatePostUmi)
+}
+
+/** Stores all the information about a read going into a consensus. */
+private[umi] case class AdjustedRead(bases: Array[Byte], pError: Array[Double], pCorrect: Array[Double]) {
+  assert(bases.length == pError.length,   "Bases and qualities not the same length.")
+  assert(bases.length == pCorrect.length, "Bases and qualities not the same length.")
+
+  def length: Int = bases.length
+}
+
+/** Stores information about a read to be fed into a consensus. */
+case class SourceRead(bases: Array[Byte], quals: Array[Byte]) {
+  assert(bases.length == quals.length,   "Bases and qualities not the same length.")
+  def length = bases.length
+}
 
 /** Stores information about a consensus read. */
-case class ConsensusRead(bases: String, quals: String)
+case class ConsensusRead(bases: Array[Byte], quals: Array[Byte]) {
+  val meanQuality: Byte = MathUtil.mean(quals)
 
-object ConsensusCaller {
-  private val DnaBasesUpperCase = Array('A', 'C', 'G', 'T')
-  private val ThreeLogDouble = 3.0.toLogDouble
-  private val TwoThirdsLogDouble = 2.0.toLogDouble / ThreeLogDouble
-
-  /** Creates a consensus read from the given records.  If no consensus read was created, None is returned. */
-  def consensusFromSamRecords(records: Seq[SAMRecord],
-                              options: ConsensusCallerOptions = new ConsensusCallerOptions()
-                              ): Option[ConsensusRead] = {
-    val bases = records.map { rec =>
-      if (rec.getReadNegativeStrandFlag) {
-        val newBases = new Array[Byte](rec.getReadLength)
-        Array.copy(rec.getReadBases, 0, newBases, 0, rec.getReadLength)
-        SequenceUtil.reverseComplement(newBases)
-        newBases
-      }
-      else rec.getReadBases
-    }
-    val quals = records.map { rec =>
-      if (rec.getReadNegativeStrandFlag) rec.getBaseQualities.reverse
-      else rec.getBaseQualities
-    }.map(qs => qs.map(_.toDouble))
-    consensusFromBasesAndQualities(bases=bases, quals=quals, options=options)
-  }
-
-  /** Creates a consensus read from the given read and quality string tuples.  If no consensus read was created, None is returned.
-    * Currently used for testing. */
-  private[umi] def consensusFromStringBasesAndQualities(basesAndQualities: Seq[(String, String)],
-                                                        options: ConsensusCallerOptions = new ConsensusCallerOptions()
-                                                       ): Option[ConsensusRead] = {
-    consensusFromBasesAndQualities(
-      bases = basesAndQualities.map(_._1.getBytes),
-      quals = basesAndQualities.map { _._2 }.map(SAMUtils.fastqToPhred).map(qs => qs.map(_.toDouble)),
-      options           = options
-    )
-  }
-
-  /** Creates a consensus read from the given read and qualities sequences.  If no consensus read was created, None
-    * is returned.
-    *
-    * The same number of base sequences and quality sequences should be given.
-    * */
-  private[umi] def consensusFromBasesAndQualities(bases: Seq[Array[Byte]],
-                                                  quals: Seq[Array[PhredScore]],
-                                                  options: ConsensusCallerOptions = new ConsensusCallerOptions()
-                                                 ): Option[ConsensusRead] = {
-    // TODO: uncomment me
-    if (bases.length != quals.length) throw new IllegalArgumentException("The # of base and quality sequences must be the same.")
-    if (bases.zip(quals).exists { case (b, q) => b.length != q.length }) {
-      throw new IllegalArgumentException("Found a read with different lengths for its bases and qualities.")
-    }
-
-    // check to see if we have enough reads.
-    if (bases.length < options.minReads) return None
-
-    // extract the bases and qualities, and adjust the qualities based on the given options.s
-    val qualSeqs: Seq[Seq[LogDouble]] = quals.map { qs =>
-        adjustBaseQualities(
-          quals            = qs.map(_.fromPhredScore),
-          maxBaseQuality   = options.maxBaseQuality.fromPhredScore,
-          baseQualityShift = options.baseQualityShift,
-          errorRatePostUmi = options.errorRatePostUmi.fromPhredScore
-        )
-      } // NB: binary Phred, not ASCII
-
-    // get the most likely consensus bases and qualities
-    val (consensusBases, consensusQualities) = consensusCall(
-      baseSeqs                = bases,
-      qualSeqs                = qualSeqs,
-      errorRatePreUmi         = options.errorRatePreUmi.fromPhredScore,
-      minConsensusBaseQuality = options.minConsensusBaseQuality.fromPhredScore,
-      minReads                = options.minReads
-    )
-
-    // check that the mean base quality is high enough
-    if (LogDouble.mean(consensusQualities:_*).toPhredScore < options.minMeanConsensusBaseQuality) None
-    else Some(ConsensusRead(bases=consensusBases, quals=consensusQualities.map(_.toPhredScoreChar).mkString))
-  }
-
-  /** Get the most likely consensus bases and qualities. Used for testing. */
-  private[umi] def consensusCallFromStringBasesAndQualities(baseStrings: Seq[String],
-                                 qualSeqs: Seq[Seq[LogDouble]], // probability of an error
-                                 errorRatePreUmi: LogDouble         = DefaultErrorRatePreUmi.fromPhredScore,
-                                 minConsensusBaseQuality: LogDouble = DefaultMinConsensusBaseQuality.fromPhredScore,
-                                 minReads: Int                      = DefaultMinReads): (String, Seq[LogDouble]) = {
-    consensusCall(
-      baseSeqs=baseStrings.map(_.getBytes()),
-      qualSeqs=qualSeqs,
-      errorRatePreUmi=errorRatePreUmi,
-      minConsensusBaseQuality=minConsensusBaseQuality,
-      minReads=minReads
-    )
-  }
-
-  /** Get the most likely consensus bases and qualities. */
-  private[umi] def consensusCall(baseSeqs: Seq[Array[Byte]],
-                                 qualSeqs: Seq[Seq[LogDouble]], // probability of an error
-                                 errorRatePreUmi: LogDouble         = DefaultErrorRatePreUmi.fromPhredScore,
-                                 minConsensusBaseQuality: LogDouble = DefaultMinConsensusBaseQuality.fromPhredScore,
-                                 minReads: Int                      = DefaultMinReads): (String, Seq[LogDouble]) = {
-    val maxReadLength = baseSeqs.map(_.length).max
-
-
-    // Array
-    // by cycle, by candidate base
-    val likelihoods = Array.ofDim[LogDouble](maxReadLength, DnaBasesUpperCase.length)
-    val numReads = new Array[Int](maxReadLength)
-    // init
-    for (baseIdx <- 0 until maxReadLength) {
-      for (i <- DnaBasesUpperCase.indices) {
-        likelihoods(baseIdx)(i) = OneProbability.fromPhredScore
-      }
-      numReads(baseIdx) = 0
-    }
-
-    // Calculate the likelihoods
-    for (readIdx <- baseSeqs.indices) { // for each read
-      val bases = baseSeqs(readIdx)
-      for (baseIdx <- bases.indices) { // for each base in the read
-        val base = bases(baseIdx)
-        if (base != 'N') {
-          val pError = qualSeqs(readIdx)(baseIdx)
-          for (i <- DnaBasesUpperCase.indices) {
-            val candidateBase = DnaBasesUpperCase(i)
-            val likelihood = {
-              if (base == candidateBase) pError.oneMinus() // 1.0 - Pr(Error)
-              else pError / ThreeLogDouble //  Pr(Error) for this specific base, assuming the error distributes uniformly across the other three bases
-            }
-            likelihoods(baseIdx)(i) *= likelihood
-          }
-          numReads(baseIdx) += 1
-        }
-      }
-    }
-
-    // Calculate the posteriors
-    val consensusBases = new Array[Char](maxReadLength)
-    val consensusErrorProbabilities = new Array[LogDouble](maxReadLength)
-    for (baseIdx <- likelihoods.indices) { // for each base in the read
-      if (numReads(baseIdx) < minReads) {
-        consensusBases(baseIdx) = SequenceUtil.N.toChar
-        consensusErrorProbabilities(baseIdx) = OneProbability.fromPhredScore
-      }
-      else {
-        // get the sum of the likelihoods
-        // pick the base with the maximum posterior
-        var likelihoodSum = ZeroProbability.fromPhredScore
-        var maxPosterior = LogDouble.toLogDouble(0)
-        var maxPosteriorIdx = -1
-        for (i <- DnaBasesUpperCase.indices) {
-          val likelihood = likelihoods(baseIdx)(i)
-          likelihoodSum = likelihoodSum + likelihood
-          if (maxPosterior < likelihood) {
-            maxPosterior = likelihood
-            maxPosteriorIdx = i
-          }
-        }
-        // normalize, assumes a uniform prior, so omits from the following calculation
-        maxPosterior /= likelihoodSum
-        val pConsensusError = maxPosterior.oneMinus() // convert to probability of the called consensus being wrong
-
-        // Masks a base if the phred score would be too low
-        consensusBases(baseIdx) = {
-          if (pConsensusError.toPhredScoreInt < minConsensusBaseQuality.toPhredScoreInt) SequenceUtil.N.toChar
-          else DnaBasesUpperCase(maxPosteriorIdx)
-        }
-
-        // Factor in the pre-UMI error rate.
-        // Pr(error) = Pr(any pre-UMI error AND correct consensus) + Pr(no pre-UMI error AND any error in consensus)
-        //               + Pr(pre-UMI error AND error in consensus, that do not give us the correct bases)
-        // The last term tries to capture the case where a pre-UMI error modifies the base (ex. A->C) but a sequencing
-        // error calls it the correct base (C->A).  Only 2/3 times will the two errors result in the incorrect base.
-        val p = probabilityOfErrorTwoTrials(errorRatePreUmi, pConsensusError)
-
-        // Cap the quality
-        consensusErrorProbabilities(baseIdx) = Math.min(PhredScore.MaxValue, p.toPhredScoreInt).fromPhredScore
-      }
-    }
-    (consensusBases.mkString, consensusErrorProbabilities)
-  }
-
-  /** Adjusts the given base qualities.  The base qualities are first shifted by `baseQualityShift`, then capped using
-    * `maxBaseQuality`, and finally the `errorRatePostUmi` is incorporated.
-    */
-  private[umi] def adjustBaseQualities(quals: Seq[LogDouble],
-                                       maxBaseQuality: LogDouble    = DefaultMaxBaseQuality.fromPhredScore,
-                                       baseQualityShift: PhredScore = DefaultBaseQualityShift,
-                                       errorRatePostUmi: LogDouble  = DefaultErrorRatePostUmi.fromPhredScore
-                                      ): Seq[LogDouble] = {
-    quals.map { qual =>
-      // shift the base qualities, then cap it.
-      val newQual = if (qual.toPhredScore < baseQualityShift) ZeroProbability.fromPhredScore
-      else {
-        val shiftedQual = (qual.toPhredScore - baseQualityShift).fromPhredScore
-        if (maxBaseQuality.toPhredScore < shiftedQual.toPhredScore) maxBaseQuality
-        else shiftedQual
-      }
-      // Pr(err) = Pr(no post-UMI error AND any sequencing error) + Pr(any post-UMI error and no sequencing error) +
-      //             Pr(post-UMI error AND sequencing error)
-      // The last term tries to capture the case where a post-UMI error modifies the base (ex. A->C) but a sequencing
-      // error calls it the correct base (C->A).  Only 2/3 times will the two errors result in the incorrect base.
-      probabilityOfErrorTwoTrials(errorRatePostUmi, newQual)
-    }
-  }
-
-  /** Computes the probability of seeing an error in the base sequence if there are two independent error processes.
-    * We sum three terms:
-    * 1. the probability of an error in trial one and no error in trial two: Pr(A=Error, B=NoError).
-    * 2. the probability of no error in trial one and an error in trial two: Pr(A=NoError, B=Error).
-    * 3. the probability of an error in both trials, but when the second trial does not reverse the error in first one, which
-    *    for DNA (4 bases) would only occur 2/3 times: Pr(A=x->y, B=y->z) * Pr(x!=z | x!=y, y!=z, x,y,z \in {A,C,G,T})
-    */
-  private[umi] def probabilityOfErrorTwoTrials(prErrorTrialOne: LogDouble, prErrorTrialTwo: LogDouble): LogDouble = {
-    val pr1 = prErrorTrialOne            * prErrorTrialTwo.oneMinus()
-    val pr2 = prErrorTrialOne.oneMinus() * prErrorTrialTwo
-    val pr3 = prErrorTrialOne            * prErrorTrialTwo            * TwoThirdsLogDouble
-    pr1 + pr2 + pr3
-  }
-
-  /** The type of consensus read to output. */
-  private object ReadType extends Enumeration {
-    val Fragment, FirstOfPair, SecondOfPair = Value
-  }
-
-  /** Gets the longest common prefix of the given strings, None if there is only one string or if there is an empty string. */
-  @annotation.tailrec
-  private def longestCommonPrefix(strs: Iterable[String], accu: Option[String] = None): Option[String] = {
-    if (strs.exists(_.isEmpty) || strs.size <= 1) accu
-    else {
-      val first = strs.head.head
-      if (strs.tail.exists(_.head != first)) accu
-      else longestCommonPrefix(strs.map(_.tail), Some(accu.getOrElse("") + first))
-    }
-  }
+  /** Returns the consensus read a String - mostly useful for testing. */
+  def baseString = new String(bases)
 }
+
 
 /** Calls consensus reads by grouping consecutive reads with the same SAM tag.
   *
@@ -316,12 +104,213 @@ class ConsensusCaller
   val rejects: Option[SAMFileWriter]   = None,
   val progress: Option[ProgressLogger] = None
 ) extends Iterator[SAMRecord] {
-  import ConsensusCaller.ReadType
-  import ConsensusCaller.ReadType._
+  /** The type of consensus read to output. */
+  private object ReadType extends Enumeration {
+    val Fragment, FirstOfPair, SecondOfPair = Value
+  }
+  import ReadType._
+
+  private val DnaBasesUpperCase: Array[Byte] = Array('A', 'C', 'G', 'T').map(_.toByte)
+  private val LnThree      = LogDouble.toLogDouble(3.0)
+  private val LnTwoThirds  = LogDouble.toLogDouble(2.0) - LnThree
+  private val LnFourThirds = LogDouble.toLogDouble(4.0) - LnThree
+
+
+  private val phredToLnProbError: Array[Double] = Range(0, 100).toArray.map(p => {
+    val e1 = LogDouble.fromPhredScore(options.errorRatePostUmi)
+    val e2 = LogDouble.fromPhredScore(p.toByte)
+    probabilityOfErrorTwoTrials(e1, e2)
+  })
+
+  private val phredToLnProbCorrect: Array[Double] = phredToLnProbError.map(LogDouble.oneMinus)
 
   private val iter = input.buffered
   private val nextConsensusRecords: mutable.Queue[SAMRecord] = mutable.Queue[SAMRecord]() // one per UMI group
   private var readIdx = 1
+
+
+  /** Creates a consensus read from the given records.  If no consensus read was created, None is returned. */
+  def consensusFromSamRecords(records: Seq[SAMRecord]): Option[ConsensusRead] = {
+    val sourceReads = records.map { rec =>
+      if (rec.getReadNegativeStrandFlag) {
+        val newBases = rec.getReadBases.clone()
+        val newQuals = rec.getBaseQualities.clone()
+        SequenceUtil.reverseComplement(newBases)
+        SequenceUtil.reverse(newQuals, 0, newQuals.length)
+        SourceRead(newBases, newQuals)
+      }
+      else {
+        SourceRead(rec.getReadBases.array, rec.getBaseQualities.array)
+      }
+    }
+
+    consensusCall(sourceReads)
+  }
+
+  /** Creates a consensus read from the given read and qualities sequences.  If no consensus read was created, None
+    * is returned.
+    *
+    * The same number of base sequences and quality sequences should be given.
+    * */
+  private[umi] def consensusCall(reads: Seq[SourceRead]): Option[ConsensusRead] = {
+    // check to see if we have enough reads.
+    if (reads.length < options.minReads) return None
+
+    // extract the bases and qualities, and adjust the qualities based on the given options.s
+    val adjustedReads = reads.map(adjustBaseQualities)
+
+    // get the most likely consensus bases and qualities
+    val consensusRead = consensusCallAdjustedReads(reads=adjustedReads)
+
+    // check that the mean base quality is high enough
+    if (consensusRead.meanQuality < options.minMeanConsensusBaseQuality) None
+    else Some(consensusRead)
+  }
+
+  /** Get the most likely consensus bases and qualities. */
+  private[umi] def consensusCallAdjustedReads(reads: Seq[AdjustedRead]): ConsensusRead = {
+    type LogLikelihood = Double
+    val maxReadLength = reads.map(_.length).max
+
+    // Array
+    // by cycle, by candidate base
+    val likelihoods = Array.ofDim[LogLikelihood](maxReadLength, DnaBasesUpperCase.length)
+    val numReads = new Array[Int](maxReadLength)
+
+    // Calculate the likelihoods
+    {
+      val readCount = reads.length
+      val DnaBasesUpperCaseCount = DnaBasesUpperCase.length
+
+      var readIdx = 0
+      while (readIdx < readCount) {
+        // for each read
+        val read = reads(readIdx)
+        val bases = read.bases
+        val baseCount = bases.length
+
+        var baseIdx = 0
+        while (baseIdx < baseCount) {
+          // for each base in the read
+          val base = bases(baseIdx)
+          if (base != 'N') {
+
+            var i = 0
+            while (i < DnaBasesUpperCaseCount) {
+              val candidateBase = DnaBasesUpperCase(i)
+              val likelihood = {
+                if (base == candidateBase) read.pCorrect(baseIdx)
+                else read.pError(baseIdx) - LnThree //  Pr(Error) for this specific base, assuming the error distributes uniformly across the other three bases
+              }
+              likelihoods(baseIdx)(i) += likelihood
+              i += 1
+            }
+            numReads(baseIdx) += 1
+          }
+
+          baseIdx +=1
+        }
+
+        readIdx += 1
+      }
+    }
+
+    // Calculate the posteriors
+    val consensusBases     = new Array[Byte](maxReadLength)
+    val consensusQualities = new Array[PhredScore](maxReadLength)
+    for (baseIdx <- likelihoods.indices) { // for each base in the read
+      if (numReads(baseIdx) < this.options.minReads) {
+        consensusBases(baseIdx) = SequenceUtil.N
+        consensusQualities(baseIdx) = PhredScore.MinValue
+      }
+      else {
+        // get the sum of the likelihoods
+        // pick the base with the maximum posterior
+        val lls  = likelihoods(baseIdx)
+        val likelihoodSum  = LogDouble.sum(lls)
+        val (maxLikelihood, maxLlIndex) = MathUtil.maxWithIndex(lls)
+        val maxPosterior   = maxLikelihood - likelihoodSum
+        val pConsensusError = LogDouble.oneMinus(maxPosterior) // convert to probability of the called consensus being wrong
+
+        // Masks a base if the phred score would be too low
+        consensusBases(baseIdx) = {
+          if (PhredScore.fromLogProbability(pConsensusError) < this.options.minConsensusBaseQuality) SequenceUtil.N
+          else DnaBasesUpperCase(maxLlIndex)
+        }
+
+        // Factor in the pre-UMI error rate.
+        // Pr(error) = Pr(any pre-UMI error AND correct consensus) + Pr(no pre-UMI error AND any error in consensus)
+        //               + Pr(pre-UMI error AND error in consensus, that do not give us the correct bases)
+        // The last term tries to capture the case where a pre-UMI error modifies the base (ex. A->C) but a sequencing
+        // error calls it the correct base (C->A).  Only 2/3 times will the two errors result in the incorrect base.
+        val p = probabilityOfErrorTwoTrials(this.options.errorRatePreUmiLn, pConsensusError)
+
+        // Cap the quality
+        consensusQualities(baseIdx) = PhredScore.cap(PhredScore.fromLogProbability(p))
+      }
+    }
+
+    ConsensusRead(consensusBases, consensusQualities)
+  }
+
+  /**
+    * Adjusts the given base qualities.  The base qualities are first shifted by `baseQualityShift`, then capped using
+    *`maxBaseQuality`, and finally the `errorRatePostUmi` is incorporated.
+    *
+    * Implemented as a while loop with assignment into pre-created arrays as this function is called on every
+    * single input read and unfortunately Array[Double].map() causes boxing on all the values which is a
+    * significant performance drain.
+    */
+  private[umi] def adjustBaseQualities(read: SourceRead): AdjustedRead = {
+    val len = read.length
+    val pErrors   = new Array[Double](len)
+    val pCorrects = new Array[Double](len)
+
+    val qs = read.quals
+    var i = 0
+    while (i < len) {
+      val q = qs(i)
+      val newQ = Math.min(this.options.maxBaseQuality, Math.max(PhredScore.MinValue, q - this.options.baseQualityShift))
+      pErrors(i)   = this.phredToLnProbError(newQ)
+      pCorrects(i) = this.phredToLnProbCorrect(newQ)
+      i += 1
+    }
+
+    new AdjustedRead(read.bases, pErrors, pCorrects)
+  }
+
+  /** Computes the probability of seeing an error in the base sequence if there are two independent error processes.
+    * We sum three terms:
+    * 1. the probability of an error in trial one and no error in trial two: Pr(A=Error, B=NoError).
+    * 2. the probability of no error in trial one and an error in trial two: Pr(A=NoError, B=Error).
+    * 3. the probability of an error in both trials, but when the second trial does not reverse the error in first one, which
+    *    for DNA (4 bases) would only occur 2/3 times: Pr(A=x->y, B=y->z) * Pr(x!=z | x!=y, y!=z, x,y,z \in {A,C,G,T})
+    */
+  private[umi] def probabilityOfErrorTwoTrials(prErrorTrialOne: Double, prErrorTrialTwo: Double): Double = {
+    if (prErrorTrialOne < prErrorTrialTwo) probabilityOfErrorTwoTrials(prErrorTrialTwo, prErrorTrialOne)
+    else if (prErrorTrialOne - prErrorTrialTwo >= 6) prErrorTrialOne
+    else {
+      // f(X, Y) = X(1-Y) + (1-X)Y + 2/3*XY
+      //         = X - XY + Y - XY + 2/3*XY
+      //         = X + Y - 2XY + 2/3*XY
+      //         = X + Y + XY*(2/3 - 6/3)
+      //         = X + Y - 4/3*XY
+      val term1 = LogDouble.add(prErrorTrialOne, prErrorTrialTwo)
+      val term2 = LnFourThirds + prErrorTrialOne + prErrorTrialTwo
+      LogDouble.sub(term1, term2)
+    }
+  }
+
+  /** Gets the longest common prefix of the given strings, None if there is only one string or if there is an empty string. */
+  @annotation.tailrec
+  private def longestCommonPrefix(strs: Iterable[String], accu: Option[String] = None): Option[String] = {
+    if (strs.exists(_.isEmpty) || strs.size <= 1) accu
+    else {
+      val first = strs.head.head
+      if (strs.tail.exists(_.head != first)) accu
+      else longestCommonPrefix(strs.map(_.tail), Some(accu.getOrElse("") + first))
+    }
+  }
 
   /** True if there are more consensus reads, false otherwise. */
   def hasNext(): Boolean = this.nextConsensusRecords.nonEmpty || (this.iter.nonEmpty && advance())
@@ -346,7 +335,7 @@ class ConsensusCaller
     var success = false
 
     // fragment
-    ConsensusCaller.consensusFromSamRecords(records=fragments, options=options) match {
+    consensusFromSamRecords(records=fragments) match {
       case None       => // reject
         rejectRecords(records=fragments);
       case Some(frag) => // output
@@ -356,8 +345,8 @@ class ConsensusCaller
 
     // pairs
     val needBothPairs = options.requireConsensusForBothPairs // for readability later
-    val firstOfPairConsensus  = ConsensusCaller.consensusFromSamRecords(records=firstOfPair, options=options)
-    val secondOfPairConsensus = ConsensusCaller.consensusFromSamRecords(records=secondOfPair, options=options)
+    val firstOfPairConsensus  = consensusFromSamRecords(records=firstOfPair)
+    val secondOfPairConsensus = consensusFromSamRecords(records=secondOfPair)
     (firstOfPairConsensus, secondOfPairConsensus) match {
       case (None, None)                                       => // reject
         rejectRecords(records=firstOfPair ++ secondOfPair)
@@ -409,11 +398,12 @@ class ConsensusCaller
     * "CONSENSUS" is used.  If no records are given, the empty string is returned.
     */
   private def nextReadName(records: Seq[SAMRecord]): String = {
-    if (records.isEmpty) return ""
-    val curIdx = readIdx
-    readIdx += 1
-    val prefix = readNamePrefix.getOrElse(ConsensusCaller.longestCommonPrefix(records.map(_.getReadName)).getOrElse("CONSENSUS"))
-    s"$prefix:$curIdx"
+    if (records.isEmpty) ""
+    else this.options.tag + ":" + records.head.getStringAttribute(this.options.tag)
+//    val curIdx = readIdx
+//    readIdx += 1
+//    val prefix = readNamePrefix.getOrElse(longestCommonPrefix(records.map(_.getReadName)).getOrElse("CONSENSUS"))
+//    s"$prefix:$curIdx"
   }
 
   /** Creates a `SAMRecord` for both ends of a pair.  If a consensus read is not given for one end of a pair, a dummy
@@ -461,8 +451,8 @@ class ConsensusCaller
         rec.setSecondOfPairFlag(true)
         rec.setMateUnmappedFlag(true)
     }
-    rec.setReadString(read.bases)
-    rec.setBaseQualityString(read.quals)
+    rec.setReadBases(read.bases)
+    rec.setBaseQualities(read.quals)
     rec.setAttribute(SAMTag.RG.name(), readGroupId)
     rec.setAttribute(options.tag, records.head.getStringAttribute(options.tag))
     // TODO: set custom SAM tags:
@@ -475,6 +465,6 @@ class ConsensusCaller
   /** Creates a dummy consensus read.  The read and quality strings will have the same length as the source, with
     * the read string being all Ns, and the quality string having zero base qualities. */
   private def dummyConsensusRead(source: ConsensusRead): ConsensusRead = {
-    ConsensusRead(bases=source.bases.map(_ => 'N'), quals=source.quals.map(_ => PhredZeroChar))
+    ConsensusRead(bases=source.bases.map(_ => 'N'.toByte), quals=source.quals.map(_ => PhredScore.MinValue))
   }
 }

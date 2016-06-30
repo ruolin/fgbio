@@ -83,7 +83,7 @@ class CallMolecularConsensusReads
   @arg(flag="R", doc="The new read group ID for all the consensus reads.") val readGroupId: String = "A",
   @arg(flag="1", doc="The Phred-scaled error rate for an error prior to the UMIs being integrated.") val errorRatePreUmi: PhredScore = DefaultErrorRatePreUmi,
   @arg(flag="2", doc="The Phred-scaled error rate for an error post the UMIs have been integrated.") val errorRatePostUmi: PhredScore = DefaultErrorRatePostUmi,
-  @arg(flag="q", doc="Cap the maximum base quality in the input (after shifting).") val maxBaseQuality: Double = 40,
+  @arg(flag="q", doc="Cap the maximum base quality in the input (after shifting).") val maxBaseQuality: PhredScore = DefaultMaxBaseQuality,
   @arg(flag="s", doc="Subtract this base quality from the input base qualities (prior to capping).") val baseQualityShift: PhredScore = DefaultBaseQualityShift,
   @arg(flag="N", doc="Mask (make 'N') consensus bases with quality less than this threshold.") val minConsensusBaseQuality: PhredScore = DefaultMinConsensusBaseQuality,
   @arg(flag="M", doc="The minimum number of reads to produce a consensus base.") val minReads: Int = DefaultMinReads,
@@ -116,7 +116,7 @@ class CallMolecularConsensusReads
       requireConsensusForBothPairs = requireConsensusForBothPairs
     )
 
-    val progress = new ProgressLogger(logger, unit=10000)
+    val progress = new ProgressLogger(logger, unit=1e5.toInt)
     val consensusCaller = new ConsensusCaller(
       input          = in.iterator().asScala,
       header         = in.getFileHeader,

@@ -27,11 +27,10 @@ package com.fulcrumgenomics.umi
 
 import com.fulcrumgenomics.testing.UnitSpec
 import com.fulcrumgenomics.umi.ConsensusCallerOptions._
-import com.fulcrumgenomics.util.LogDouble._
-import com.fulcrumgenomics.util.PhredScore._
-import com.fulcrumgenomics.util.{LogDouble, PhredScore}
+import com.fulcrumgenomics.util.NumericTypes._
 import htsjdk.samtools.util.CloserUtil
-import htsjdk.samtools.{SAMRecordSetBuilder, SAMUtils}
+import htsjdk.samtools.{SAMFileHeader, SAMRecordSetBuilder, SAMUtils}
+import net.jafama.FastMath._
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -40,249 +39,227 @@ import scala.collection.JavaConverters._
   * Tests for ConsensusCaller.
   */
 class ConsensusCallerTest extends UnitSpec {
+  /** Helper function to make a set of consensus caller options. */
+  def cco = ConsensusCallerOptions
 
-  private def qualtiesEqual(actual: Seq[LogDouble], expected: Seq[Int]): Boolean = {
-    if (actual.length != expected.length) false
-    else actual.zip(expected.map(_.fromPhredScore)).exists { case (act, exp) => Math.abs(act.logValue - exp.logValue) > 0.00001 }
+  /** Helper function to make a consensus caller. */
+  def cc(options: ConsensusCallerOptions = new ConsensusCallerOptions()) = {
+    new ConsensusCaller(Iterator.empty, new SAMFileHeader, options=options)
+  }
+
+  /** Helper function to make a SourceRead. */
+  def src(bases: String, quals: TraversableOnce[Int]) = SourceRead(bases.getBytes(), quals.toArray.map(_.toByte))
+
+  /** Helper function to make a SourceRead from bases and Phred-33 ascii quals. */
+  def src(bases: String, quals: String) = SourceRead(bases.getBytes(), SAMUtils.fastqToPhred(quals))
+
+  /**
+    * Function to calculated the expected quality of a consensus base in non-log math, that should work for
+    * modest values of Q and N.
+ *
+    * @param q The quality score of the correct bases (assumed all the same)
+    * @param n The number of observations at that quality
+    * @return the phred-scaled number (byte) of the consensus base
+    */
+  def expectedConsensusQuality(q: Int, n: Int): Byte = {
+    val p   = BigDecimal(pow(10.0, q  / -10.0))
+    val ok  = BigDecimal(1) - p
+    val err = p / 3 // error could be one of three bases
+
+    val numerator   = ok.pow(n)
+    val denomenator = numerator + (err.pow(2) * 3)
+    val pError = 1 - (numerator / denomenator)
+    val phred = -10 * log10(pError.toDouble)
+    phred.toByte
   }
 
   "ConsensusCaller.adjustBaseQualities" should "cap base qualities" in {
-    val quals = ConsensusCaller.adjustBaseQualities(
-      quals=Seq(20, 15, 10, 5).map(_.fromPhredScore),
-      maxBaseQuality   = 10.fromPhredScore,
-      baseQualityShift = 0,
-      errorRatePostUmi = ZeroProbability.fromPhredScore
-    )
-    qualtiesEqual(quals, Seq(10, 10, 10, 5))
+    val caller   = cc(cco(maxBaseQuality=10.toByte, baseQualityShift=0.toByte, errorRatePostUmi=Byte.MaxValue))
+    val adjusted = caller.adjustBaseQualities(SourceRead("ACGT".getBytes(), Array(20, 15, 10, 5).map(_.toByte)))
+    val actuals  = adjusted.pError.map(p => -10 * log10(exp(p))).map(_.toByte).toSeq
+    actuals shouldBe Seq(10, 10, 10, 5)
   }
 
   it should "shift base qualities" in {
-    val quals = ConsensusCaller.adjustBaseQualities(
-      quals=Seq(20, 15, 10, 5).map(_.fromPhredScore),
-      maxBaseQuality   = Int.MaxValue.fromPhredScore,
-      baseQualityShift = 10,
-      errorRatePostUmi =  ZeroProbability.fromPhredScore
-    )
-    qualtiesEqual(quals, Seq(10, 5, 0, 0))
+    val caller   = cc(cco(maxBaseQuality=Byte.MaxValue, baseQualityShift=10.toByte, errorRatePostUmi=Byte.MaxValue))
+    val adjusted = caller.adjustBaseQualities(SourceRead("ACGT".getBytes(), Array(20, 15, 10, 5).map(_.toByte)))
+    val actuals  = adjusted.pError.map(p => -10 * log10(exp(p))).map(_.toByte).toSeq
+    actuals shouldBe Seq(10, 5, 2, 2)
   }
 
   it should "scale base qualities using the post-umi error rate" in {
-    val quals = ConsensusCaller.adjustBaseQualities(
-      quals=Seq(20, 15, 10, 5).map(_.fromPhredScore),
-      maxBaseQuality   = Int.MaxValue.fromPhredScore,
-      baseQualityShift = 0,
-      errorRatePostUmi = 10.fromPhredScore
-    )
-    qualtiesEqual(quals, Seq(9, 8, 7, 4))
+    val caller   = cc(cco(maxBaseQuality=Byte.MaxValue, baseQualityShift=0.toByte, errorRatePostUmi=10.toByte))
+    val adjusted = caller.adjustBaseQualities(SourceRead("ACGT".getBytes(), Array(20, 15, 10, 5).map(_.toByte)))
+    val actuals  = adjusted.pError.map(p => -10 * log10(exp(p))).map(_.toByte).toSeq
+    actuals shouldBe Seq(9, 8, 7, 4)
   }
 
   it should "cap, shift, and scale base qualities" in {
-    val quals = ConsensusCaller.adjustBaseQualities(
-      quals=Seq(20, 15, 10, 5).map(_.fromPhredScore),
-      maxBaseQuality   = 10.fromPhredScore,
-      baseQualityShift = 5,
-      errorRatePostUmi = 10.fromPhredScore
-    )
-    qualtiesEqual(quals, Seq(7, 7, 4, 0))
+    val caller   = cc(cco(maxBaseQuality=10.toByte, baseQualityShift=5.toByte, errorRatePostUmi=10.toByte))
+    val adjusted = caller.adjustBaseQualities(SourceRead("ACGT".getBytes(), Array(20, 15, 10, 5).map(_.toByte)))
+    val actuals  = adjusted.pError.map(p => -10 * log10(exp(p))).map(_.toByte).toSeq
+    actuals shouldBe Seq(7, 7, 4, 1)
   }
 
   "ConsensusCaller.consensusCalls" should "produce a consensus from one read" in {
-    val bases = "GATTACA"
-    val quals = Seq(10, 10, 10, 10, 10, 10, 10).map(_.fromPhredScore)
-    val (cBases, cQuals) = ConsensusCaller.consensusCallFromStringBasesAndQualities(
-      baseStrings             = Seq(bases),
-      qualSeqs                = Seq(quals),
-      errorRatePreUmi         = ZeroProbability.fromPhredScore,
-      minReads                = 1,
-      minConsensusBaseQuality = 0.fromPhredScore
-    )
-    cBases shouldBe bases
-    cQuals.map(_.toPhredScoreInt) should contain theSameElementsInOrderAs quals.map(_.toPhredScoreInt)
+    val source = src("GATTACA", Seq(10, 10, 10, 10, 10, 10, 10))
+    val caller = cc(cco(errorRatePreUmi=PhredScore.MaxValue, minReads=1, baseQualityShift=0.toByte, minConsensusBaseQuality=0.toByte, minMeanConsensusBaseQuality=0.toByte))
+    val consensus = caller.consensusCall(Seq(source))
+    consensus shouldBe 'defined
+    consensus.get.bases shouldBe source.bases
+    consensus.get.quals shouldBe source.quals
   }
 
   it should "produce a consensus from two reads" in {
-    val bases = "GATTACA"
-    val quals = Seq(10, 10, 10, 10, 10, 10, 10).map(_.fromPhredScore)
-    val (cBases, cQuals) = ConsensusCaller.consensusCallFromStringBasesAndQualities(
-      baseStrings = Seq(bases, bases),
-      qualSeqs = Seq(quals, quals),
-      minReads = 1,
-      minConsensusBaseQuality = 0.fromPhredScore
-    )
-    val err = 10.fromPhredScore / 3.0.toLogDouble
-    val ok  = 10.fromPhredScore.oneMinus()
-    val numerator = ok * ok
-    val denominator = numerator + (3.0.toLogDouble * err * err)
-    val expectedQual = (numerator / denominator).oneMinus()
-    val expectedQuals = quals.map(q => expectedQual.toPhredScoreInt)
-    cBases shouldBe bases
-    cQuals.map(_.toPhredScoreInt) should contain theSameElementsInOrderAs expectedQuals
+    val source    = src("GATTACA", Seq(10, 10, 10, 10, 10, 10, 10))
+    val sources   = Seq(source, source)
+
+    val expectedQual = expectedConsensusQuality(10, 2)
+    val expectedQuals = source.quals.map(q => expectedQual)
+
+    val consensus = cc(cco(minReads=1, minConsensusBaseQuality=0.toByte, baseQualityShift=0.toByte)).consensusCall(sources)
+    consensus shouldBe 'defined
+    consensus.get.bases shouldBe source.bases
+    consensus.get.quals should contain theSameElementsInOrderAs expectedQuals
   }
 
   it should "produce a consensus from three reads, with one disagreement" in {
-    val bases = "GATTACA"
-    val otherBases = "GATTTCA"
-    val quals = Array(10, 10, 10, 10, 10, 10, 10).map(_.fromPhredScore)
-    val (cBases, cQuals) = ConsensusCaller.consensusCallFromStringBasesAndQualities(
-      baseStrings             = Seq(bases, bases, otherBases),
-      qualSeqs                = Seq(quals, quals, quals),
-      errorRatePreUmi         = ZeroProbability.fromPhredScore,
-      minReads                = 1,
-      minConsensusBaseQuality = 0.fromPhredScore
-    )
-    val err = 10.fromPhredScore / 3.0.toLogDouble
-    val ok  = 10.fromPhredScore.oneMinus()
-    val numeratorAgreement = ok * ok * ok
-    val denominatorAgreement = numeratorAgreement + (3.0.toLogDouble * err * err * err)
-    val agreementQual = (numeratorAgreement / denominatorAgreement).oneMinus()
+    val quals = Array(10, 10, 10, 10, 10, 10, 10)
+    val source1 = src("GATTACA", quals)
+    val source2 = src("GATTTCA", quals)
+    val err = LogDouble.fromPhredScore(10) - LogDouble.LnThree
+    val ok  = LogDouble.oneMinus(LogDouble.fromPhredScore(10))
+    val numeratorAgreement = ok + ok + ok
+    val denominatorAgreement = LogDouble.add(numeratorAgreement, LogDouble.LnThree + err + err + err)
+    val agreementQual = LogDouble.oneMinus(numeratorAgreement - denominatorAgreement)
 
-    val numeratorDisagreement = ok * ok * err
-    val denominatorDisagreement = numeratorDisagreement + (err * err * ok) + (2.0.toLogDouble * err * err * err)
-    val disagreementQual = (numeratorDisagreement / denominatorDisagreement).oneMinus()
+    val numeratorDisagreement = ok + ok + err
+    val denominatorDisagreement = LogDouble.sum(Array(numeratorDisagreement, err + err + ok, LogDouble.LnTwo + err + err + err))
+    val disagreementQual = LogDouble.oneMinus(numeratorDisagreement - denominatorDisagreement)
 
-    val expectedQuals = bases.zip(otherBases).map {
+    val expectedQuals = source1.bases.zip(source2.bases).map {
       case (left, right) =>
         if (left == right) agreementQual
         else disagreementQual
-  }.map(_.toPhredScoreInt)
+    }.map(PhredScore.fromLogProbability)
 
-    cBases shouldBe bases
-    cQuals.map(_.toPhredScoreInt) should contain theSameElementsInOrderAs expectedQuals
+    val caller = cc(cco(errorRatePreUmi=PhredScore.MaxValue, baseQualityShift=0.toByte, minReads=1, minConsensusBaseQuality=0.toByte))
+    val consensus = caller.consensusCall(Seq(source1, source1, source2))
+    consensus shouldBe 'defined
+    consensus.get.bases shouldBe source1.bases
+    consensus.get.quals should contain theSameElementsInOrderAs expectedQuals
   }
 
   it should "produce a consensus from two reads of differing lengths" in {
-    val quals = Array(10, 10, 10, 10, 10, 10, 10).map(_.fromPhredScore)
-    val (cBases, cQuals) = ConsensusCaller.consensusCallFromStringBasesAndQualities(
-      baseStrings = Seq("GATTACA", "GATTAC"),
-      qualSeqs = Seq(quals, quals.slice(0, quals.length-1)),
-      minReads = 2,
-      minConsensusBaseQuality = 0.fromPhredScore
-    )
+    val quals = Array(10, 10, 10, 10, 10, 10, 10)
+    val caller = cc(cco(minReads=2, minConsensusBaseQuality=0.toByte, baseQualityShift=0.toByte))
+    val consensus = caller.consensusCall(Seq(src("GATTACA", quals), src("GATTAC", quals.slice(0, quals.length-1))))
 
-    val err = 10.fromPhredScore / 3.0.toLogDouble
-    val ok = 10.fromPhredScore.oneMinus()
-    val numerator = ok * ok
-    val denominator = numerator + (3.0.toLogDouble * err * err)
-    val newQual = (numerator / denominator).oneMinus().toPhredScoreChar.toString
+    val newQual = expectedConsensusQuality(10, 2)
+    val newQuals = Array(newQual, newQual, newQual, newQual, newQual, newQual, 2.toByte)
 
-    cBases shouldBe "GATTACN"
-    cQuals.map(_.toPhredScoreChar).mkString shouldBe ((newQual * 6) + PhredZeroChar.toString)
+    consensus shouldBe 'defined
+    consensus.get.baseString shouldBe "GATTACN"
+    consensus.get.quals shouldBe newQuals
   }
 
   it should "mask bases with too low of a consensus quality" in {
     val bases = "GATTACA"
     val quals = Array(10, 10, 10, 10, 10, 10, 0)
-    val expectedQuals = Array(10, 10, 10, 10, 10, 10, 1)
-    val (cBases, cQuals) = ConsensusCaller.consensusCallFromStringBasesAndQualities(
-      baseStrings             = Seq(bases),
-      qualSeqs                = Seq(quals.map(_.fromPhredScore)),
-      errorRatePreUmi         = ZeroProbability.fromPhredScore,
-      minReads                = 1,
-      minConsensusBaseQuality = 10.fromPhredScore
-    )
-    cBases shouldBe "GATTACN"
-    cQuals.map(_.toPhredScoreChar).mkString shouldBe expectedQuals.map(_.fromPhredScore.toPhredScoreChar).mkString
+    val expectedQuals = Array(10, 10, 10, 10, 10, 10, 2).map(_.toByte)
+    val caller    = cc(cco(errorRatePreUmi=PhredScore.MaxValue, minReads=1, minConsensusBaseQuality=10.toByte,
+                           minMeanConsensusBaseQuality=PhredScore.MinValue, baseQualityShift=0.toByte))
+    val consensus = caller.consensusCall(Seq(src(bases, quals)))
+    consensus shouldBe 'defined
+    consensus.get.baseString shouldBe "GATTACN"
+    consensus.get.quals shouldBe expectedQuals
   }
 
   "ConsensusCaller.consensusFromStringBasesAndQualities" should "return None if there are not enough reads" in {
-    ConsensusCaller.consensusFromStringBasesAndQualities(Seq.empty, ConsensusCallerOptions(minReads=1)) shouldBe None
-    ConsensusCaller.consensusFromStringBasesAndQualities(Seq(("GATTACA", "IIIIIII")), ConsensusCallerOptions(minReads=2)) shouldBe None
+    cc(cco(minReads=1)).consensusCall(Seq.empty) shouldBe None
+    cc(cco(minReads=2)).consensusCall(Seq(src("GATTACA", Array(20,20,20,20,20,20,20)))) shouldBe None
   }
 
   it should "throw an exception if the bases and qualities are of a different length" in {
-    an[IllegalArgumentException] should be thrownBy ConsensusCaller.consensusFromStringBasesAndQualities(Seq(("GATTACA", "I")))
-    an[IllegalArgumentException] should be thrownBy ConsensusCaller.consensusFromStringBasesAndQualities(Seq(("G", "IIIIIII")))
+    an[AssertionError] should be thrownBy cc().consensusCall(Seq(src("GATTACA", Array(20))))
+    an[AssertionError] should be thrownBy cc().consensusCall(Seq(src("G", Array(20,20,20,20,20))))
   }
 
   it should "not return a consensus read if the mean consensus quality is too low" in {
-    val call1 = ConsensusCaller.consensusFromStringBasesAndQualities(
-      basesAndQualities = Seq(("GATTACA", "AAAAAAA")),
-      options           = ConsensusCallerOptions(
-        errorRatePreUmi = PhredScore.ZeroProbability,
-        minReads=1,
-        minMeanConsensusBaseQuality=255
-      )
-    )
+    val call1 = cc(cco(errorRatePreUmi=PhredScore.MaxValue, minReads=1, minMeanConsensusBaseQuality=PhredScore.MaxValue))
+                  .consensusCall(Seq(src("GATTACA", "AAAAAAA")))
     call1 shouldBe None
 
-    val call2 = ConsensusCaller.consensusFromStringBasesAndQualities(
-      basesAndQualities = Seq(("GATTACA", "AAAAAAA")),
-      options           = ConsensusCallerOptions(
-        errorRatePreUmi = ZeroProbability,
-        minReads=1,
-        minMeanConsensusBaseQuality=0
-      )
-    )
+    val call2 = cc(cco(errorRatePreUmi=PhredScore.MaxValue, minReads=1, minMeanConsensusBaseQuality=PhredScore.MinValue))
+                  .consensusCall(Seq(src("GATTACA", "AAAAAAA")))
     call2 shouldBe 'defined
   }
 
   it should "apply the pre-umi-error-rate when it has probability zero" in {
-    val inputQuals = Seq(10, 10, 10, 10, 10, 10, 10).map(_.fromPhredScore)
-    val inputQualsString = inputQuals.map(_.toPhredScoreChar).mkString
-    ConsensusCaller.consensusFromStringBasesAndQualities(
-      basesAndQualities=Seq(("GATTACA", inputQualsString)),
-      options = ConsensusCallerOptions(
-        errorRatePreUmi             = ZeroProbability,
-        errorRatePostUmi            = ZeroProbability,
-        maxBaseQuality              = 255,
-        baseQualityShift            = 0,
-        minConsensusBaseQuality     = 0,
-        minReads                    = 1,
-        minMeanConsensusBaseQuality = 0
-      )
-    ) match {
+    val inputQuals = Seq(10, 10, 10, 10, 10, 10, 10)
+    val source = src("GATTACA", inputQuals)
+    val opts = cco(
+      errorRatePreUmi             = PhredScore.MaxValue,
+      errorRatePostUmi            = PhredScore.MaxValue,
+      maxBaseQuality              = PhredScore.MaxValue,
+      baseQualityShift            = 0.toByte,
+      minConsensusBaseQuality     = PhredScore.MinValue,
+      minReads                    = 1,
+      minMeanConsensusBaseQuality = PhredScore.MinValue
+    )
+
+    cc(opts).consensusCall(Seq(source)) match {
       case None => fail
-      case Some(ConsensusRead(cBases, cQuals)) =>
-        cBases shouldBe "GATTACA"
-        cQuals shouldBe inputQualsString
+      case Some(consensus) =>
+        consensus.baseString shouldBe "GATTACA"
+        consensus.quals shouldBe inputQuals.map(_.toByte)
     }
   }
 
   it should "apply the pre-umi-error-rate when it has probability greater than zero" in {
-    val inputQuals = Seq(10, 10, 10, 10, 10, 10, 10).map(_.fromPhredScore)
-    val inputQualsString = inputQuals.map(_.toPhredScoreChar).mkString
-    val outputQuals = inputQuals.map(phred => ConsensusCaller.probabilityOfErrorTwoTrials(phred, 10.fromPhredScore))
-    val outputQualsString = outputQuals.map(_.toPhredScoreChar).mkString
-    ConsensusCaller.consensusFromStringBasesAndQualities(
-      basesAndQualities=Seq(("GATTACA", inputQualsString)),
-      options = ConsensusCallerOptions(
-        errorRatePreUmi             = 10,
-        errorRatePostUmi            = ZeroProbability,
-        maxBaseQuality              = 255,
-        baseQualityShift            = 0,
-        minConsensusBaseQuality     = 0,
-        minReads                    = 1,
-        minMeanConsensusBaseQuality = 0
-      )
-    ) match {
+    val caller = cc(cco(
+      errorRatePreUmi             = 10.toByte,
+      errorRatePostUmi            = PhredScore.MaxValue,
+      maxBaseQuality              = PhredScore.MaxValue,
+      baseQualityShift            = 0.toByte,
+      minConsensusBaseQuality     = PhredScore.MinValue,
+      minReads                    = 1,
+      minMeanConsensusBaseQuality = PhredScore.MinValue
+    ))
+
+    val inputQuals = Seq(10, 10, 10, 10, 10, 10, 10)
+    val lnProbError = LogDouble.fromPhredScore(10)
+    val outputQual  = PhredScore.fromLogProbability(caller.probabilityOfErrorTwoTrials(lnProbError, lnProbError))
+    val outputQuals = inputQuals.map(q => outputQual)
+    caller.consensusCall(Seq(src("GATTACA", inputQuals))) match {
       case None => fail
-      case Some(ConsensusRead(cBases, cQuals)) =>
-        cBases shouldBe "GATTACA"
-        cQuals shouldBe outputQualsString
+      case Some(consensus) =>
+        consensus.baseString shouldBe "GATTACA"
+        consensus.quals      shouldBe outputQuals
     }
   }
 
   it should "apply the post-umi-error-rate when it has probability greater than zero" in {
-    val inputQuals = Seq(10, 10, 10, 10, 10, 10, 10).map(_.fromPhredScore)
-    val inputQualsString = inputQuals.map(_.toPhredScoreChar).mkString
-    val outputQuals = inputQuals.map(phred => ConsensusCaller.probabilityOfErrorTwoTrials(phred, 10.fromPhredScore))
-    val outputQualsString = outputQuals.map(_.toPhredScoreChar).mkString
-    ConsensusCaller.consensusFromStringBasesAndQualities(
-      basesAndQualities=Seq(("GATTACA", inputQualsString)),
-      options = ConsensusCallerOptions(
-        errorRatePreUmi             = ZeroProbability,
-        errorRatePostUmi            = 10,
-        maxBaseQuality              = 255,
-        baseQualityShift            = 0,
-        minConsensusBaseQuality     = 0,
-        minReads                    = 1,
-        minMeanConsensusBaseQuality = 0
-      )
-    ) match {
+    val caller = cc(cco(
+      errorRatePreUmi             = PhredScore.MaxValue,
+      errorRatePostUmi            = 10.toByte,
+      maxBaseQuality              = PhredScore.MaxValue,
+      baseQualityShift            = 0.toByte,
+      minConsensusBaseQuality     = PhredScore.MinValue,
+      minReads                    = 1,
+      minMeanConsensusBaseQuality = PhredScore.MinValue
+    ))
+
+    val inputQuals = Seq(10, 10, 10, 10, 10, 10, 10)
+    val lnProbError = LogDouble.fromPhredScore(10)
+    val outputQual  = PhredScore.fromLogProbability(caller.probabilityOfErrorTwoTrials(lnProbError, lnProbError))
+    val outputQuals = inputQuals.map(q => outputQual)
+
+    caller.consensusCall(Seq(src("GATTACA", inputQuals))) match {
       case None => fail
-      case Some(ConsensusRead(cBases, cQuals)) =>
-        cBases shouldBe "GATTACA"
-        cQuals shouldBe outputQualsString
+      case Some(consensus) =>
+        consensus.baseString shouldBe "GATTACA"
+        consensus.quals      shouldBe outputQuals
     }
   }
 
@@ -302,8 +279,8 @@ class ConsensusCallerTest extends UnitSpec {
       header = reader.getFileHeader,
       options = new ConsensusCallerOptions(
         minReads         = 1,
-        errorRatePreUmi  = PhredScore.ZeroProbability,
-        errorRatePostUmi = PhredScore.ZeroProbability
+        errorRatePreUmi  = PhredScore.MaxValue,
+        errorRatePostUmi = PhredScore.MaxValue
       )
     )
     consensusCaller.hasNext shouldBe true
@@ -328,8 +305,8 @@ class ConsensusCallerTest extends UnitSpec {
       header = reader.getFileHeader,
       options = new ConsensusCallerOptions(
         minReads         = 1,
-        errorRatePreUmi  = PhredScore.ZeroProbability,
-        errorRatePostUmi = PhredScore.ZeroProbability
+        errorRatePreUmi  = PhredScore.MaxValue,
+        errorRatePostUmi = PhredScore.MaxValue
       )
     )
     consensusCaller.hasNext shouldBe true
@@ -368,8 +345,8 @@ class ConsensusCallerTest extends UnitSpec {
       header = reader.getFileHeader,
       options = new ConsensusCallerOptions(
         minReads         = 1,
-        errorRatePreUmi  = PhredScore.ZeroProbability,
-        errorRatePostUmi = PhredScore.ZeroProbability
+        errorRatePreUmi  = PhredScore.MaxValue,
+        errorRatePostUmi = PhredScore.MaxValue
       )
     )
     consensusCaller.hasNext shouldBe true
