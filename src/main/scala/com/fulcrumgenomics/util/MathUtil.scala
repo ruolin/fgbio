@@ -39,14 +39,14 @@ object MathUtil {
   }
 
   /** Finds the minimum element in the array and returns it with its index. */
-  def minWithIndex(vs: Array[Double]): (Double,Int) = {
+  def minWithIndex(vs: Array[Double], excludeNegInfinity: Boolean = true): (Double,Int) = {
     var min     = Double.MaxValue
     var minIndex = -1
     val len = vs.length
     var idx = 0
     while (idx < len) {
       val v = vs(idx)
-      if (v < min) {
+      if (v < min && (!excludeNegInfinity || Double.NegativeInfinity != v)) {
         min = v
         minIndex = idx
       }

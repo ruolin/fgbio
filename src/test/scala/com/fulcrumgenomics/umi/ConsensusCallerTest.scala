@@ -28,6 +28,7 @@ package com.fulcrumgenomics.umi
 import com.fulcrumgenomics.testing.UnitSpec
 import com.fulcrumgenomics.umi.ConsensusCallerOptions._
 import com.fulcrumgenomics.util.NumericTypes._
+import com.fulcrumgenomics.util.NumericTypes.LogProbability._
 import htsjdk.samtools.util.CloserUtil
 import htsjdk.samtools.{SAMFileHeader, SAMRecordSetBuilder, SAMUtils}
 import net.jafama.FastMath._
@@ -127,15 +128,19 @@ class ConsensusCallerTest extends UnitSpec {
     val quals = Array(10, 10, 10, 10, 10, 10, 10)
     val source1 = src("GATTACA", quals)
     val source2 = src("GATTTCA", quals)
-    val err = LogDouble.fromPhredScore(10) - LogDouble.LnThree
-    val ok  = LogDouble.oneMinus(LogDouble.fromPhredScore(10))
-    val numeratorAgreement = ok + ok + ok
-    val denominatorAgreement = LogDouble.add(numeratorAgreement, LogDouble.LnThree + err + err + err)
-    val agreementQual = LogDouble.oneMinus(numeratorAgreement - denominatorAgreement)
+    val err = LogProbability.normalizeByScalar(LogProbability.fromPhredScore(10), 3)
+    val ok  = LogProbability.not(LogProbability.fromPhredScore(10))
+    val numeratorAgreement = LogProbability.andAll(Array(ok, ok, ok))
+    val denominatorAgreement = LogProbability.or(numeratorAgreement, LogProbability.andAll(Array(LnThree, err, err, err)))
+    val agreementQual = LogProbability.not(LogProbability.normalizeByLogProbability(numeratorAgreement, denominatorAgreement))
 
-    val numeratorDisagreement = ok + ok + err
-    val denominatorDisagreement = LogDouble.sum(Array(numeratorDisagreement, err + err + ok, LogDouble.LnTwo + err + err + err))
-    val disagreementQual = LogDouble.oneMinus(numeratorDisagreement - denominatorDisagreement)
+    val numeratorDisagreement =  LogProbability.andAll(Array(ok, ok, err))
+    val denominatorDisagreement = LogProbability.orAll(Array(
+      numeratorDisagreement,
+      LogProbability.andAll(Array(err, err, ok)),
+      LogProbability.andAll(Array(LnThree, err, err, err)))
+    )
+    val disagreementQual = LogProbability.not(numeratorDisagreement - denominatorDisagreement)
 
     val expectedQuals = source1.bases.zip(source2.bases).map {
       case (left, right) =>
@@ -228,7 +233,7 @@ class ConsensusCallerTest extends UnitSpec {
     ))
 
     val inputQuals = Seq(10, 10, 10, 10, 10, 10, 10)
-    val lnProbError = LogDouble.fromPhredScore(10)
+    val lnProbError = LogProbability.fromPhredScore(10)
     val outputQual  = PhredScore.fromLogProbability(caller.probabilityOfErrorTwoTrials(lnProbError, lnProbError))
     val outputQuals = inputQuals.map(q => outputQual)
     caller.consensusCall(Seq(src("GATTACA", inputQuals))) match {
@@ -251,7 +256,7 @@ class ConsensusCallerTest extends UnitSpec {
     ))
 
     val inputQuals = Seq(10, 10, 10, 10, 10, 10, 10)
-    val lnProbError = LogDouble.fromPhredScore(10)
+    val lnProbError = LogProbability.fromPhredScore(10)
     val outputQual  = PhredScore.fromLogProbability(caller.probabilityOfErrorTwoTrials(lnProbError, lnProbError))
     val outputQuals = inputQuals.map(q => outputQual)
 
@@ -362,4 +367,5 @@ class ConsensusCallerTest extends UnitSpec {
     calls(2).getReadName shouldBe calls(3).getReadName
     calls(0).getReadName should not be calls(2).getReadName
     CloserUtil.close(reader)
-  }}
+  }
+}

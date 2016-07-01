@@ -61,12 +61,12 @@ case class ConsensusCallerOptions(tag: String                             = Defa
                                   requireConsensusForBothPairs: Boolean   = DefaultRequireConsensusForBothPairs
                                  ) {
 
-  val errorRatePreUmiLn  = LogDouble.fromPhredScore(errorRatePreUmi)
-  val errorRatePostUmiLn = LogDouble.fromPhredScore(errorRatePostUmi)
+  val errorRatePreUmiLn  = LogProbability.fromPhredScore(errorRatePreUmi)
+  val errorRatePostUmiLn = LogProbability.fromPhredScore(errorRatePostUmi)
 }
 
 /** Stores all the information about a read going into a consensus. */
-private[umi] case class AdjustedRead(bases: Array[Byte], pError: Array[Double], pCorrect: Array[Double]) {
+private[umi] case class AdjustedRead(bases: Array[Byte], pError: Array[LogProbability], pCorrect: Array[LogProbability]) {
   assert(bases.length == pError.length,   "Bases and qualities not the same length.")
   assert(bases.length == pCorrect.length, "Bases and qualities not the same length.")
 
@@ -86,7 +86,6 @@ case class ConsensusRead(bases: Array[Byte], quals: Array[Byte]) {
   /** Returns the consensus read a String - mostly useful for testing. */
   def baseString = new String(bases)
 }
-
 
 /** Calls consensus reads by grouping consecutive reads with the same SAM tag.
   *
@@ -111,23 +110,22 @@ class ConsensusCaller
   import ReadType._
 
   private val DnaBasesUpperCase: Array[Byte] = Array('A', 'C', 'G', 'T').map(_.toByte)
-  private val LnThree      = LogDouble.toLogDouble(3.0)
-  private val LnTwoThirds  = LogDouble.toLogDouble(2.0) - LnThree
-  private val LnFourThirds = LogDouble.toLogDouble(4.0) - LnThree
+  private val LogThree      = LogProbability.toLogProbability(3.0)
+  private val LogFourThirds = LogProbability.toLogProbability(4.0) - LogThree
 
-
-  private val phredToLnProbError: Array[Double] = Range(0, 100).toArray.map(p => {
-    val e1 = LogDouble.fromPhredScore(options.errorRatePostUmi)
-    val e2 = LogDouble.fromPhredScore(p.toByte)
+  /** Pre-computes the the log-scale probabilities of an error for each a phred-scaled base quality from 0-100. */
+  private val phredToLogProbError: Array[Double] = Range(0, 100).toArray.map(p => {
+    val e1 = LogProbability.fromPhredScore(options.errorRatePostUmi)
+    val e2 = LogProbability.fromPhredScore(p.toByte)
     probabilityOfErrorTwoTrials(e1, e2)
   })
 
-  private val phredToLnProbCorrect: Array[Double] = phredToLnProbError.map(LogDouble.oneMinus)
+  /** Pre-computes the the log-scale probabilities of an not an error for each a phred-scaled base quality from 0-100. */
+  private val phredToLogProbCorrect: Array[Double] = phredToLogProbError.map(LogProbability.not)
 
   private val iter = input.buffered
   private val nextConsensusRecords: mutable.Queue[SAMRecord] = mutable.Queue[SAMRecord]() // one per UMI group
   private var readIdx = 1
-
 
   /** Creates a consensus read from the given records.  If no consensus read was created, None is returned. */
   def consensusFromSamRecords(records: Seq[SAMRecord]): Option[ConsensusRead] = {
@@ -169,12 +167,12 @@ class ConsensusCaller
 
   /** Get the most likely consensus bases and qualities. */
   private[umi] def consensusCallAdjustedReads(reads: Seq[AdjustedRead]): ConsensusRead = {
-    type LogLikelihood = Double
+    type Base = Byte
     val maxReadLength = reads.map(_.length).max
 
     // Array
     // by cycle, by candidate base
-    val likelihoods = Array.ofDim[LogLikelihood](maxReadLength, DnaBasesUpperCase.length)
+    val likelihoods = Array.ofDim[LogProbability](maxReadLength, DnaBasesUpperCase.length) // NB: array is initialized to zero, which is toLogProbability(1.0)
     val numReads = new Array[Int](maxReadLength)
 
     // Calculate the likelihoods
@@ -200,9 +198,9 @@ class ConsensusCaller
               val candidateBase = DnaBasesUpperCase(i)
               val likelihood = {
                 if (base == candidateBase) read.pCorrect(baseIdx)
-                else read.pError(baseIdx) - LnThree //  Pr(Error) for this specific base, assuming the error distributes uniformly across the other three bases
+                else LogProbability.normalizeByScalar(read.pError(baseIdx), 3) //  Pr(Error) for this specific base, assuming the error distributes uniformly across the other three bases
               }
-              likelihoods(baseIdx)(i) += likelihood
+              likelihoods(baseIdx)(i) = LogProbability.and( likelihoods(baseIdx)(i), likelihood)
               i += 1
             }
             numReads(baseIdx) += 1
@@ -210,13 +208,12 @@ class ConsensusCaller
 
           baseIdx +=1
         }
-
         readIdx += 1
       }
     }
 
     // Calculate the posteriors
-    val consensusBases     = new Array[Byte](maxReadLength)
+    val consensusBases     = new Array[Base](maxReadLength)
     val consensusQualities = new Array[PhredScore](maxReadLength)
     for (baseIdx <- likelihoods.indices) { // for each base in the read
       if (numReads(baseIdx) < this.options.minReads) {
@@ -227,10 +224,10 @@ class ConsensusCaller
         // get the sum of the likelihoods
         // pick the base with the maximum posterior
         val lls  = likelihoods(baseIdx)
-        val likelihoodSum  = LogDouble.sum(lls)
+        val likelihoodSum   = LogProbability.orAll(lls)
         val (maxLikelihood, maxLlIndex) = MathUtil.maxWithIndex(lls)
-        val maxPosterior   = maxLikelihood - likelihoodSum
-        val pConsensusError = LogDouble.oneMinus(maxPosterior) // convert to probability of the called consensus being wrong
+        val maxPosterior    = LogProbability.normalizeByLogProbability(maxLikelihood, likelihoodSum)
+        val pConsensusError = LogProbability.not(maxPosterior) // convert to probability of the called consensus being wrong
 
         // Masks a base if the phred score would be too low
         consensusBases(baseIdx) = {
@@ -263,16 +260,16 @@ class ConsensusCaller
     */
   private[umi] def adjustBaseQualities(read: SourceRead): AdjustedRead = {
     val len = read.length
-    val pErrors   = new Array[Double](len)
-    val pCorrects = new Array[Double](len)
+    val pErrors   = new Array[LogProbability](len)
+    val pCorrects = new Array[LogProbability](len)
 
     val qs = read.quals
     var i = 0
     while (i < len) {
       val q = qs(i)
       val newQ = Math.min(this.options.maxBaseQuality, Math.max(PhredScore.MinValue, q - this.options.baseQualityShift))
-      pErrors(i)   = this.phredToLnProbError(newQ)
-      pCorrects(i) = this.phredToLnProbCorrect(newQ)
+      pErrors(i)   = this.phredToLogProbError(newQ)
+      pCorrects(i) = this.phredToLogProbCorrect(newQ)
       i += 1
     }
 
@@ -286,18 +283,18 @@ class ConsensusCaller
     * 3. the probability of an error in both trials, but when the second trial does not reverse the error in first one, which
     *    for DNA (4 bases) would only occur 2/3 times: Pr(A=x->y, B=y->z) * Pr(x!=z | x!=y, y!=z, x,y,z \in {A,C,G,T})
     */
-  private[umi] def probabilityOfErrorTwoTrials(prErrorTrialOne: Double, prErrorTrialTwo: Double): Double = {
+  private[umi] def probabilityOfErrorTwoTrials(prErrorTrialOne: LogProbability, prErrorTrialTwo: LogProbability): LogProbability = {
     if (prErrorTrialOne < prErrorTrialTwo) probabilityOfErrorTwoTrials(prErrorTrialTwo, prErrorTrialOne)
-    else if (prErrorTrialOne - prErrorTrialTwo >= 6) prErrorTrialOne
+    else if (prErrorTrialOne - prErrorTrialTwo >= 6) prErrorTrialOne // a simple approximation since prErrorTrialOne will dominate
     else {
       // f(X, Y) = X(1-Y) + (1-X)Y + 2/3*XY
       //         = X - XY + Y - XY + 2/3*XY
       //         = X + Y - 2XY + 2/3*XY
       //         = X + Y + XY*(2/3 - 6/3)
       //         = X + Y - 4/3*XY
-      val term1 = LogDouble.add(prErrorTrialOne, prErrorTrialTwo)
-      val term2 = LnFourThirds + prErrorTrialOne + prErrorTrialTwo
-      LogDouble.sub(term1, term2)
+      val term1 = LogProbability.or(prErrorTrialOne, prErrorTrialTwo) // X + Y
+      val term2 = LogFourThirds + prErrorTrialOne + prErrorTrialTwo // 4/3*XY
+      LogProbability.notOther(term1, term2)
     }
   }
 
