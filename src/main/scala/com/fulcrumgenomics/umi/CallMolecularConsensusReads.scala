@@ -33,9 +33,9 @@ import dagr.commons.io.Io
 import dagr.commons.util.LazyLogging
 import dagr.sopt._
 import dagr.sopt.cmdline.ValidationException
+import htsjdk.samtools.SAMFileHeader.{GroupOrder, SortOrder}
 import htsjdk.samtools._
 import htsjdk.samtools.util.CloserUtil
-import com.fulcrumgenomics.FgBioDef._
 
 import scala.collection.JavaConverters._
 
@@ -100,9 +100,10 @@ class CallMolecularConsensusReads
   /** Main method that does the work of reading input files, creating the consensus reads, and writing the output file. */
   override def execute(): Unit = {
     val in  = SamReaderFactory.make().open(input.toFile)
-    val out = new SAMFileWriterFactory().makeWriter(in.getFileHeader, true, output.toFile, null)
     val rej = new SAMFileWriterFactory().makeWriter(in.getFileHeader, true, rejects.toFile, null)
-    // TODO: metrics...
+
+    // The output file is unmapped, so for now let's clear out the sequence dictionary & PGs
+    val out = new SAMFileWriterFactory().makeWriter(outputHeader(in.getFileHeader), true, output.toFile, null)
 
     val options = new ConsensusCallerOptions(
       tag                          = tag,
@@ -133,5 +134,29 @@ class CallMolecularConsensusReads
     out.close()
     rej.close()
     logger.info(s"Processed ${progress.getCount} records.")
+  }
+
+  /** Constructs an output header with a single read group for the consensus BAM. */
+  private def outputHeader(in: SAMFileHeader): SAMFileHeader = {
+    val oldRgs = in.getReadGroups.asScala
+    def collapse(f: SAMReadGroupRecord => String): String = oldRgs.map(f).filter(_ != null).toSet.toList match {
+      case Nil      => null
+      case x :: Nil => x
+      case xs       => xs.mkString(",")
+    }
+
+    val rg = new SAMReadGroupRecord(readGroupId)
+    rg.setDescription(s"Consensus reads generated from ${oldRgs.size} input read groups.")
+    rg.setLibrary         (collapse(_.getLibrary))
+    rg.setSample          (collapse(_.getSample))
+    rg.setPlatform        (collapse(_.getPlatform))
+    rg.setPlatformUnit    (collapse(_.getPlatformUnit))
+    rg.setSequencingCenter(collapse(_.getSequencingCenter))
+
+    val outHeader = new SAMFileHeader
+    outHeader.addReadGroup(rg)
+    outHeader.setSortOrder(SortOrder.unsorted)
+    outHeader.setGroupOrder(GroupOrder.query)
+    outHeader
   }
 }

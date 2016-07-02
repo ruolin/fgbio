@@ -57,7 +57,7 @@ class ConsensusCallerTest extends UnitSpec {
   /**
     * Function to calculated the expected quality of a consensus base in non-log math, that should work for
     * modest values of Q and N.
- *
+    *
     * @param q The quality score of the correct bases (assumed all the same)
     * @param n The number of observations at that quality
     * @return the phred-scaled number (byte) of the consensus base
@@ -130,15 +130,15 @@ class ConsensusCallerTest extends UnitSpec {
     val source2 = src("GATTTCA", quals)
     val err = LogProbability.normalizeByScalar(LogProbability.fromPhredScore(10), 3)
     val ok  = LogProbability.not(LogProbability.fromPhredScore(10))
-    val numeratorAgreement = LogProbability.andAll(Array(ok, ok, ok))
-    val denominatorAgreement = LogProbability.or(numeratorAgreement, LogProbability.andAll(Array(LnThree, err, err, err)))
+    val numeratorAgreement = LogProbability.and(Array(ok, ok, ok))
+    val denominatorAgreement = LogProbability.or(numeratorAgreement, LogProbability.and(Array(LnThree, err, err, err)))
     val agreementQual = LogProbability.not(LogProbability.normalizeByLogProbability(numeratorAgreement, denominatorAgreement))
 
-    val numeratorDisagreement =  LogProbability.andAll(Array(ok, ok, err))
-    val denominatorDisagreement = LogProbability.orAll(Array(
+    val numeratorDisagreement =  LogProbability.and(Array(ok, ok, err))
+    val denominatorDisagreement = LogProbability.or(Array(
       numeratorDisagreement,
-      LogProbability.andAll(Array(err, err, ok)),
-      LogProbability.andAll(Array(LnThree, err, err, err)))
+      LogProbability.and(Array(err, err, ok)),
+      LogProbability.and(Array(LnThree, err, err, err)))
     )
     val disagreementQual = LogProbability.not(numeratorDisagreement - denominatorDisagreement)
 

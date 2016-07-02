@@ -27,6 +27,10 @@ package com.fulcrumgenomics.util
 import htsjdk.samtools.SAMUtils
 import net.jafama.FastMath._
 
+/**
+  * Container object for a set of numeric types for working with common probability
+  * scalings.
+  */
 object NumericTypes {
   /** The value of toLogProbability(x) for [0, 1, ..., 10] */
   private val LnValues: Array[Double] = Array(Double.NegativeInfinity, 0.0) ++ Array.range(2, 11, 1).map(x => log(x))
@@ -35,20 +39,12 @@ object NumericTypes {
   val LnTwo    = LnValues(2)
   val LnThree  = LnValues(3)
   val LnFour   = LnValues(4)
-  val LnFiv    = LnValues(5)
-  val LnSiz    = LnValues(6)
+  val LnFive   = LnValues(5)
+  val LnSix    = LnValues(6)
   val LnSeven  = LnValues(7)
   val LnEight  = LnValues(8)
-  val LnNone   = LnValues(9)
+  val LnNine   = LnValues(9)
   val LnTen    = LnValues(10)
-
-
-  def lnValueDouble(value: Double): Double = log(value)
-
-  def lnValueInt(value: Int): Double = {
-    if (0 <= value && value < LnValues.length) LnValues(value)
-    else log(value)
-  }
 
   /** A numeric type representing a `-10 * log(10)` scaled probability of error. */
   type PhredScore = Byte
@@ -86,20 +82,19 @@ object NumericTypes {
 
     /** Converts a numeric phred score to a one-byte character with a +33 offset. */
     def toFastq(score: PhredScore): Byte = SAMUtils.phredToFastq(score).toByte
-
-    /** Takes a phred score and converts it into the natural log of the probability of error. */
-    def toLogProbability(s: PhredScore): LogProbability = LnValues(10) * s / -10
-
-    /** Takes a phred score and converts it into the natural log of the probability of error. */
-    def toLogProbability(s: Int): LogProbability = {
-      if (s > Byte.MaxValue) toLogProbability(Byte.MaxValue)
-      else toLogProbability(s.toByte)
-    }
   }
 
   /** A type representing a natural log value of a probability. */
   type LogProbability = Double
 
+  /**
+    * Provides a set of operations for working with probabilities stored as (natural) logs.
+    * Operations are named based on logical operations (e.g. probability of a 'and' b) vs.
+    * mathematical operations (a * b or a + b).
+    *
+    * Most operations perform bounds and argument checking to ensure that nonsensical
+    * operations (e.g. divide by zero) don't proceed silently.
+    */
   object LogProbability {
     /** Converts the double to log-space. */
     def toLogProbability(value: Double): LogProbability = {
@@ -111,7 +106,10 @@ object NumericTypes {
     def fromPhredScore(s: PhredScore): LogProbability = LnValues(10) * s / -10
 
     /** Takes a phred score and converts it into the natural log of the probability of error. */
-    def fromPhredScore(s: Int): LogProbability = fromPhredScore(s.toByte)
+    def fromPhredScore(s: Int): LogProbability = {
+      if (s > Byte.MaxValue) fromPhredScore(Byte.MaxValue)
+      else fromPhredScore(s.toByte)
+    }
 
     /** Computes the probability of a or b, where a and b are independent events: Pr(A or B) = Pr(A) + Pr(B). */
     def or(a: LogProbability, b: LogProbability): LogProbability = {
@@ -122,7 +120,7 @@ object NumericTypes {
     }
 
     /** Computes the probability of any of the given independent events occurring: Pr(AB..N) = Pr(A)+Pr(B)+...+Pr(N). */
-    def orAll(values: Array[LogProbability]): LogProbability = {
+    def or(values: Array[LogProbability]): LogProbability = {
       if (values.forall(_.isNegInfinity)) Double.NegativeInfinity
       else {
         val (minValue, minValueIndex) = MathUtil.minWithIndex(values)
@@ -140,10 +138,13 @@ object NumericTypes {
     def and(a: LogProbability, b: LogProbability): LogProbability = a + b
 
     /** Computes the probability of the given independent events co-occurring: Pr(AB..N) = Pr(A)*Pr(B)*...*Pr(N). */
-    def andAll(values: Array[Double]): LogProbability = values.sum
+    def and(values: Array[Double]): LogProbability = values.sum
 
-    /** Computes the probability Pr(A and not B) = Pr(A) - Pr(B). */
-    def notOther(a: LogProbability, b: LogProbability): LogProbability = {
+    /**
+      * Computes the probability Pr(A OR not B) = Pr(A) - Pr(B). While this could be computed using
+      * or(a, not(b)), this form is more efficient and more precise.
+      */
+    def aOrNotB(a: LogProbability, b: LogProbability): LogProbability = {
       if (b.isNegInfinity) a
       else if (a == b) Double.NegativeInfinity
       else if (a < b) throw new IllegalArgumentException("Subtraction will be less than zero.")
@@ -154,7 +155,7 @@ object NumericTypes {
     def not(a: LogProbability): LogProbability = {
       if (LnValues(1)  < a) LnValues(0)
       else if (a < LnValues(0) ) LnValues(1)
-      else notOther(LnValues(1), a)
+      else aOrNotB(LnValues(1), a)
     }
 
     /** Normalizes a probability. */
@@ -173,4 +174,3 @@ object NumericTypes {
     }
   }
 }
-

@@ -41,16 +41,16 @@ class NumericTypesTest extends UnitSpec {
   }
 
   it should "convert phred scores to probabilities" in {
-    PhredScore.toLogProbability(Byte.MaxValue) shouldBe -29.24283 +- PhredScore.Precision
-    PhredScore.toLogProbability(10) shouldBe LogProbability.toLogProbability(0.1) +- PhredScore.Precision
-    PhredScore.toLogProbability(3) shouldBe LogProbability.toLogProbability(0.5011872) +- PhredScore.Precision
-    PhredScore.toLogProbability(0) shouldBe LogProbability.toLogProbability(1.0) +- PhredScore.Precision
+    LogProbability.fromPhredScore(Byte.MaxValue) shouldBe -29.24283 +- PhredScore.Precision
+    LogProbability.fromPhredScore(10) shouldBe LogProbability.toLogProbability(0.1) +- PhredScore.Precision
+    LogProbability.fromPhredScore(3)  shouldBe LogProbability.toLogProbability(0.5011872) +- PhredScore.Precision
+    LogProbability.fromPhredScore(0)  shouldBe LogProbability.toLogProbability(1.0) +- PhredScore.Precision
   }
 
   it should "display phred scores as integers" in {
-    PhredScore.fromLogProbability(PhredScore.toLogProbability(10)) shouldBe 10
-    PhredScore.fromLogProbability(PhredScore.toLogProbability(PhredScore.MaxValue+1)) shouldBe PhredScore.MaxValue
-    PhredScore.fromLogProbability(PhredScore.toLogProbability(9)) shouldBe 9
+    PhredScore.fromLogProbability(LogProbability.fromPhredScore(10)) shouldBe 10
+    PhredScore.fromLogProbability(LogProbability.fromPhredScore(PhredScore.MaxValue+1)) shouldBe PhredScore.MaxValue
+    PhredScore.fromLogProbability(LogProbability.fromPhredScore(9)) shouldBe 9
   }
 
   "LogProbability" should "convert doubles to log-space doubles" in {
@@ -76,13 +76,13 @@ class NumericTypesTest extends UnitSpec {
 
   it should "notOther in log space" in {
     val Seq(q10, q20) = Seq(10, 20).map(LogProbability.fromPhredScore)
-    LogProbability.notOther(10, 10) shouldBe LnZero
-    LogProbability.notOther(q10, q10) shouldBe LnZero
-    exp(LogProbability.notOther(q10, q20)) shouldBe (0.1-0.01) +- 0.00001
-    an[IllegalArgumentException] should be thrownBy LogProbability.notOther(q20, q10)
-    LogProbability.notOther(LnTen, LnZero) shouldBe LnTen
-    an[IllegalArgumentException] should be thrownBy LogProbability.notOther(LogProbability.toLogProbability(1.0), LogProbability.toLogProbability(1.0000000000000004))
-    an[IllegalArgumentException] should be thrownBy LogProbability.notOther(LogProbability.toLogProbability(1.0), LogProbability.toLogProbability(-0.0000000000000004))
+    LogProbability.aOrNotB(10, 10) shouldBe LnZero
+    LogProbability.aOrNotB(q10, q10) shouldBe LnZero
+    exp(LogProbability.aOrNotB(q10, q20)) shouldBe (0.1-0.01) +- 0.00001
+    an[IllegalArgumentException] should be thrownBy LogProbability.aOrNotB(q20, q10)
+    LogProbability.aOrNotB(LnTen, LnZero) shouldBe LnTen
+    an[IllegalArgumentException] should be thrownBy LogProbability.aOrNotB(LogProbability.toLogProbability(1.0), LogProbability.toLogProbability(1.0000000000000004))
+    an[IllegalArgumentException] should be thrownBy LogProbability.aOrNotB(LogProbability.toLogProbability(1.0), LogProbability.toLogProbability(-0.0000000000000004))
   }
 
   it should "1 - probability in log space" in {
@@ -99,10 +99,10 @@ class NumericTypesTest extends UnitSpec {
   }
 
   it should "and multiple values in log space" in {
-    LogProbability.andAll(Array(log(10), log(10), log(10))) shouldBe log(1000) +- 0.00001
+    LogProbability.and(Array(log(10), log(10), log(10))) shouldBe log(1000) +- 0.00001
   }
 
   it should "or multiple values in log space" in {
-    LogProbability.orAll(Array(log(10), log(10), log(10))) shouldBe log(30) +- 0.00001
+    LogProbability.or(Array(log(10), log(10), log(10))) shouldBe log(30) +- 0.00001
   }
 }

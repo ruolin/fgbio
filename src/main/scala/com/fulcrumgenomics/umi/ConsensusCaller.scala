@@ -224,7 +224,7 @@ class ConsensusCaller
         // get the sum of the likelihoods
         // pick the base with the maximum posterior
         val lls  = likelihoods(baseIdx)
-        val likelihoodSum   = LogProbability.orAll(lls)
+        val likelihoodSum   = LogProbability.or(lls)
         val (maxLikelihood, maxLlIndex) = MathUtil.maxWithIndex(lls)
         val maxPosterior    = LogProbability.normalizeByLogProbability(maxLikelihood, likelihoodSum)
         val pConsensusError = LogProbability.not(maxPosterior) // convert to probability of the called consensus being wrong
@@ -294,7 +294,7 @@ class ConsensusCaller
       //         = X + Y - 4/3*XY
       val term1 = LogProbability.or(prErrorTrialOne, prErrorTrialTwo) // X + Y
       val term2 = LogFourThirds + prErrorTrialOne + prErrorTrialTwo // 4/3*XY
-      LogProbability.notOther(term1, term2)
+      LogProbability.aOrNotB(term1, term2)
     }
   }
 

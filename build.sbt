@@ -121,8 +121,8 @@ lazy val root = Project(id="fgbio", base=file("."))
   .settings(
     libraryDependencies ++= Seq(
       "org.scala-lang"            %  "scala-reflect" %  scalaVersion.value,
-	    "com.fulcrumgenomics"       %% "dagr-commons"  % "0.1.1-SNAPSHOT",
-	    "com.fulcrumgenomics"       %% "dagr-sopt"     % "0.1.1-SNAPSHOT",
+      "com.fulcrumgenomics"       %% "dagr-commons"  % "0.1.1-SNAPSHOT",
+      "com.fulcrumgenomics"       %% "dagr-sopt"     % "0.1.1-SNAPSHOT",
       "com.github.samtools"       %  "htsjdk"        % "2.5.0" excludeAll(htsjdkExcludes: _*),
       "net.jafama"                %  "jafama"        % "2.1.0",
       //---------- Test libraries -------------------//
