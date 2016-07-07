@@ -29,6 +29,7 @@ import java.util.zip.{GZIPInputStream, GZIPOutputStream}
 
 import dagr.commons.io.{IoUtil, PathUtil}
 import dagr.commons.CommonsDef.DirPath
+import htsjdk.samtools.util.IOUtil
 
 /**
   * Provides common IO utility methods.  Can be instantiated to create a custom factory, or
@@ -53,6 +54,9 @@ class Io(val compressionLevel: Int = 5, override val bufferSize: Int = 128*1024)
 
   /** Returns the system default temporary directory path. */
   def defaultTempDir(): DirPath = Paths.get(System.getProperty("java.io.tmpdir"))
+
+  /** Copies the contents of an input stream to an output stream syncrhonously. */
+  def copy(in: InputStream, out: OutputStream): Unit = IOUtil.copyStream(in, out)
 }
 
 /** Singleton object that can be used when the default buffer size and compression are desired. */
