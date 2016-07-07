@@ -111,12 +111,33 @@ object NumericTypes {
       else fromPhredScore(s.toByte)
     }
 
+    /**
+      * Precise computation of log(1+exp(x)) for use in the `or` method.
+      * See Equation (10) in https://cran.r-project.org/web/packages/Rmpfr/vignettes/log1mexp-note.pdf
+      */
+    private def log1pexp(value: Double): Double = {
+      if (value <= -37) exp(value)
+      else if (value <= 18) log1p(exp(value))
+      else if (value <= 33.3) value + exp(-value)
+      else value
+    }
+
+    /**
+      * Precise computation of log(1-exp(x)) for use in the `aOrNotB` method.
+      * See Equation (7) in https://cran.r-project.org/web/packages/Rmpfr/vignettes/log1mexp-note.pdf
+      */
+    private def log1mexp(value: Double): Double = {
+      if (value < 0) throw new IllegalArgumentException("value was less than zero: " + value)
+      else if (value <= LnTwo) log(-expm1(-value))
+      else log1p(-exp(-value)) // value > LnTwo
+    }
+
     /** Computes the probability of a or b, where a and b are independent events: Pr(A or B) = Pr(A) + Pr(B). */
     def or(a: LogProbability, b: LogProbability): LogProbability = {
       if (a.isNegInfinity) b
       else if (b.isNegInfinity) a
       else if (b < a) or(b, a)
-      else a + log1p(exp(b - a)) // using log1p, otherwise it would be `a + log(1.0 + exp(b - a))`
+      else a + log1pexp(b - a) // for precision we use log1pexp, which is equivalent to log(1+exp(x))
     }
 
     /** Computes the probability of any of the given independent events occurring: Pr(AB..N) = Pr(A)+Pr(B)+...+Pr(N). */
@@ -124,13 +145,13 @@ object NumericTypes {
       if (values.forall(_.isNegInfinity)) Double.NegativeInfinity
       else {
         val (minValue, minValueIndex) = MathUtil.minWithIndex(values)
-        var sum: LogProbability = 0.0
+        var sum: LogProbability = minValue
         var i = 0
         while (i < values.length) {
-          if (minValueIndex != i) sum += exp(values(i) - minValue)
+          if (minValueIndex != i) sum = or(sum, values(i))
           i += 1
         }
-        minValue + log1p(sum)
+        sum
       }
     }
 
@@ -148,7 +169,7 @@ object NumericTypes {
       if (b.isNegInfinity) a
       else if (a == b) Double.NegativeInfinity
       else if (a < b) throw new IllegalArgumentException("Subtraction will be less than zero.")
-      else a + log1p(0.0 - exp(b - a)) // using log1p, otherwise it would be `a + log(1.0 - exp(b - a))`
+      else a + log1mexp(a - b) // for precision we use log1mexp(-x), which is equivalent to log(1-exp(x))
     }
 
     /** Returns the probability of Pr(not A) = 1 - Pr(A).*/
