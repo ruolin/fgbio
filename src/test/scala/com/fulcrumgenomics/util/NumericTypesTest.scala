@@ -72,6 +72,7 @@ class NumericTypesTest extends UnitSpec {
     exp(LogProbability.or(10, LnZero)) shouldBe exp(10)
     exp(LogProbability.or(LnZero, 10)) shouldBe exp(10)
     exp(LogProbability.or(10, LogProbability.toLogProbability(0))) shouldBe exp(10)
+    LogProbability.or(-718.3947756282423, -8.404216861178751) shouldBe -8.404216861178751 +- 0.00001
   }
 
   it should "notOther in log space" in {
@@ -104,5 +105,6 @@ class NumericTypesTest extends UnitSpec {
 
   it should "or multiple values in log space" in {
     LogProbability.or(Array(log(10), log(10), log(10))) shouldBe log(30) +- 0.00001
+    LogProbability.or(Array(-718.3947756282423, -8.404216861178751, -710.0756239287693, -718.3947756282423)) shouldBe -8.404216861178751 +- 0.00001
   }
 }
