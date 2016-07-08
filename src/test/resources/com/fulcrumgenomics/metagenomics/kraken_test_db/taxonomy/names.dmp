@@ -1,0 +1,211 @@
+1	|	all	|		|	synonym	|
+1	|	root	|		|	scientific name	|
+2	|	Bacteria	|	Bacteria <prokaryote>	|	scientific name	|
+2	|	Monera	|	Monera <Bacteria>	|	in-part	|
+2	|	Procaryotae	|	Procaryotae <Bacteria>	|	in-part	|
+2	|	Prokaryota	|	Prokaryota <Bacteria>	|	in-part	|
+2	|	Prokaryotae	|	Prokaryotae <Bacteria>	|	in-part	|
+2	|	bacteria	|	bacteria <blast2>	|	blast name	|
+2	|	eubacteria	|		|	genbank common name	|
+2	|	not Bacteria Haeckel 1894	|		|	synonym	|
+2	|	prokaryote	|	prokaryote <Bacteria>	|	in-part	|
+2	|	prokaryotes	|	prokaryotes <Bacteria>	|	in-part	|
+543	|	Enterobacteraceae	|		|	synonym	|
+543	|	Enterobacteraceae (ex Lapage 1979) Lapage 1982, fam. nov., nom. rev.	|		|	synonym	|
+543	|	Enterobacteriaceae	|		|	scientific name	|
+543	|	Enterobacteriaceae (ex Rahn 1937) Ewing et al. 1980, fam. nov., nom. rev.	|		|	synonym	|
+543	|	Enterobacteriaceae Rahn 1937	|		|	synonym	|
+543	|	gamma-3 proteobacteria	|	gamma-3 proteobacteria <#1>	|	in-part	|
+561	|	Escherchia	|		|	misspelling	|
+561	|	Escherichia	|		|	scientific name	|
+561	|	Escherichia Castellani and Chalmers 1919	|		|	authority	|
+562	|	"Bacillus coli" Migula 1895	|		|	authority	|
+562	|	"Bacterium coli commune" Escherich 1885	|		|	authority	|
+562	|	"Bacterium coli" (Migula 1895) Lehmann and Neumann 1896	|		|	authority	|
+562	|	ATCC 11775	|		|	type material	|
+562	|	Bacillus coli	|		|	synonym	|
+562	|	Bacterium coli	|		|	synonym	|
+562	|	Bacterium coli commune	|		|	synonym	|
+562	|	CCUG 24	|		|	type material	|
+562	|	CCUG 29300	|		|	type material	|
+562	|	CIP 54.8	|		|	type material	|
+562	|	DSM 30083	|		|	type material	|
+562	|	Enterococcus coli	|		|	synonym	|
+562	|	Escherchia coli	|		|	misspelling	|
+562	|	Escherichia coli	|		|	scientific name	|
+562	|	Escherichia coli (Migula 1895) Castellani and Chalmers 1919	|		|	authority	|
+562	|	Escherichia sp. MAR	|		|	includes	|
+562	|	Escherichia/Shigella coli	|		|	equivalent name	|
+562	|	Eschericia coli	|		|	misspelling	|
+562	|	JCM 1649	|		|	type material	|
+562	|	LMG 2092	|		|	type material	|
+562	|	NBRC 102203	|		|	type material	|
+562	|	NCCB 54008	|		|	type material	|
+562	|	NCTC 9001	|		|	type material	|
+562	|	bacterium 10a	|		|	includes	|
+562	|	bacterium E3	|		|	includes	|
+1224	|	Alphaproteobacteraeota	|		|	synonym	|
+1224	|	Alphaproteobacteraeota Oren et al. 2015	|		|	authority	|
+1224	|	Proteobacteria	|		|	scientific name	|
+1224	|	Proteobacteria Garrity et al. 2005	|		|	authority	|
+1224	|	Proteobacteria [class] Stackebrandt et al. 1988	|		|	authority	|
+1224	|	not Proteobacteria Cavalier-Smith 2002	|		|	authority	|
+1224	|	proteobacteria	|	proteobacteria<blast1224>	|	blast name	|
+1224	|	purple bacteria	|		|	common name	|
+1224	|	purple bacteria and relatives	|		|	common name	|
+1224	|	purple non-sulfur bacteria	|		|	common name	|
+1224	|	purple photosynthetic bacteria	|		|	common name	|
+1224	|	purple photosynthetic bacteria and relatives	|		|	common name	|
+1236	|	Gammaproteobacteria	|		|	scientific name	|
+1236	|	Gammaproteobacteria Garrity et al. 2005 emend. Williams and Kelly 2013	|		|	authority	|
+1236	|	Proteobacteria gamma subdivision	|		|	synonym	|
+1236	|	Purple bacteria, gamma subdivision	|		|	synonym	|
+1236	|	g-proteobacteria	|		|	blast name	|
+1236	|	gamma proteobacteria	|		|	synonym	|
+1236	|	gamma subdivision	|		|	synonym	|
+1236	|	gamma subgroup	|		|	synonym	|
+2759	|	Eucarya	|		|	synonym	|
+2759	|	Eucaryotae	|		|	synonym	|
+2759	|	Eukarya	|		|	synonym	|
+2759	|	Eukaryota	|		|	scientific name	|
+2759	|	Eukaryotae	|		|	synonym	|
+2759	|	eucaryotes	|		|	genbank common name	|
+2759	|	eukaryotes	|		|	common name	|
+2759	|	eukaryotes	|	eukaryotes<blast2759>	|	blast name	|
+4751	|	Fungi	|		|	scientific name	|
+4751	|	fungi	|	fungi <preferred>	|	genbank common name	|
+4751	|	fungi	|	fungi<blast4751>	|	blast name	|
+4890	|	Ascomycota	|		|	scientific name	|
+4890	|	ascomycetes	|		|	genbank common name	|
+4890	|	ascomycetes	|	ascomycetes<blast4890>	|	blast name	|
+4890	|	sac fungi	|		|	common name	|
+4891	|	Hemiascomycetes	|		|	synonym	|
+4891	|	Saccharomycetes	|		|	scientific name	|
+4892	|	Endomycetales	|		|	synonym	|
+4892	|	Saccharomycetales	|		|	scientific name	|
+4892	|	budding yeasts	|		|	genbank common name	|
+5007	|	ATCC 36234	|	ATCC 36234 <type material>	|	type material	|
+5007	|	Brettanomyces bruxellensis	|		|	scientific name	|
+5007	|	Brettanomyces custersii	|		|	synonym	|
+5007	|	CBS 72	|	CBS 72 <ex-type>	|	type material	|
+5007	|	CBS 74	|	CBS 74 <type material>	|	type material	|
+5007	|	CCRC 21414	|	CCRC 21414 <type material>	|	type material	|
+5007	|	DBVPG 6706	|	DBVPG 6706 <type material>	|	type material	|
+5007	|	Dekkera bruxellensis	|		|	genbank synonym	|
+5007	|	Dekkera intermedia	|		|	synonym	|
+5007	|	IFO 1590	|	IFO 1590 <type material>	|	type material	|
+5007	|	NCYC 823	|	NCYC 823 <type material>	|	type material	|
+5007	|	NRRL Y-12961	|	NRRL Y-12961 <ex-type>	|	type material	|
+6072	|	Eumetazoa	|		|	scientific name	|
+7711	|	Chordata	|		|	scientific name	|
+7711	|	chordates	|		|	genbank common name	|
+7711	|	chordates	|	chordates<blast7711>	|	blast name	|
+7742	|	Vertebrata	|	Vertebrata <Metazoa>	|	scientific name	|
+7742	|	Vertebrata Cuvier, 1812	|		|	authority	|
+7742	|	vertebrates	|		|	genbank common name	|
+7742	|	vertebrates	|	vertebrates<blast7742>	|	blast name	|
+7776	|	Gnathostomata	|	Gnathostomata <vertebrate>	|	scientific name	|
+7776	|	jawed vertebrates	|		|	genbank common name	|
+8287	|	Sarcopterygii	|		|	scientific name	|
+9347	|	Eutheria	|		|	scientific name	|
+9347	|	Placentalia	|		|	synonym	|
+9347	|	eutherian mammals	|		|	common name	|
+9347	|	placental mammals	|		|	common name	|
+9347	|	placentals	|		|	genbank common name	|
+9347	|	placentals	|	placentals <blast9347>	|	blast name	|
+9443	|	Primata	|		|	synonym	|
+9443	|	Primates	|		|	scientific name	|
+9443	|	Primates Linnaeus, 1758	|		|	authority	|
+9443	|	primate	|		|	equivalent name	|
+9443	|	primates	|	primates <blast9443>	|	blast name	|
+9526	|	Catarrhini	|		|	scientific name	|
+9596	|	Pan	|		|	scientific name	|
+9596	|	Pan sp. WO2005014654	|		|	includes	|
+9596	|	Pan sp. WO2007026120	|		|	includes	|
+9596	|	chimpanzees	|		|	genbank common name	|
+9598	|	Chimpansee troglodytes	|		|	misspelling	|
+9598	|	Pan troglodytes	|		|	scientific name	|
+9598	|	chimpanzee	|		|	genbank common name	|
+9604	|	Hominidae	|		|	scientific name	|
+9604	|	Hominidae Gray, 1825	|		|	authority	|
+9604	|	Pongidae	|		|	synonym	|
+9604	|	great apes	|		|	genbank common name	|
+9605	|	Homo	|		|	scientific name	|
+9605	|	Homo Linnaeus, 1758	|		|	authority	|
+9606	|	Homo sapiens	|		|	scientific name	|
+9606	|	Homo sapiens Linnaeus, 1758	|		|	authority	|
+9606	|	human	|		|	genbank common name	|
+9606	|	man	|		|	common name	|
+9608	|	Canidae	|		|	scientific name	|
+9608	|	dog, coyote, wolf, fox	|		|	genbank common name	|
+9611	|	Canis	|		|	scientific name	|
+9612	|	Canis lupus	|		|	scientific name	|
+9612	|	Canis lupus Linnaeus, 1758	|		|	authority	|
+9612	|	gray wolf	|		|	genbank common name	|
+9612	|	grey wolf	|		|	common name	|
+9615	|	Canis canis	|		|	synonym	|
+9615	|	Canis domesticus	|		|	synonym	|
+9615	|	Canis familiaris	|		|	synonym	|
+9615	|	Canis lupus familiaris	|		|	scientific name	|
+9615	|	beagle dog	|		|	includes	|
+9615	|	beagle dogs	|		|	includes	|
+9615	|	dog	|		|	genbank common name	|
+9615	|	dogs	|		|	common name	|
+13366	|	Brettanomyces	|		|	scientific name	|
+13366	|	Dekkera	|		|	genbank synonym	|
+13366	|	Eeniella	|		|	synonym	|
+32523	|	Tetrapoda	|		|	scientific name	|
+32523	|	tetrapods	|		|	genbank common name	|
+32524	|	Amniota	|		|	scientific name	|
+32524	|	amniotes	|		|	genbank common name	|
+32525	|	Theria	|	Theria <Mammalia>	|	scientific name	|
+32525	|	Theria Parker & Haswell, 1897	|		|	authority	|
+33154	|	Fungi/Metazoa group	|		|	synonym	|
+33154	|	Opisthokonta	|		|	scientific name	|
+33154	|	Opisthokonta Cavalier-Smith 1987	|		|	authority	|
+33154	|	opisthokonts	|		|	synonym	|
+33208	|	Animalia	|		|	synonym	|
+33208	|	Metazoa	|		|	scientific name	|
+33208	|	animals	|		|	blast name	|
+33208	|	metazoans	|		|	genbank common name	|
+33208	|	multicellular animals	|		|	common name	|
+33213	|	Bilateria	|		|	scientific name	|
+33511	|	Deuterostomia	|		|	scientific name	|
+33511	|	deuterostomes	|		|	common name	|
+33554	|	Carnivora	|		|	scientific name	|
+33554	|	carnivores	|		|	genbank common name	|
+33554	|	carnivores	|	carnivores <blast33554>	|	blast name	|
+40674	|	Mammalia	|		|	scientific name	|
+40674	|	mammals	|		|	genbank common name	|
+40674	|	mammals	|	mammals<blast40674>	|	blast name	|
+89593	|	Craniata	|	Craniata <chordata>	|	scientific name	|
+91347	|	'Enterobacteriales'	|		|	synonym	|
+91347	|	Enterobacteriaceae and related endosymbionts	|		|	synonym	|
+91347	|	Enterobacteriaceae group	|		|	synonym	|
+91347	|	Enterobacteriales	|		|	scientific name	|
+91347	|	enterobacteria	|	enterobacteria<blast91347>	|	blast name	|
+91347	|	gamma-3 proteobacteria	|	gamma-3 proteobacteria <#5>	|	in-part	|
+117570	|	Teleostomi	|		|	scientific name	|
+117571	|	Euteleostomi	|		|	scientific name	|
+117571	|	bony vertebrates	|		|	genbank common name	|
+131567	|	biota	|		|	synonym	|
+131567	|	cellular organisms	|		|	scientific name	|
+147537	|	Saccharomycotina	|		|	scientific name	|
+147537	|	true yeasts	|		|	genbank common name	|
+207598	|	Homininae	|		|	scientific name	|
+207598	|	Homo/Pan/Gorilla group	|		|	synonym	|
+314145	|	Laurasiatheria	|		|	scientific name	|
+314146	|	Euarchontoglires	|		|	scientific name	|
+314293	|	Anthropoidea	|		|	synonym	|
+314293	|	Simiiformes	|		|	scientific name	|
+314295	|	Hominoidea	|		|	scientific name	|
+314295	|	ape	|	ape <Hominoidea>	|	common name	|
+314295	|	apes	|		|	genbank common name	|
+376913	|	Haplorrhini	|		|	scientific name	|
+379584	|	Caniformia	|		|	scientific name	|
+451864	|	Dikarya	|		|	scientific name	|
+716545	|	saccharomyceta	|		|	scientific name	|
+1156497	|	Pichiaceae	|		|	scientific name	|
+1338369	|	Dipnotetrapodomorpha	|		|	scientific name	|
+1437010	|	Boreoeutheria	|		|	scientific name	|
+1437010	|	Boreotheria	|		|	synonym	|

@@ -21,25 +21,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.fulcrumgenomics.fastq
 
-/**
-  * Represents a record that can be read from or written to a fastq file.
-  */
-case class FastqRecord(name: String, bases: String, quals: String, comment: Option[String] = None, readNumber: Option[Int] = None) {
-  /** Constructs the header line from the name, read number and comment. */
-  def header: String = name + readNumber.map("/" + _).getOrElse("") + comment.map(" " + _).getOrElse("")
+package com.fulcrumgenomics.metagenomics
 
-  /** Returns the length of the sequence represented by this record. */
-  def length: Int = bases.length
+import com.fulcrumgenomics.FgBioDef._
 
-  /** Trims the record to a given length. If the record is already shorter than the length provided,
-    * returns a record at the current length.
-    * @param len the length to trim to
-    * @return a record with length <= len
-    */
-  def trimmedTo(len: Int) : FastqRecord = {
-    if (len > this.length) this
-    else copy(bases=this.bases.substring(0, len), quals=this.quals.substring(0, len))
-  }
+class SummarizeKrakenOutputTest {
+
 }

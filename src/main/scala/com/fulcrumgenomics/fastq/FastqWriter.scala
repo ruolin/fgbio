@@ -47,11 +47,12 @@ object FastqWriter {
   */
 class FastqWriter private(val out: BufferedWriter) extends Closeable {
   /** Writes a single record to the output. */
-  def write(rec: FastqRecord) = {
+  def write(rec: FastqRecord): FastqWriter = {
     out.append('@').append(rec.header).append('\n')
     out.append(rec.bases).append('\n')
     out.append('+').append('\n')
     out.append(rec.quals).append('\n')
+    this
   }
 
   /** Closes the underlying writer. */

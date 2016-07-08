@@ -48,6 +48,11 @@ object ClpGroups {
     override val description: String = "Tools for manipulating FASTQ files."
   }
 
+  class _MetagenomicsGroup extends ClpGroup {
+    override val name: String = "Metagenomics"
+    override val description: String = "Tools for working with metageomics data."
+  }
+
   class _UtilitiesGroup extends ClpGroup {
     override val name: String = "Utilities"
     override val description: String = "Various utility programs."
@@ -67,6 +72,7 @@ object ClpGroups {
   final val SamOrBam  = classOf[_SamOrBamGroup]
   final val Fasta     = classOf[_FastaGroup]
   final val Fastq     = classOf[_FastqGroup]
+  final val Metagenomics = classOf[_MetagenomicsGroup]
   final val Umi       = classOf[_Umi]
   final val Utilities = classOf[_UtilitiesGroup]
   final val VcfOrBcf  = classOf[_VcfOrBcfGroup]
