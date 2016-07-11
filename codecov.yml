@@ -1,0 +1,10 @@
+coverage:
+  ignore:
+  - .*com/fulcrumgenomics/cmdline/ClpGroups.scala.*
+  status:
+    patch:
+      default:
+        target: '80'
+    project:
+      default:
+        target: auto
