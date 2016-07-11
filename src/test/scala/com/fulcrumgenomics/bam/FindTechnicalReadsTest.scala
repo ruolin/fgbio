@@ -54,6 +54,26 @@ class FindTechnicalReadsTest extends UnitSpec {
     actual should contain theSameElementsAs expected
   }
 
+  "FindTechnicalReads" should "output all reads, tagging only those that are technical" in {
+    val tseqs = IlluminaAdapters.DualIndexed.both ++ IlluminaAdapters.NexteraV2.both
+    val builder  = new SamRecordSetBuilder(readLength=30)
+    builder.addFrag(name="ok1", start=100)    .foreach(_.setReadString("AACCGGTTAACCGGTTAACCGGTTAACCGG"))
+    builder.addFrag(name="di1", unmapped=true).foreach(_.setReadString("CTCTTTCCCTACACGACGCTCTTCCGATCT"))
+    builder.addFrag(name="di2", unmapped=true).foreach(_.setReadString("AATGATACGGCGACCACCGAGATCTNNNNN"))
+    builder.addFrag(name="nx1", unmapped=true).foreach(_.setReadString("TCGTCGGCAGCGTCAGATGTGTATAAGAGA"))
+
+    val in  = builder.toTempFile()
+    val out = makeTempFile("technical_sequences.", ".bam")
+    new FindTechnicalReads(input=in, output=out, sequences=tseqs, allReads=true, tag=Some("XS")).execute()
+    val actual = SamReaderFactory.make().open(out.toFile).iterator().map(r => (r.getReadName, r)).toMap
+
+    actual("di1").getIntegerAttribute("XS") shouldBe 0
+    actual("di2").getIntegerAttribute("XS") shouldBe 0
+    actual("nx1").getIntegerAttribute("XS") shouldBe 2
+    actual should contain key "ok1"
+    actual("ok1").getIntegerAttribute("XS") shouldBe null
+  }
+
   "Matcher" should "match reads that come from the adapters and don't contain Ns" in {
     val matcher = new Matcher(matchLength=20, maxErrors=1, sequences=IlluminaAdapters.DualIndexed.both)
     IlluminaAdapters.DualIndexed.both.flatMap(_.sliding(36)).foreach(s => {
@@ -78,4 +98,14 @@ class FindTechnicalReadsTest extends UnitSpec {
       assert(!matcher.matches(bs), s"Should not have matched sequence with three errors ${new String(bs)}")
     })
   }
+
+  it should "find the earliest sequence in the set that matches" in {
+    val matcher = new Matcher(matchLength=4, maxErrors=0, sequences=Seq("ACGTACGT", "ACACGTAC", "ACACTGAT", "ACGTAAAA"))
+    matcher.findMatch("ACGT".getBytes()) shouldBe Some("ACGTACGT")
+    matcher.findMatch("ACAC".getBytes()) shouldBe Some("ACACGTAC")
+    matcher.findMatch("AAAA".getBytes()) shouldBe Some("ACGTAAAA")
+    matcher.findMatch("ACTG".getBytes()) shouldBe Some("ACACTGAT")
+    matcher.findMatch("GGGG".getBytes()) shouldBe None
+  }
+
 }

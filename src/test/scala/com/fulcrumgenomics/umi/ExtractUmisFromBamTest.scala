@@ -38,7 +38,7 @@ class ExtractUmisFromBamTest extends UnitSpec {
   def newBam = makeTempFile("extract_umis_from_bam_test.", ".bam")
 
   def annotateRecordFragment: SAMRecord = {
-    Seq(new SamRecordSetBuilder(readLength = 100).addFrag(name = "Frag", start = 1)).map {rec => rec.setReadString("A" * 100); rec }.head
+    new SamRecordSetBuilder(readLength=100).addFrag(name="Frag", start=1).map {rec => rec.setReadString("A" * 100); rec }.get
   }
 
   "ExtractUmisFromBam.annotateRecord" should "should not annotate with no molecular barcodes" in {

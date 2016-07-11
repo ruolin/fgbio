@@ -66,7 +66,7 @@ class SamRecordSetBuilder(val readLength: Int=100,
 
   /** Adds a pair of reads to the file. */
   def addPair(name: String = nextName,
-              contig: Int  = 0,
+              contig: Int = 0,
               start1: Int,
               start2: Int,
               record1Unmapped: Boolean = false,
@@ -102,23 +102,33 @@ class SamRecordSetBuilder(val readLength: Int=100,
     recs
   }
 
-  /** Adds a non-paired read. */
+  /** Adds a non-paired read. Returns an Option for convenience of calling map/foreach etc. */
   def addFrag(name: String = nextName,
-              contig: Int  = 0,
-              start: Int,
+              contig: Int = 0,
+              start: Int = SAMRecord.NO_ALIGNMENT_START,
               unmapped: Boolean = false,
               cigar: String = readLength + "M",
               mapq: Int = 60,
               strand: Strand = Plus,
               baseQuality: Int = this.baseQuality,
-              attrs: Map[String,AnyRef] = Map.empty) : SAMRecord = {
+              attrs: Map[String,AnyRef] = Map.empty) : Option[SAMRecord] = {
+
+    if (!unmapped && start == SAMRecord.NO_ALIGNMENT_START) throw new IllegalArgumentException("Must specify start if rec is mapped.")
     val rec = this.builder.addFrag(name, contig, start, strand.isNegative, unmapped, cigar, quals(readLength, baseQuality), baseQuality)
 
-    // Adjust the mapping qualities
-    if (!unmapped) rec.setMappingQuality(mapq)
+    if (unmapped) {
+      rec.setReferenceIndex(SAMRecord.NO_ALIGNMENT_REFERENCE_INDEX)
+      rec.setCigarString(SAMRecord.NO_ALIGNMENT_CIGAR)
+      rec.setAlignmentStart(SAMRecord.NO_ALIGNMENT_START)
+      rec.setMappingQuality(SAMRecord.NO_MAPPING_QUALITY)
+    }
+    else {
+      rec.setMappingQuality(mapq)
+    }
+
     attrs.foreach(a => rec.setAttribute(a._1, a._2))
 
-    rec
+    Some(rec)
   }
 
   /** Generates a base quality string. */
