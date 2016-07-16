@@ -107,4 +107,13 @@ class NumericTypesTest extends UnitSpec {
     LogProbability.or(Array(log(10), log(10), log(10))) shouldBe log(30) +- 0.00001
     LogProbability.or(Array(-718.3947756282423, -8.404216861178751, -710.0756239287693, -718.3947756282423)) shouldBe -8.404216861178751 +- 0.00001
   }
+
+  it should "calculate the correct pError given two trials" in {
+    for (i <- 1 to 100; j <- 1 to 100) {
+      val (p1, p2) = (1/i.toDouble, 1/j.toDouble)
+      val expected = (p1*(1-p2)) + ((1-p1)*p2) + (p1 * p2 * 2/3)
+      val actual   = LogProbability.probabilityOfErrorTwoTrials(LogProbability.toLogProbability(p1), LogProbability.toLogProbability(p2))
+      exp(actual) shouldBe expected +- 0.0001
+    }
+  }
 }

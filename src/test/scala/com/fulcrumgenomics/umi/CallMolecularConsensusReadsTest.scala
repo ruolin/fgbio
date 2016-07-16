@@ -26,14 +26,14 @@
 package com.fulcrumgenomics.umi
 
 import com.fulcrumgenomics.testing.{SamRecordSetBuilder, UnitSpec}
-import com.fulcrumgenomics.umi.ConsensusCallerOptions._
+import com.fulcrumgenomics.umi.VanillaUmiConsensusCallerOptions._
 import htsjdk.samtools.SAMFileHeader.SortOrder
 
 /**
   * Tests for CallMolecularConsensusReads.
   *
   * This makes sure the tool runs end-to-end, and the majority of the tests that cover various options are covered
-  * in [[ConsensusCallerTest]].
+  * in [[VanillaUmiConsensusCallerTest]].
   */
 class CallMolecularConsensusReadsTest extends UnitSpec {
 
