@@ -34,6 +34,7 @@ import htsjdk.samtools.filter.DuplicateReadFilter
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory
 import htsjdk.samtools.util.SamLocusIterator.LocusInfo
 import htsjdk.samtools.util.{CollectionUtil, IntervalList, SamLocusIterator, SequenceUtil}
+import SequenceUtil.isNoCall
 import htsjdk.variant.vcf.VCFFileReader
 
 import scala.collection.JavaConversions.{asScalaIterator, iterableAsScalaIterable}
@@ -77,18 +78,19 @@ class PlotMafByPosition
     var id = 0
     val refFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(ref.toFile)
     val out = Io.toWriter(textOut)
-    out.write(Seq("id", "chrom", "pos", "ref", "group", "depth", "ref_count", "non_ref_count", "non_ref_fraction").mkString(Sep))
+    out.write(Seq("id", "chrom", "pos", "ref", "group", "depth", "ref_count", "non_ref_count", "no_call_count", "non_ref_fraction", "no_call_fraction").mkString(Sep))
     out.newLine()
 
     while (iter.hasNext) {
       val xs = iter.next()
       val refBase = refFile.getSubsequenceAt(xs.getSequenceName, xs.getPosition, xs.getPosition).getBases()(0)
-      val (refCount, nonRefCount) = counts(xs, refBase)
-      val total = refCount + nonRefCount
+      val (refCount, nonRefCount, noCallCount) = counts(xs, refBase)
+      val total = (refCount + nonRefCount + noCallCount).toDouble
       val group = if (expected.contains(xs.getSequenceName + ":" + xs.getPosition)) "Expected" else "Unexpected"
 
       if (total >= minDepth) {
-        val fields = Seq(id, xs.getSequenceName, xs.getPosition, refBase.toChar, group, total, refCount, nonRefCount, nonRefCount / total.toDouble)
+        val fields = Seq(id, xs.getSequenceName, xs.getPosition, refBase.toChar, group, total,
+                         refCount, nonRefCount, noCallCount, nonRefCount / total, noCallCount / total)
         out.write(fields.mkString("\t"))
         out.newLine()
         id += 1
@@ -125,37 +127,46 @@ class PlotMafByPosition
     iter.setEmitUncoveredLoci(true)
     iter.setIncludeIndels(false)
     iter.setMaxReadsToAccumulatePerLocus(Int.MaxValue)
-    iter.setQualityScoreCutoff(minQuality)
     iter.setSamFilters(CollectionUtil.makeList(new DuplicateReadFilter))
     iter
   }
 
-  /** Calculates the ref and non-ref counts of bases at a locus, while only counting
+  /** Calculates the ref, non-ref and N counts of bases at a locus, while only counting
     * at most one observation per queryname.
     */
-  def counts(info: LocusInfo, refBase: Byte): (Int, Int) = {
+  def counts(info: LocusInfo, refBase: Byte): (Int, Int, Int) = {
     val seen = new mutable.HashSet[String]
     var refCount = 0
     var altCount = 0
-    info.getRecordAndPositions.filterNot(x => SequenceUtil.isNoCall(x.getReadBase)).foreach(recAndOffset => {
+    var nCount   = 0
+
+    info.getRecordAndPositions.filter(r => r.getBaseQuality >= this.minQuality || (isNoCall(r.getReadBase) && r.getBaseQuality != 2)).foreach(recAndOffset => {
       val name = recAndOffset.getRecord.getReadName
       if (!seen.contains(name)) {
         seen.add(name)
-        if (SequenceUtil.basesEqual(refBase, recAndOffset.getReadBase)) refCount += 1
+        val base = recAndOffset.getReadBase
+        if (SequenceUtil.isNoCall(base)) nCount += 1
+        else if (SequenceUtil.basesEqual(refBase, recAndOffset.getReadBase)) refCount += 1
         else altCount += 1
       }
     })
 
     if (downsampleToMinDepth) {
-      var (dsRef, dsAlt) = (refCount, altCount)
-      while (dsRef + dsAlt > this.minDepth) {
-        if (this.random.nextInt(dsRef + dsAlt) < dsAlt) dsAlt -= 1 else dsRef -= 1
+      var (dsRef, dsAlt, dsN) = (refCount, altCount, nCount)
+      while (dsRef + dsAlt + dsN > this.minDepth) {
+        val r = this.random.nextInt(dsRef + dsAlt + dsN)
+        if (r < dsRef)
+          dsRef -= 1
+        else if (r < dsRef + dsAlt)
+          dsAlt -= 1
+        else
+          dsN -= 1
       }
 
-      (dsRef, dsAlt)
+      (dsRef, dsAlt, dsN)
     }
     else {
-      (refCount, altCount)
+      (refCount, altCount, nCount)
     }
   }
 }
