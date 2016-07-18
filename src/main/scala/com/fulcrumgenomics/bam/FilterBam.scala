@@ -45,12 +45,16 @@ import scala.collection.JavaConversions._
   *
   * @author Tim Fennell
   */
-@clp(description = "Filters reads out of a BAM file. Remove reads that may not be useful in downstream processing, in order\n" +
-  "to reduce the size of the file. By default will remove unmapped reads, read with MAPQ=0, records\n" +
-  "marked as secondary alignments, records marked as duplicates, and if a set of Intervals are provided\n" +
-  "records that do not overlap any of the intervals.\n\n" +
-  "NOTE: this will usually produce a BAM file in which some mate-pairs are orphaned (i.e. read 1 or\n" +
-  "read 2 is included, but not both), but does not update any flag fields.",
+@clp(description = 
+  """
+     |Filters reads out of a BAM file. Remove reads that may not be useful in downstream processing, in order
+     |to reduce the size of the file. By default will remove unmapped reads, read with MAPQ=0, records
+     |marked as secondary alignments, records marked as duplicates, and if a set of Intervals are provided
+     |records that do not overlap any of the intervals.
+     |
+     |NOTE: this will usually produce a BAM file in which some mate-pairs are orphaned (i.e. read 1 or
+     |read 2 is included, but not both), but does not update any flag fields.
+  """,
   group = ClpGroups.SamOrBam)
 class FilterBam
 ( @arg(flag="i", doc="Input BAM file.")                                           val input: PathToBam,
