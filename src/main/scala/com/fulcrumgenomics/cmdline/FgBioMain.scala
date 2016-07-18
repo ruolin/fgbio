@@ -59,7 +59,7 @@ class FgBioMain extends LazyLogging {
     htsjdk.samtools.util.Log.setGlobalLogLevel(htsjdk.samtools.util.Log.LogLevel.WARNING)
 
     val startTime = System.currentTimeMillis()
-    val parser = new CommandLineParser[FgBioTool]("fgbio")
+    val parser = new CommandLineParser[FgBioTool](name)
 
     val exitCode = parser.parseSubCommand(args=args, packageList=packageList) match {
       case None => 1
@@ -85,13 +85,15 @@ class FgBioMain extends LazyLogging {
     exitCode
   }
 
+  protected def name: String = "fgbio"
+
   /** Prints a line of useful information when a tool starts executing. */
   protected def printStartupLines(tool: String, args: Array[String]): Unit = {
     val version    = CommandLineProgramParserStrings.version(getClass, color=false).replace("Version: ", "")
     val host       = InetAddress.getLocalHost.getHostName
     val user       = System.getProperty("user.name")
     val jreVersion = System.getProperty("java.runtime.version")
-    logger.info(s"Executing $tool from fgbio version $version as $user@$host on JRE $jreVersion")
+    logger.info(s"Executing $tool from $name version $version as $user@$host on JRE $jreVersion")
   }
 
   /** Prints a line of useful information when a tool stops executing. */
