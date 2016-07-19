@@ -84,6 +84,7 @@ object NumericTypes {
     def toFastq(score: PhredScore): Byte = SAMUtils.phredToFastq(score).toByte
   }
 
+
   /** A type representing a natural log value of a probability. */
   type LogProbability = Double
 
@@ -96,6 +97,9 @@ object NumericTypes {
     * operations (e.g. divide by zero) don't proceed silently.
     */
   object LogProbability {
+    /** Cached value of 4/3 in log space that is used in probabilityOfErrorTwoTrials(). */
+    private val LogFourThirds = LnFour - LnThree
+
     /** Converts the double to log-space. */
     def toLogProbability(value: Double): LogProbability = {
       if (value < 0) throw new IllegalArgumentException("Cannot use LogDouble to store values less than zero: " + value)
@@ -192,6 +196,28 @@ object NumericTypes {
     private def div(a: LogProbability, b: LogProbability): LogProbability = {
       if (b == Double.PositiveInfinity) throw new IllegalStateException("Trying to divide by 0: " + b)
       a - b
+    }
+
+    /** Computes the probability of seeing an error in the base sequence if there are two independent error processes.
+      * We sum three terms:
+      * 1. the probability of an error in trial one and no error in trial two: Pr(A=Error, B=NoError).
+      * 2. the probability of no error in trial one and an error in trial two: Pr(A=NoError, B=Error).
+      * 3. the probability of an error in both trials, but when the second trial does not reverse the error in first one, which
+      *    for DNA (4 bases) would only occur 2/3 times: Pr(A=x->y, B=y->z) * Pr(x!=z | x!=y, y!=z, x,y,z \in {A,C,G,T})
+      */
+    def probabilityOfErrorTwoTrials(prErrorTrialOne: LogProbability, prErrorTrialTwo: LogProbability): LogProbability = {
+      if (prErrorTrialOne < prErrorTrialTwo) probabilityOfErrorTwoTrials(prErrorTrialTwo, prErrorTrialOne)
+      else if (prErrorTrialOne - prErrorTrialTwo >= 6) prErrorTrialOne // a simple approximation since prErrorTrialOne will dominate
+      else {
+        // f(X, Y) = X(1-Y) + (1-X)Y + 2/3*XY
+        //         = X - XY + Y - XY + 2/3*XY
+        //         = X + Y - 2XY + 2/3*XY
+        //         = X + Y + XY*(2/3 - 6/3)
+        //         = X + Y - 4/3*XY
+        val term1 = LogProbability.or(prErrorTrialOne, prErrorTrialTwo) // X + Y
+        val term2 = LogFourThirds + prErrorTrialOne + prErrorTrialTwo // 4/3*XY
+        LogProbability.aOrNotB(term1, term2)
+      }
     }
   }
 }

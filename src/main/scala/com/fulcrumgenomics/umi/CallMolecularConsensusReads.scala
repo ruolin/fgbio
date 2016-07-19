@@ -26,7 +26,7 @@
 package com.fulcrumgenomics.umi
 
 import com.fulcrumgenomics.cmdline.{ClpGroups, FgBioTool}
-import com.fulcrumgenomics.umi.ConsensusCallerOptions._
+import com.fulcrumgenomics.umi.VanillaUmiConsensusCallerOptions._
 import com.fulcrumgenomics.util.ProgressLogger
 import dagr.commons.CommonsDef.PathToBam
 import dagr.commons.io.Io
@@ -105,12 +105,12 @@ class CallMolecularConsensusReads
     // The output file is unmapped, so for now let's clear out the sequence dictionary & PGs
     val out = new SAMFileWriterFactory().makeWriter(outputHeader(in.getFileHeader), true, output.toFile, null)
 
-    val options = new ConsensusCallerOptions(
+    val options = new VanillaUmiConsensusCallerOptions(
       tag                          = tag,
       errorRatePreUmi              = errorRatePreUmi,
       errorRatePostUmi             = errorRatePostUmi,
-      maxBaseQuality               = maxBaseQuality,
-      baseQualityShift             = baseQualityShift,
+      maxRawBaseQuality               = maxBaseQuality,
+      rawBaseQualityShift             = baseQualityShift,
       minConsensusBaseQuality      = minConsensusBaseQuality,
       minReads                     = minReads,
       minMeanConsensusBaseQuality  = minMeanConsensusBaseQuality,
@@ -118,7 +118,7 @@ class CallMolecularConsensusReads
     )
 
     val progress = new ProgressLogger(logger, unit=1e5.toInt)
-    val consensusCaller = new ConsensusCaller(
+    val consensusCaller = new VanillaUmiConsensusCaller(
       input          = in.iterator().asScala,
       header         = in.getFileHeader,
       readNamePrefix = readNamePrefix,
