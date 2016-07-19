@@ -123,6 +123,14 @@ class PlotMafByPosition
   /** Builds a SAM locus iterator that filters by base quality score and duplicate status but nothing else. */
   def buildLocusIterator: SamLocusIterator = {
     val in = SamReaderFactory.make().open(input)
+
+    // Assert that the BAM and IntervalList have reasonable compatibility
+    this.intervalList.getIntervals.map(_.getContig).toSet.map((name:String) => this.intervalList.getHeader.getSequence(name)).foreach { rec =>
+      val other = in.getFileHeader.getSequence(rec.getSequenceName)
+      if (other == null) fail(s"Sequence ${rec.getSequenceName} used in interval list is not in BAM sequence dictionary.")
+      else if (!other.isSameSequence(rec)) fail(s"Sequence ${rec.getSequenceName} differs between interval list and BAM.")
+    }
+
     val iter = new SamLocusIterator(in, this.intervalList)
     iter.setEmitUncoveredLoci(true)
     iter.setIncludeIndels(false)
