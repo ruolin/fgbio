@@ -26,7 +26,7 @@
 package com.fulcrumgenomics.umi
 
 import com.fulcrumgenomics.cmdline.{ClpGroups, FgBioTool}
-import com.fulcrumgenomics.util.{MolecularBarcode, ReadSegment, ReadStructure, Template}
+import com.fulcrumgenomics.util.{ProgressLogger, _}
 import dagr.commons.CommonsDef.PathToBam
 import dagr.commons.io.Io
 import dagr.commons.util.LazyLogging
@@ -46,16 +46,28 @@ import scala.collection.JavaConversions._
     |Only template bases will be retained as read bases (stored in the SEQ field) as specified by the read structure.
     |
     |A read structure should be provided for each read of a template.  For example, paired end reads should have two
-    |read structures specified.  The tags to store the molecular barcodes will be associated to the molecular barcode
-    |segment in the read structure based on the order specified.  If only one molecular barcode tag is given, then the
+    |read structures specified.  The tags to store the molecular barcodes will be associated with the molecular barcode
+    |segment(s) in the read structure based on the order specified.  If only one molecular barcode tag is given, then the
     |molecular barcodes will be concatenated and stored in that tag. Otherwise the number of molecular barcodes in the
-    |read structure should match the number of tags given. Each end of a pair will store the molecular barcode(s) for
-    |both ends.  Therefore, the tags should be specified only once.  Optionally, the read names can be annotated with
-    |the molecular barcode(s) directly.  In this case, the read name will be formatted "<NAME>+<UMIs1><UMIs2>" where
-    |"<UMIs1>" is the concatenation of read one's molecular barcodes.  Similarly for "<UMIs2>".
+    |read structure should match the number of tags given. Each end of a pair will contain the same molecular barcode
+    |tags and values.
+    |
+    |Optionally, the read names can be annotated with the molecular barcode(s) directly.  In this case, the read name
+    |will be formatted "<NAME>+<UMIs1><UMIs2>" where "<UMIs1>" is the concatenation of read one's molecular barcodes.
+    |Similarly for "<UMIs2>".
     |
     |Mapping information will be unchanged, as such, this tool should not be used on reads that have been mapped since
     |it will lead to an BAM with inconsistent records.
+    |
+    |The read structure describes the structure of a given read as one or more read segments. A read segment describes
+    |a contiguous stretch of bases of the same type (ex. template bases) of some length and some offset from the start
+    |of the read.  The following segment types are supported:
+    |  - T: template bases
+    |  - B: sample barcode bases
+    |  - M: molecular barcode bases
+    |  - S: bases to ignore
+    |An example would be "10B3M7S100T" which describes 120 bases, with the first ten bases being a sample barcode,
+    |bases 11-13 being a molecular barcode, bases 14-20 ignored, and bases 21-120 being template bases.
   """,
   group = ClpGroups.SamOrBam)
 class ExtractUmisFromBam
@@ -64,8 +76,10 @@ class ExtractUmisFromBam
   @arg(flag = "r", doc = "The read structure, one per read in a template.")      val readStructure: Seq[String],
   @arg(flag = "b", doc = "SAM tags in which to store the molecular barcodes (one-per segment).")
                                                                                  val molecularBarcodeTags: Seq[String] = Seq.empty,
-  @arg(flag = "a", doc = "Annotate the read names with the molecular barcodes. See usage for more details.") val annotateReadNames: Boolean = true
+  @arg(flag = "a", doc = "Annotate the read names with the molecular barcodes. See usage for more details.") val annotateReadNames: Boolean = false
 ) extends FgBioTool with LazyLogging {
+
+  val progress = new ProgressLogger(logger, verb="written", unit=5e6.toInt)
   Io.assertReadable(input)
   Io.assertCanWriteFile(output)
 
@@ -82,19 +96,16 @@ class ExtractUmisFromBam
     molecularBarcodeTags.foreach(tag => if (tag.length != 2) throw new ValidationException("SAM tags must be of length two: " + tag))
     // ensure we either have one tag, or we have the same # of tags as molecular barcodes in the read structure.
     if (molecularBarcodeTags.size > 1 && rs.molecularBarcode.size != molecularBarcodeTags.size) {
-      throw new ValidationException("Either a single SAM tag. or the same # of SAM tags as molecular barcodes in the read structure,  must be given.")
-    }
-    // ensure no duplicate tags
-    if (molecularBarcodeTags.distinct.size != molecularBarcodeTags.length) {
-      throw new ValidationException("Duplicate molcular barcode tags found: " +
-        molecularBarcodeTags.groupBy(identity).collect { case (x, List(_, _, _*)) => x }.mkString(", "))
+      throw new ValidationException("Either a single SAM tag, or the same # of SAM tags as molecular barcodes in the read structure,  must be given.")
     }
   }
 
   // split them into to tags for segments in read 1 vs read 2
-  private val (molecularBarcodeTags1, molecularBarcodeTags2) = {
-    val numMolecularBarcodesRead1 = rs1.molecularBarcode.length
-    (molecularBarcodeTags.subList(0, numMolecularBarcodesRead1), molecularBarcodeTags.subList(numMolecularBarcodesRead1, molecularBarcodeTags.length))
+  private val (molecularBarcodeTags1, molecularBarcodeTags2) = molecularBarcodeTags match {
+    case Seq(tag) => (Seq[String](tag), Seq[String](tag))
+    case tags =>
+      val numMolecularBarcodesRead1 = rs1.molecularBarcode.length
+      (tags.subList(0, numMolecularBarcodesRead1).toSeq, tags.subList(numMolecularBarcodesRead1, tags.length).toSeq)
   }
 
   override def execute(): Unit = {
@@ -109,7 +120,7 @@ class ExtractUmisFromBam
     val in: SamReader = SamReaderFactory.make.open(input.toFile)
     val iterator: SAMRecordIterator = in.iterator()
     val out: SAMFileWriter = new SAMFileWriterFactory().makeSAMOrBAMWriter(in.getFileHeader, true, output.toFile)
-    iterator.sliding(2,2).foreach {
+    iterator.grouped(2).foreach {
       case Seq(r1: SAMRecord, r2: SAMRecord) =>
         // verify everything is in order
         Seq(r1, r2).foreach(r => {
@@ -129,10 +140,19 @@ class ExtractUmisFromBam
           r2.setReadName(r2.getReadName + "+" + bases1 + bases2)
         }
         assert(r1.getReadName.equals(r2.getReadName))
-        molecularBarcodeTags1.foreach { tag => r2.setAttribute(tag, r1.getStringAttribute(tag)) }
-        molecularBarcodeTags2.foreach { tag => r1.setAttribute(tag, r2.getStringAttribute(tag)) }
+
+        // If we have duplicate tags, then concatenate them in the same order across the read pair.
+        val tagAndValues = (molecularBarcodeTags1.map { tag => (tag, r1.getStringAttribute(tag)) }
+          ++ molecularBarcodeTags2.map { tag => (tag, r2.getStringAttribute(tag)) }).toList
+        tagAndValues.groupBy(_._1).foreach { case (tag, tuples) =>
+            val attr = tuples.map(_._2).mkString(ExtractUmisFromBam.UmiDelimiter)
+            r1.setAttribute(tag, attr)
+            r2.setAttribute(tag, attr)
+        }
+
         out.addAlignment(r1)
         out.addAlignment(r2)
+        progress.record(r1, r2)
     }
     out.close()
     CloserUtil.close(iterator)
@@ -140,6 +160,8 @@ class ExtractUmisFromBam
 }
 
 object ExtractUmisFromBam {
+  val UmiDelimiter = "-"
+
   /**
     * Extracts bases associated with molecular barcodes and adds them as SAM tags.  The read's bases will only contain
     * template bases as defined in the given read structure.
@@ -155,7 +177,7 @@ object ExtractUmisFromBam {
     val molecularBarcodeBases = readStructureBases.collect { case (b: String, q: String, m: MolecularBarcode) => b }
     // set the barcode tags
     molecularBarcodeTags match {
-      case Seq(tag) => record.setAttribute(tag, molecularBarcodeBases.mkString)
+      case Seq(tag) => record.setAttribute(tag, molecularBarcodeBases.mkString(UmiDelimiter))
       case _ =>
         if (molecularBarcodeTags.length < molecularBarcodeBases.length) throw new IllegalStateException("Found fewer molecular barcode SAM tags than molecular barcodes in the read structure.")
         else if (molecularBarcodeTags.length > molecularBarcodeBases.length) throw new IllegalStateException("Found fewer molecular barcodes in the read structure than molecular barcode SAM tags.")

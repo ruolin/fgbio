@@ -60,10 +60,27 @@ class ExtractUmisFromBamTest extends UnitSpec {
   }
 
   it should "should annotate a single molecular barcode" in {
+    val output  = newBam
     val builder = new SamRecordSetBuilder(readLength=100)
-    val frag = annotateRecordFragment
-    ExtractUmisFromBam.annotateRecord(record=frag, ReadStructure("90T10M"), Seq("RX")) shouldBe "A" * 10
-    frag.getReadLength shouldBe 90
+    val records = builder.addPair(name="Pair", start1=1, start2=1, record1Unmapped=true, record2Unmapped=true)
+    records.foreach { rec =>
+      val base = if (rec.getFirstOfPairFlag) "A" else "C"
+      rec.setReadString(base * 100)
+    }
+    new ExtractUmisFromBam(input=builder.toTempFile(), output=output, readStructure=Seq("10M90T", "10M90T"), molecularBarcodeTags=Seq("A1")).execute()
+    val recs = readBamRecs(output)
+    recs.foreach { rec =>
+      val base = if (rec.getFirstOfPairFlag) "A" else "C"
+      rec.getStringAttribute("A1") shouldBe "AAAAAAAAAA-CCCCCCCCCC"
+      rec.getReadLength shouldBe 90
+      rec.getReadString shouldBe base * 90
+    }
+  }
+
+  it should "accept a single molecular barcode SAM tag" in {
+    val output  = newBam
+    val builder = new SamRecordSetBuilder(readLength=100)
+    new ExtractUmisFromBam(input=builder.toTempFile(), output=output, readStructure=Seq("10M90T", "10M90T"), molecularBarcodeTags=Seq("R1")).execute()
   }
 
   it should "should annotate a two molecular barcode" in {
@@ -123,10 +140,22 @@ class ExtractUmisFromBamTest extends UnitSpec {
     an[ValidationException] should be thrownBy new ExtractUmisFromBam(input=builder.toTempFile(), output=output, readStructure=Seq("10M90T", "10M90T"), molecularBarcodeTags=Seq("A1", "B1", "C1")).execute()
   }
 
-  it should "not accept duplicate molecular barcode SAM tags" in {
+  it should "accept duplicate molecular barcode SAM tags and concatenate the values" in {
     val output  = newBam
     val builder = new SamRecordSetBuilder(readLength=100)
-    an[ValidationException] should be thrownBy new ExtractUmisFromBam(input=builder.toTempFile(), output=output, readStructure=Seq("10M90T", "10M90T"), molecularBarcodeTags=Seq("A1", "A1")).execute()
+    val records = builder.addPair(name="Pair", start1=1, start2=1, record1Unmapped=true, record2Unmapped=true)
+    records.foreach { rec =>
+      val base = if (rec.getFirstOfPairFlag) "A" else "C"
+      rec.setReadString(base * 100)
+    }
+    new ExtractUmisFromBam(input=builder.toTempFile(), output=output, readStructure=Seq("10M90T", "10M90T"), molecularBarcodeTags=Seq("A1", "A1")).execute()
+    val recs = readBamRecs(output)
+    recs.foreach { rec =>
+      val base = if (rec.getFirstOfPairFlag) "A" else "C"
+      rec.getStringAttribute("A1") shouldBe "AAAAAAAAAA-CCCCCCCCCC"
+      rec.getReadLength shouldBe 90
+      rec.getReadString shouldBe base * 90
+    }
   }
 
   it should "extract the molecular barcodes and annotate them for a read pair in tags" in {
