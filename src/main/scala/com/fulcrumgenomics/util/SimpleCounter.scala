@@ -23,11 +23,15 @@
  */
 package com.fulcrumgenomics.util
 
-import scala.collection.mutable
+import java.util
+
+import dagr.commons.reflect.ReflectionUtil
+
+import scala.reflect.runtime.universe._
 
 object SimpleCounter {
   /** Generates a counter that has counted all the objects provided. */
-  def apply[T](ts: TraversableOnce[T]): SimpleCounter[T] = {
+  def apply[T](ts: TraversableOnce[T])(implicit tt: TypeTag[T]) : SimpleCounter[T] = {
     val counter = new SimpleCounter[T]
     ts.foreach(counter.count)
     counter
@@ -38,18 +42,33 @@ object SimpleCounter {
   * Super-simple class for counting occurrences of any kind of object. Will return
   * zero for any item that has not been counted yet.  
   */
-class SimpleCounter[T] extends Iterable[(T, Long)] {
-  private val counts = mutable.Map[T,Long]()
+class SimpleCounter[T](implicit tt: TypeTag[T]) extends Iterable[(T, Long)] {
+  import scala.collection.JavaConversions._
+
+  private val counts = {
+    val clazzT = ReflectionUtil.ifPrimitiveThenWrapper(ReflectionUtil.typeTagToClass[T])
+    val clazzComparable = ReflectionUtil.typeTagToClass[Comparable[T]]
+    if (clazzComparable.isAssignableFrom(clazzT)) {
+      new java.util.TreeMap[T,Long]()
+    }
+    else {
+      new util.HashMap[T,Long]()
+    }
+  }
+  private var _totalCounts: Long = 0L
 
   /** Increment the count of object T by 1. */
   def count(t: T): Unit = count(t, 1)
 
   /** Increment the count of object T by the specified value. */
-  def count(t: T, n: Long): Unit = counts(t) = counts.getOrElse(t, 0L) + n
+  def count(t: T, n: Long): Unit = { _totalCounts += n; counts.put(t, counts.getOrDefault(t, 0L) + n) }
 
   /** Gets the count of the provided object. */
-  def countOf(t: T): Long = this.counts.getOrElse(t, 0)
+  def countOf(t: T): Long = this.counts.getOrDefault(t, 0)
 
   /** Iterates over all the objects and their counts. */
-  override def iterator: Iterator[(T, Long)] = this.counts.iterator
+  override def iterator: Iterator[(T, Long)] = this.counts.entrySet().iterator().map(entry => (entry.getKey, entry.getValue))
+
+  /** Gets sum of counts. */
+  def totalCounts: Long = _totalCounts.toInt
 }
