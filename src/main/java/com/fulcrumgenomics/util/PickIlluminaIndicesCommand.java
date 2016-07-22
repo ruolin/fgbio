@@ -313,8 +313,9 @@ class PickIlluminaIndicesCommand {
                 log.info("There are " + count + " indices with a minimum edit distance of " + lastMinEdit);
             }
 
-            rankedIndexes.remove(first);
-            if (--count % 100 == 0) log.info("Down to " + count + " indices.");
+            if (rankedIndexes.remove(first)) count--;
+            else throw new IllegalStateException("Unable to remove the index from the ranked indices: " + first.toString());
+            if (count % 100 == 0) log.info("Down to " + count + " indices.");
         }
 
         log.info("Ended with " + count + " indices with a min edit distance of " + rankedIndexes.first().minEditDistance());
