@@ -37,6 +37,7 @@ import java.text.NumberFormat;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import static java.lang.Math.pow;
 
@@ -183,6 +184,7 @@ class PickIlluminaIndicesCommand {
             super(comparator);
         }
 
+
         /**
          * Overridden to remove a Barcode and the "edit" all the related indices to remove their relationship
          * to this barcode and re-insert them into the Set to resort them.
@@ -198,13 +200,18 @@ class PickIlluminaIndicesCommand {
                 /** For each barcode queue up a job to recalculate scores and remove/add from the ranked set. */
                 for (final Index other : index.related) {
                     exec.execute(() -> {
-                        IndexSet.super.remove(other);
-                        other.removeRelated(index);
-                        other.recalculate();
-                        IndexSet.this.add(other);
+                        try {
+                            IndexSet.super.remove(other);
+                            other.removeRelated(index);
+                            other.recalculate();
+                            IndexSet.this.add(other);
 
-                        if (countdown.decrementAndGet() == 0) {
-                            synchronized (latch) { latch.notify(); }
+                            if (countdown.decrementAndGet() == 0) {
+                                synchronized (latch) { latch.notify(); }
+                            }
+                        } catch (final Exception e) {
+                            log.warn("Exception during the removing and index and recalculating its neighbors' scores: " + e.getMessage() + "\n" +
+                                    Arrays.stream(e.getStackTrace()).map(Object::toString).collect(Collectors.joining("\n")));
                         }
                     });
                 }
