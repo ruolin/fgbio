@@ -37,6 +37,9 @@ class PickIlluminaIndices
 ) extends FgBioTool{
 
   override def execute(): Unit = {
+    // Get logging messages from PickIlluminaIndicesCommand
+    htsjdk.samtools.util.Log.setGlobalLogLevel(htsjdk.samtools.util.Log.LogLevel.INFO)
+
     val cmd = new PickIlluminaIndicesCommand()
     cmd.INDEX_LENGTH              = length
     cmd.N_INDICES                 = indices
