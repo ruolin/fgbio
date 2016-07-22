@@ -240,6 +240,9 @@ class PickIlluminaIndicesCommand {
         }
         log.info("Retained " + indexes.size() + " indices after applying max homopolymer restriction.");
 
+        // Shuffle the indexes so there is no bias in nucleotide representation.
+        Collections.shuffle(indexes);
+
         if (!ALLOW_PALINDROMES) {
             filterForPalindromes(indexes);
             log.info("Retained " + indexes.size() + " indices after filtering for palindromes.");
