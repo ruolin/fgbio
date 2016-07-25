@@ -26,11 +26,11 @@
 package com.fulcrumgenomics.util
 
 import dagr.commons.CommonsDef._
-import scala.reflect.runtime.universe._
+import scala.collection.mutable
 
 object NumericCounter {
   /** Generates a counter that has counted all the numerics provided. */
-  def apply[T](ts: TraversableOnce[T])(implicit numeric: Numeric[T], tt: TypeTag[T]) : NumericCounter[T] = {
+  def apply[T](ts: TraversableOnce[T])(implicit numeric: Numeric[T]) : NumericCounter[T] = {
     val counter = new NumericCounter[T]
     ts.foreach(counter.count)
     counter
@@ -42,31 +42,35 @@ object NumericCounter {
   * zero for any item that has not been counted yet.  Implements some useful methods
   * to compute statistics when the objects being counted are numeric types.
   */
-class NumericCounter[T](implicit numeric: Numeric[T], tt: TypeTag[T]) extends SimpleCounter[T] {
+class NumericCounter[T](implicit numeric: Numeric[T]) extends SimpleCounter[T] {
+  import scala.collection.JavaConversions.mapAsScalaMap
   import numeric._
 
+  /** Create counts such that they are ordered. */
+  override protected def makeMap(): mutable.Map[T, Long] = new java.util.TreeMap[T,Long]()
+
   /** The sum of the products of each numeric and count tuple. */
-  private var totalSum: T = fromInt(0)
+  private var _totalMass: T = fromInt(0)
 
   /** Increment the count of object T by the specified value. */
   override def count(t: T, n: Long): Unit = {
-    totalSum += (t * fromInt(n.toInt))
+    _totalMass += (t * fromInt(n.toInt))
     super.count(t, n)
   }
 
   /** Returns the mean as a [Double], or zero there are no counts. */
   def mean(): Double = {
     if (0 == size) return 0.0
-    this.totalSum.toDouble() / totalCounts
+    this._totalMass.toDouble() / total
   }
 
   /** Returns the standard deviation as a [Double], or zero there are no counts.  */
   def stddev(m: Double = mean()): Double = {
     if (0 == size) return 0.0
     val sum = iterator.map { case (k, v) => v * Math.pow(k.toDouble() - m, 2) }.sum
-    if (0 == totalCounts) 0
-    else if (1== totalCounts) Math.sqrt(sum / this.totalSum.toDouble())
-    else Math.sqrt(sum / (totalCounts - 1.0))
+    if (0 == total) 0
+    else if (1== total) Math.sqrt(sum / this._totalMass.toDouble())
+    else Math.sqrt(sum / (total - 1.0))
   }
 
   /** Returns the key with the greatest count (mode of the distribution), or zero there are no counts.  */
@@ -77,7 +81,7 @@ class NumericCounter[T](implicit numeric: Numeric[T], tt: TypeTag[T]) extends Si
 
   /** Returns the median key as a [Double], or zero there are no counts.  */
   def median(): Double = {
-    val count: Long = totalCounts
+    val count: Long = total
 
     if (count == 0) 0.0
     else if (count == 1) iterator.next()._1.toDouble()
@@ -112,5 +116,8 @@ class NumericCounter[T](implicit numeric: Numeric[T], tt: TypeTag[T]) extends Si
       }
     }
   }
+
+  /** Gets sum of values stored in this counter (sum over all (count * value)). */
+  def totalMass: T = _totalMass
 }
 

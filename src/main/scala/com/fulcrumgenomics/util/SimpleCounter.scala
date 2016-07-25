@@ -25,9 +25,8 @@ package com.fulcrumgenomics.util
 
 import java.util
 
-import dagr.commons.reflect.ReflectionUtil
-
 import scala.reflect.runtime.universe._
+import scala.collection.mutable
 
 object SimpleCounter {
   /** Generates a counter that has counted all the objects provided. */
@@ -42,33 +41,28 @@ object SimpleCounter {
   * Super-simple class for counting occurrences of any kind of object. Will return
   * zero for any item that has not been counted yet.  
   */
-class SimpleCounter[T](implicit tt: TypeTag[T]) extends Iterable[(T, Long)] {
-  import scala.collection.JavaConversions._
+class SimpleCounter[T]extends Iterable[(T, Long)] {
+  import scala.collection.JavaConversions.mapAsScalaMap
 
-  private val counts = {
-    val clazzT = ReflectionUtil.ifPrimitiveThenWrapper(ReflectionUtil.typeTagToClass[T])
-    val clazzComparable = ReflectionUtil.typeTagToClass[Comparable[T]]
-    if (clazzComparable.isAssignableFrom(clazzT)) {
-      new java.util.TreeMap[T,Long]()
-    }
-    else {
-      new util.HashMap[T,Long]()
-    }
-  }
-  private var _totalCounts: Long = 0L
+  /** Creates the map in which we store the counts. */
+  protected def makeMap(): mutable.Map[T, Long] = new util.HashMap[T,Long]()
+
+  private val counts: mutable.Map[T, Long] = makeMap().withDefaultValue(0L)
+
+  private var _total: Long = 0L
 
   /** Increment the count of object T by 1. */
   def count(t: T): Unit = count(t, 1)
 
   /** Increment the count of object T by the specified value. */
-  def count(t: T, n: Long): Unit = { _totalCounts += n; counts.put(t, counts.getOrDefault(t, 0L) + n) }
+  def count(t: T, n: Long): Unit = { _total += n; counts.update(t,  counts(t) + n) }
 
   /** Gets the count of the provided object. */
-  def countOf(t: T): Long = this.counts.getOrDefault(t, 0)
+  def countOf(t: T): Long = this.counts(t)
 
   /** Iterates over all the objects and their counts. */
-  override def iterator: Iterator[(T, Long)] = this.counts.entrySet().iterator().map(entry => (entry.getKey, entry.getValue))
+  override def iterator: Iterator[(T, Long)] = this.counts.iterator
 
-  /** Gets sum of counts. */
-  def totalCounts: Long = _totalCounts.toInt
+  /** Gets the number of counts stored in this counter (sum over all count). */
+  def total: Long = _total
 }

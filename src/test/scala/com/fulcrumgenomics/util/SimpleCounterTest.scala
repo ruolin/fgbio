@@ -39,6 +39,7 @@ class SimpleCounterTest extends UnitSpec {
     counter.countOf(10) shouldBe 5
     counter.countOf(9) shouldBe 4
     counter.iterator.toList shouldBe List((9, 4), (10, 5))
+    counter.total shouldBe 9
   }
 
   it should "count a type that does not implement comparable" in {
@@ -48,6 +49,6 @@ class SimpleCounterTest extends UnitSpec {
     counter.countOf(10) shouldBe 5
     counter.countOf("10.5") shouldBe 4
     counter.iterator.toList shouldBe List(("10.5", 4), (10, 5))
+    counter.total shouldBe 9
   }
-
 }
