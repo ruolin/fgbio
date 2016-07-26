@@ -40,7 +40,7 @@ import scala.collection.JavaConversions._
 object SamRecordSetBuilder {
   sealed trait Strand { val isNegative: Boolean }
   object Plus  extends Strand { val isNegative = false }
-  object Minus extends Strand { val isNegative = false }
+  object Minus extends Strand { val isNegative = true }
 }
 
 /**

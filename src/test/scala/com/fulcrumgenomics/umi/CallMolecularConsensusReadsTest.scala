@@ -51,7 +51,8 @@ class CallMolecularConsensusReadsTest extends UnitSpec {
       // set the read and add the unique molecule tag.
       (firstPair ++ secondPair).foreach { rec =>
         rec.setAttribute(DefaultTag, "GATTACA:" + idx)
-        rec.setReadString("A" * rec.getReadLength)
+        if (rec.getReadNegativeStrandFlag) rec.setReadString("T" * rec.getReadLength)
+        else rec.setReadString("A" * rec.getReadLength)
       }
     }
 
