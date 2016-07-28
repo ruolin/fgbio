@@ -34,6 +34,9 @@ import scala.collection.JavaConversions.asScalaIterator
 
 /** Base class for unit and integration testing */
 trait UnitSpec extends FlatSpec with Matchers {
+  // Turn down HTSJDK logging
+  htsjdk.samtools.util.Log.setGlobalLogLevel(htsjdk.samtools.util.Log.LogLevel.WARNING)
+
   /** Creates a new temp file for use in testing that will be deleted when the VM exits. */
   protected def makeTempFile(prefix: String, suffix: String) : Path = {
     val path = Files.createTempFile(prefix, suffix)
