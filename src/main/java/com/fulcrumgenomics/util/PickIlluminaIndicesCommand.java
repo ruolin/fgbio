@@ -37,6 +37,7 @@ import java.text.NumberFormat;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import static java.lang.Math.pow;
 
@@ -183,6 +184,7 @@ class PickIlluminaIndicesCommand {
             super(comparator);
         }
 
+
         /**
          * Overridden to remove a Barcode and the "edit" all the related indices to remove their relationship
          * to this barcode and re-insert them into the Set to resort them.
@@ -198,13 +200,18 @@ class PickIlluminaIndicesCommand {
                 /** For each barcode queue up a job to recalculate scores and remove/add from the ranked set. */
                 for (final Index other : index.related) {
                     exec.execute(() -> {
-                        IndexSet.super.remove(other);
-                        other.removeRelated(index);
-                        other.recalculate();
-                        IndexSet.this.add(other);
+                        try {
+                            IndexSet.super.remove(other);
+                            other.removeRelated(index);
+                            other.recalculate();
+                            IndexSet.this.add(other);
 
-                        if (countdown.decrementAndGet() == 0) {
-                            synchronized (latch) { latch.notify(); }
+                            if (countdown.decrementAndGet() == 0) {
+                                synchronized (latch) { latch.notify(); }
+                            }
+                        } catch (final Exception e) {
+                            log.warn("Exception during the removing and index and recalculating its neighbors' scores: " + e.getMessage() + "\n" +
+                                    Arrays.stream(e.getStackTrace()).map(Object::toString).collect(Collectors.joining("\n")));
                         }
                     });
                 }
@@ -239,6 +246,9 @@ class PickIlluminaIndicesCommand {
             }
         }
         log.info("Retained " + indexes.size() + " indices after applying max homopolymer restriction.");
+
+        // Shuffle the indexes so there is no bias in nucleotide representation.
+        Collections.shuffle(indexes);
 
         if (!ALLOW_PALINDROMES) {
             filterForPalindromes(indexes);
@@ -310,8 +320,9 @@ class PickIlluminaIndicesCommand {
                 log.info("There are " + count + " indices with a minimum edit distance of " + lastMinEdit);
             }
 
-            rankedIndexes.remove(first);
-            if (--count % 100 == 0) log.info("Down to " + count + " indices.");
+            if (rankedIndexes.remove(first)) count--;
+            else throw new IllegalStateException("Unable to remove the index from the ranked indices: " + first.toString());
+            if (count % 100 == 0) log.info("Down to " + count + " indices.");
         }
 
         log.info("Ended with " + count + " indices with a min edit distance of " + rankedIndexes.first().minEditDistance());
