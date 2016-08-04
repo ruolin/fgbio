@@ -25,9 +25,10 @@ package com.fulcrumgenomics.testing
 
 import java.nio.file.{Files, Path}
 
+import com.fulcrumgenomics.FgBioDef._
 import htsjdk.samtools.{SAMRecord, SamReaderFactory}
 import org.scalatest.{FlatSpec, Matchers}
-import com.fulcrumgenomics.FgBioDef._
+
 import scala.collection.JavaConversions.asScalaIterator
 
 /** Base class for unit and integration testing */

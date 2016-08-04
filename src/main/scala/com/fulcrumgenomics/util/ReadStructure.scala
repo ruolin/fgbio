@@ -27,7 +27,6 @@ package com.fulcrumgenomics.util
 import scala.collection.immutable
 import scala.reflect.ClassTag
 
-
 // Future improvement: I think we really need to support having a final segment of indeterminate length. Probably it
 // would be good to have support for * and + to indicate zero or more and one or more bases.
 object ReadStructure {
@@ -67,6 +66,7 @@ object ReadStructure {
 
   /**
     * Inserts square brackets around the characers in the read structure that are causing the error.
+    *
     * @param s the read structure string
     * @param start the start of the error in the string (inclusive)
     * @param end the ned of the error in the string (exclusive)
@@ -83,9 +83,27 @@ object ReadStructure {
   * Describes the structure of a give read.  A read contains one or more read segments. A read segment describes
   * a contiguous stretch of bases of the same type (ex. template bases) of some length and some offset from the start
   * of the read.
+  *
+  * @param segs the segments composing this read structure.
+  * @param resetOffsets true if we are to update the offsets of each segment to be relative to each other, false
+  *                     otherwise.  This may be useful to perform when segments are extracted from another read
+  *                     structure.  New segment objects will be created in this case.
   */
-class ReadStructure(segs: Seq[ReadSegment]) extends immutable.Seq[ReadSegment] {
-  private val segments: Seq[ReadSegment] = segs
+class ReadStructure(segs: Seq[ReadSegment], resetOffsets: Boolean = false) extends immutable.Seq[ReadSegment] {
+  private val segments: Seq[ReadSegment] = if (resetOffsets) {
+    var idx = 0
+    var off = 0
+    val segments = new Array[ReadSegment](segs.length)
+    while (idx < segments.length) {
+      val segment = segs(idx)
+      segments(idx) = ReadSegment(segment, off, segment.length)
+      off += segment.length
+      idx += 1
+    }
+    segments
+  }
+  else segs
+
   def length: Int = segments.length
   def apply(idx: Int): ReadSegment = segments(idx)
   def iterator: Iterator[ReadSegment] = segments.iterator
@@ -99,12 +117,8 @@ class ReadStructure(segs: Seq[ReadSegment]) extends immutable.Seq[ReadSegment] {
     // TODO: TF: strict == false allows us to skip segments (in the filter)
     this.filter(s => strict || s.offset < bases.length).map {
       segment =>
-        val end = segment.offset + segment.length
-        if (bases.length < end) {
-          if (strict) throw new IllegalStateException("Not enough bases for read structure: " + this)
-          else (bases.substring(segment.offset), ReadSegment(segment, bases.length-segment.offset))
-        }
-        else (bases.substring(segment.offset, end), segment)
+        val (start, end) = segment.range(bases.length, strict=strict)
+        (bases.substring(start, end), ReadSegment(segment, end - start))
     }
   }
 
@@ -115,13 +129,8 @@ class ReadStructure(segs: Seq[ReadSegment]) extends immutable.Seq[ReadSegment] {
     assert(bases.length == qualities.length)
     this.filter(s => strict || s.offset < bases.length).map {
       segment =>
-        val end = segment.offset + segment.length
-        if (strict) {
-          if (bases.length < end) throw new IllegalStateException("Not enough bases for read structure: " + this)
-          if (qualities.length < end) throw new IllegalStateException("Not enough qualities for read structure: " + this)
-        }
-        if (bases.length < end) (bases.substring(segment.offset), qualities.substring(segment.offset), ReadSegment(segment, bases.length-segment.offset))
-        else (bases.substring(segment.offset, end), qualities.substring(segment.offset, end), segment)
+        val (start, end) = segment.range(Math.min(bases.length, qualities.length), strict=strict)
+        (bases.substring(start, end), qualities.substring(start,end), ReadSegment(segment, end - start))
     }
   }
 
@@ -150,7 +159,6 @@ object ReadSegment {
     }
   }
 
-
   /** Creates a new read segment of the same type but with a new length */
   def apply(segment: ReadSegment, length: Int): ReadSegment = segment match {
     case seg: Template         => Template(seg.offset, length)
@@ -158,16 +166,54 @@ object ReadSegment {
     case seg: MolecularBarcode => MolecularBarcode(seg.offset, length)
     case seg: Skip             => Skip(seg.offset, length)
   }
+
+  /** Creates a new read segment of the same type but with a new offset and length */
+  def apply(segment: ReadSegment, offset: Int, length: Int): ReadSegment = segment match {
+    case seg: Template         => Template(offset, length)
+    case seg: SampleBarcode    => SampleBarcode(offset, length)
+    case seg: MolecularBarcode => MolecularBarcode(offset, length)
+    case seg: Skip             => Skip(offset, length)
+  }
 }
 
 /** Base for all types of segments of a read */
 sealed trait ReadSegment {
-  /** The number of bases in the read preceeding this segment. */
+  /** The number of bases in the read preceding this segment. */
   def offset: Int
   /** The length of this segment. */
   def length: Int
   /** The single-character symbol representing this segment. */
   def symbol: Char
+
+  /** Gets first and last bases (exclusive, 0-based) associated with this read segment.  If strict is false then only
+    * bound the last base to `basesLen`, otherwise if the end is too big, throw an exception.
+    **/
+  private[util] def range(basesLen: Int, strict: Boolean): (Int, Int) = {
+    val start = this.offset
+    val end = length + start
+    if (basesLen < end) {
+      if (strict) throw new IllegalStateException("Not enough bases for read segment: " + this)
+      else (start, basesLen)
+    }
+    else (start, end)
+  }
+
+  /** Gets the bases associated with this read segment.  If strict is false then only return
+    * the sub-sequence for which we have bases in `bases`, otherwise throw an exception.
+    **/
+  private[util] def extractBases(bases: String, strict: Boolean = true): String = {
+    val (start, end) = range(bases.length, strict=strict)
+    bases.substring(start, end)
+  }
+
+  /** Gets the bases and qualities associated with this read segment.  If strict is false then only return
+    * the sub-sequence for which we have bases in `bases`, otherwise throw an exception.
+    **/
+  private[util] def extractBasesAndQualities(bases: String, qualities: String, strict: Boolean = true): (String, String) = {
+    val (start, end) = range(Math.min(bases.length, qualities.length), strict=strict)
+    (bases.substring(start, end), qualities.substring(start, end))
+  }
+
   /** Provides a string representation of this segment (ex. "23T" or "4M"). */
   override def toString: String = s"$length$symbol"
 }
