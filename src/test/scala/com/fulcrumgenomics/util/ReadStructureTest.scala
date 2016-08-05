@@ -31,10 +31,15 @@ import scala.util.Try
 class ReadStructureTest extends UnitSpec {
 
   private def compareReadStructures(actual: ReadStructure, expected: Seq[ReadSegment]): Unit = {
-    // make sure the segements match
-    actual.toSeq shouldBe expected
+    // make sure the segments match
+    actual shouldBe expected
     // make sure the string representations are the same
     actual.toString shouldBe new ReadStructure(expected).toString
+  }
+
+  private def compareReadStructuresResetOffset(actual: Seq[ReadSegment], expected: ReadStructure): Unit = {
+    val actualReadStructure = new ReadStructure(actual, resetOffsets=true)
+    compareReadStructures(actualReadStructure, expected)
   }
 
   "ReadStructure" should "be built from a string" in {
@@ -46,6 +51,17 @@ class ReadStructureTest extends UnitSpec {
     compareReadStructures(ReadStructure("5B101T"), Seq(SampleBarcode(0, 5), Template(5, 101)))
     compareReadStructures(ReadStructure("123456789T"), Seq(Template(0, 123456789)))
     compareReadStructures(ReadStructure("10T10B10B10S10M"), Seq(Template(0, 10), SampleBarcode(10, 10), SampleBarcode(20, 10), Skip(30, 10), MolecularBarcode(40, 10)))
+  }
+  
+  it should "be built from segments while resetting their offset" in {
+    compareReadStructuresResetOffset(Seq(Template(Int.MaxValue, 1)), ReadStructure("1T"))
+    compareReadStructuresResetOffset(Seq(SampleBarcode(Int.MaxValue, 1)), ReadStructure("1B"))
+    compareReadStructuresResetOffset(Seq(MolecularBarcode(Int.MaxValue, 1)), ReadStructure("1M"))
+    compareReadStructuresResetOffset(Seq(Skip(Int.MaxValue, 1)), ReadStructure("1S"))
+    compareReadStructuresResetOffset(Seq(Template(Int.MaxValue, 101)), ReadStructure("101T"))
+    compareReadStructuresResetOffset(Seq(SampleBarcode(Int.MaxValue, 5), Template(5, 101)), ReadStructure("5B101T"))
+    compareReadStructuresResetOffset(Seq(Template(Int.MaxValue, 123456789)), ReadStructure("123456789T"))
+    compareReadStructuresResetOffset(Seq(Template(Int.MaxValue, 10), SampleBarcode(Int.MaxValue, 10), SampleBarcode(Int.MaxValue, 10), Skip(Int.MaxValue, 10), MolecularBarcode(Int.MaxValue, 10)), ReadStructure("10T10B10B10S10M"))
   }
 
   it should "not be built from invalid structures" in {
@@ -191,5 +207,17 @@ class ReadStructureTest extends UnitSpec {
     ReadSegment(ReadSegment(1, 2, "M"), 3) shouldBe MolecularBarcode(1, 3)
     ReadSegment(ReadSegment(1, 2, "S"), 3) shouldBe Skip(1, 3)
     ReadSegment(ReadSegment(1, 2, "B"), 3) shouldBe SampleBarcode(1, 3)
+  }
+
+  "ReadSegment.structureRead" should "get extract the bases and qualities for a segment" in {
+    val molecularBarcodeSegment = ReadStructure("2T2B2M2S").filter { case x: MolecularBarcode => true; case _ => false }.head
+    molecularBarcodeSegment.extractBases("AACCGGTT") shouldBe "GG"
+  }
+
+  "ReadSegment.structureReadWithQualities" should "get extract the bases and qualities for a segment" in {
+    val molecularBarcodeSegment = ReadStructure("2T2B2M2S").filter { case x: MolecularBarcode => true; case _ => false }.head
+    molecularBarcodeSegment.extractBasesAndQualities("AACCGGTT", "11223344") match {
+      case (bases, quals) =>  bases shouldBe "GG"; quals shouldBe "33"
+    }
   }
 }

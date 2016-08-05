@@ -20,29 +20,30 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
+ *
  */
-package com.fulcrumgenomics.testing
 
-import java.nio.file.{Files, Path}
+package com.fulcrumgenomics.util.miseq
 
-import com.fulcrumgenomics.FgBioDef._
-import htsjdk.samtools.{SAMRecord, SamReaderFactory}
-import org.scalatest.{FlatSpec, Matchers}
+import com.fulcrumgenomics.testing.UnitSpec
 
-import scala.collection.JavaConversions.asScalaIterator
-
-/** Base class for unit and integration testing */
-trait UnitSpec extends FlatSpec with Matchers {
-  /** Creates a new temp file for use in testing that will be deleted when the VM exits. */
-  protected def makeTempFile(prefix: String, suffix: String) : Path = {
-    val path = Files.createTempFile(prefix, suffix)
-    path.toFile.deleteOnExit()
-    path
+/**
+  * Tests for SampleBarcode.
+  */
+class SampleBarcodeTest extends UnitSpec {
+  "SampleBarcode.hashCode" should "be the hash code of the concatenated barcode sequences" in {
+    new SampleBarcode(Seq("GATTACA")).hashCode shouldBe "GATTACA".hashCode
+    new SampleBarcode(Seq("A", "C", "G", "T")).hashCode shouldBe "A-C-G-T".hashCode
   }
 
-  /** Reads all the records from a SAM or BAM file into an indexed seq. */
-  protected def readBamRecs(bam: PathToBam): IndexedSeq[SAMRecord] = {
-    val in = SamReaderFactory.make().open(bam.toFile)
-    yieldAndThen(in.iterator().toIndexedSeq) { in.safelyClose() }
+  "SampleBarcode.equals" should "compare based on the concatenated barcode sequences" in {
+    new SampleBarcode(Seq("GATTACA")).equals(2) shouldBe false
+    new SampleBarcode(Seq("GATTACA")).equals(new SampleBarcode(Seq("GATTACA"))) shouldBe true
+    new SampleBarcode(Seq("GATTACA")).equals(new SampleBarcode(Seq("GATTACT"))) shouldBe false
+  }
+
+  "SampleBarcode.toString" should "be the concatened barcode" in {
+    new SampleBarcode(Seq("GATTACA")).toString shouldBe "GATTACA"
+    new SampleBarcode(Seq("A", "C", "G", "T")).toString shouldBe "A-C-G-T"
   }
 }
