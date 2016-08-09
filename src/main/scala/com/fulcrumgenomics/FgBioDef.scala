@@ -31,7 +31,7 @@ import dagr.commons.CommonsDef
   * Place to put common function, type and implicit definitions that can be
   * imported into other classes easily.
   */
-object FgBioDef extends CommonsDef {
+class FgBioDef extends CommonsDef {
   /** Implicit class that provides a method to wrap an iterator into a BetterBufferedIterator. */
   implicit class BetterBufferedIteratorScalaWrapper[A](val iterator: Iterator[A]) {
     def bufferBetter = new BetterBufferedIterator(iterator)
@@ -42,3 +42,6 @@ object FgBioDef extends CommonsDef {
     def bufferBetter = new BetterBufferedIterator(scala.collection.JavaConversions.asScalaIterator(iterator))
   }
 }
+
+/** Singleton object that extends from the class. */
+object FgBioDef extends FgBioDef
