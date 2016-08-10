@@ -208,12 +208,20 @@ private class HapCutAndVcfMergingIterator(hapCutFile: FilePath, vcfReader: VCFFi
     */
   private def formatSourceContext(sourceContext: VariantContext): VariantContext = {
     val hasPhasedGenotype = sourceContext.getGenotypes.exists(_.isPhased)
-    if (!hasPhasedGenotype && !gatkPhasingFormat) sourceContext
+    val hasPhasingSetId   = sourceContext.getGenotypes.exists(_.hasExtendedAttribute(HapCutVcfHeaderLines.PhaseSetFormatTag))
+
+    if (!hasPhasedGenotype && !hasPhasingSetId && !gatkPhasingFormat) sourceContext
     else {
       val builder = new VariantContextBuilder(sourceContext)
-      if (hasPhasedGenotype) {
-        // unset the phase if the input has phase set
-        builder.genotypes(sourceContext.getGenotypes().map(g => new GenotypeBuilder(g).phased(false).make()))
+      if (hasPhasedGenotype || hasPhasingSetId) {
+        // unset the phase and remove the phasing set ID if the input has phase set
+        builder.genotypes(sourceContext.getGenotypes().map { g =>
+          val builder = new GenotypeBuilder(g).phased(false)
+          val attrs = g.getExtendedAttributes.filterNot { case (tag, value) =>  tag == HapCutVcfHeaderLines.PhaseSetFormatTag }
+          builder.noAttributes()
+          builder.attributes(attrs)
+          builder.make()
+        })
       }
       if (gatkPhasingFormat) {
         // set the variant as filtered due to not being phased

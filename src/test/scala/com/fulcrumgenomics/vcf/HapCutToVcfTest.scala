@@ -28,6 +28,7 @@ package com.fulcrumgenomics.vcf
 import com.fulcrumgenomics.testing.UnitSpec
 import dagr.commons.io.PathUtil
 import dagr.commons.CommonsDef._
+import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFFileReader
 
 import scala.collection.JavaConversions._
@@ -61,14 +62,26 @@ class HapCutToVcfTest extends UnitSpec {
     }
   }
 
+  private def isPhased(ctx: VariantContext, gatkPhasingFormat: Boolean): Boolean = {
+    if (gatkPhasingFormat) ctx.isNotFiltered // are marked as passed filter
+    else ctx.getGenotypes.exists(_.isPhased) // are marked as phased
+  }
+
   private def getNumPhasedFromVcf(path: PathToVcf, gatkPhasingFormat: Boolean): Int = {
     val vcfReader = new VCFFileReader(path.toFile, false)
-    val numPhased = vcfReader.iterator().count { ctx =>
-      if (gatkPhasingFormat) ctx.isNotFiltered // how many are marked as passed filter
-      else ctx.getGenotypes.exists(_.isPhased) // how many are marked as phased
-    }
+    val numPhased = vcfReader.iterator().count { ctx => isPhased(ctx, gatkPhasingFormat) }
     vcfReader.close()
     numPhased
+  }
+
+  private def hasPhasingSetFormatTagButUnphased(path: PathToVcf, gatkPhasingFormat: Boolean): Boolean = {
+    val vcfReader = new VCFFileReader(path.toFile, false)
+    val hasPhasingSetTag = vcfReader
+      .iterator()
+      .filterNot { ctx => isPhased(ctx, gatkPhasingFormat) }
+      .exists { ctx => ctx.getGenotypes.exists(_.hasExtendedAttribute(HapCutVcfHeaderLines.PhaseSetFormatTag)) }
+    vcfReader.close()
+    hasPhasingSetTag
   }
 
   "HapCutReader" should "read in a HAPCUT file" in {
@@ -108,6 +121,9 @@ class HapCutToVcfTest extends UnitSpec {
 
       // check that the # of variants phased in the output agrees with the # of phased calls in the expected output
       numPhasedFromOut shouldBe getNumPhasedFromVcf(expectedOutput, gatkPhasingFormat)
+
+      // check that if a variant is not phased it does not have a PS tag
+      hasPhasingSetFormatTagButUnphased(out, gatkPhasingFormat) shouldBe false
     }
   }
 }
