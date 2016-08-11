@@ -29,11 +29,12 @@ import com.fulcrumgenomics.testing.{SamRecordSetBuilder, UnitSpec}
 import com.fulcrumgenomics.util.ReadStructure
 import dagr.sopt.cmdline.ValidationException
 import htsjdk.samtools.{SAMFileWriterFactory, SAMRecord}
+import org.scalatest.OptionValues
 
 /**
   * Tests for ExtractUmisFromBam.
   */
-class ExtractUmisFromBamTest extends UnitSpec {
+class ExtractUmisFromBamTest extends UnitSpec with OptionValues {
 
   def newBam = makeTempFile("extract_umis_from_bam_test.", ".bam")
 
@@ -200,5 +201,96 @@ class ExtractUmisFromBamTest extends UnitSpec {
         rec.getReadName shouldBe "Pair+" + "A" * 11
       }
     }
+  }
+
+  it should "should annotate a single molecular barcode and update clipping information" in {
+    val output  = newBam
+    val builder = new SamRecordSetBuilder(readLength=100)
+    val records = builder.addPair(name="Pair", start1=1, start2=1, record1Unmapped=true, record2Unmapped=true)
+    records.foreach { rec =>
+      val base = if (rec.getFirstOfPairFlag) "A" else "C"
+      rec.setReadString(base * 100)
+      rec.setAttribute("XT", 20)
+    }
+    new ExtractUmisFromBam(input=builder.toTempFile(), output=output, readStructure=Seq("10M90T", "10M90T"), molecularBarcodeTags=Seq("A1"), clippingAttribute=Some("XT")).execute()
+    val recs = readBamRecs(output)
+    recs.foreach { rec =>
+      val base = if (rec.getFirstOfPairFlag) "A" else "C"
+      rec.getStringAttribute("A1") shouldBe "AAAAAAAAAA-CCCCCCCCCC"
+      rec.getReadLength shouldBe 90
+      rec.getReadString shouldBe base * 90
+      rec.getIntegerAttribute("XT") shouldBe 10
+    }
+  }
+
+  it should "should annotate a single molecular barcode and update clipping information, even with skips" in {
+    val output  = newBam
+    val builder = new SamRecordSetBuilder(readLength=100)
+    val records = builder.addPair(name="Pair", start1=1, start2=1, record1Unmapped=true, record2Unmapped=true)
+    records.foreach { rec =>
+      val base = if (rec.getFirstOfPairFlag) "A" else "C"
+      rec.setReadString(base * 100)
+      rec.setAttribute("XT", 30)
+    }
+    new ExtractUmisFromBam(input=builder.toTempFile(), output=output, readStructure=Seq("10M10S80T", "10M10S80T"), molecularBarcodeTags=Seq("A1"), clippingAttribute=Some("XT")).execute()
+    val recs = readBamRecs(output)
+    recs.foreach { rec =>
+      val base = if (rec.getFirstOfPairFlag) "A" else "C"
+      rec.getStringAttribute("A1") shouldBe "AAAAAAAAAA-CCCCCCCCCC"
+      rec.getReadLength shouldBe 80
+      rec.getReadString shouldBe base * 80
+      rec.getIntegerAttribute("XT") shouldBe 10
+    }
+  }
+
+
+  it should "should annotate a single molecular barcode and update clipping information on only the first of pair" in {
+    val output  = newBam
+    val builder = new SamRecordSetBuilder(readLength=100)
+    val records = builder.addPair(name="Pair", start1=1, start2=1, record1Unmapped=true, record2Unmapped=true)
+    records.foreach { rec =>
+      val base = if (rec.getFirstOfPairFlag) "A" else "C"
+      rec.setReadString(base * 100)
+      if (rec.getFirstOfPairFlag) rec.setAttribute("XT", 20)
+    }
+    new ExtractUmisFromBam(input=builder.toTempFile(), output=output, readStructure=Seq("10M90T", "10M90T"), molecularBarcodeTags=Seq("A1"), clippingAttribute=Some("XT")).execute()
+    val recs = readBamRecs(output)
+    recs.foreach { rec =>
+      val base = if (rec.getFirstOfPairFlag) "A" else "C"
+      rec.getStringAttribute("A1") shouldBe "AAAAAAAAAA-CCCCCCCCCC"
+      rec.getReadLength shouldBe 90
+      rec.getReadString shouldBe base * 90
+      if (rec.getFirstOfPairFlag) rec.getIntegerAttribute("XT") shouldBe 10
+      else rec.getAttribute("XT") shouldBe null
+    }
+  }
+
+  "ExtractUmisFromBam.updateClippingInformation" should "update the clipping information for non-template bases" in {
+    val builder = new SamRecordSetBuilder(readLength=100)
+    val record = builder.addFrag(contig=0, start=1).value
+
+    // no clipping information on the record
+    ExtractUmisFromBam.updateClippingInformation(record, Some("XT"), ReadStructure("100T"))
+    record.getIntegerAttribute("XT") shouldBe null
+
+    // no clipping tag given
+    record.setAttribute("XT", 100)
+    ExtractUmisFromBam.updateClippingInformation(record, None, ReadStructure("100T"))
+    record.getIntegerAttribute("XT") shouldBe 100
+
+    // no non-template bases
+    record.setAttribute("XT", 80)
+    ExtractUmisFromBam.updateClippingInformation(record, Some("XT"), ReadStructure("100T"))
+    record.getIntegerAttribute("XT") shouldBe 80
+
+    // 10-bases are skipped, so the read will be 90 bases long, and the clipping position should be shifted accordingly
+    record.setAttribute("XT", 80)
+    ExtractUmisFromBam.updateClippingInformation(record, Some("XT"), ReadStructure("20T10S70T"))
+    record.getIntegerAttribute("XT") shouldBe 70
+
+    // same as previous, but the clipping position is in the skip
+    record.setAttribute("XT", 80)
+    ExtractUmisFromBam.updateClippingInformation(record, Some("XT"), ReadStructure("75T10S15T"))
+    record.getIntegerAttribute("XT") shouldBe 75
   }
 }

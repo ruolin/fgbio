@@ -25,10 +25,11 @@
 package com.fulcrumgenomics.util
 
 import com.fulcrumgenomics.testing.UnitSpec
+import org.scalatest.OptionValues
 
 import scala.util.Try
 
-class ReadStructureTest extends UnitSpec {
+class ReadStructureTest extends UnitSpec with OptionValues {
 
   private def compareReadStructures(actual: ReadStructure, expected: Seq[ReadSegment]): Unit = {
     // make sure the segments match
@@ -94,70 +95,64 @@ class ReadStructureTest extends UnitSpec {
 
   "ReadStructure.structureRead" should "get extract the bases for each segment" in {
     val rs = ReadStructure("2T2B2M2S")
-    rs.structureRead("AACCGGTT").foreach {
-      case (bases: String, segment: ReadSegment) =>
-        segment match {
-          case t: Template         => bases shouldBe "AA"
-          case s: SampleBarcode    => bases shouldBe "CC"
-          case m: MolecularBarcode => bases shouldBe "GG"
-          case x: Skip             => bases shouldBe "TT"
+    rs.structureRead("AACCGGTT").foreach { case r =>
+        r.segment match {
+          case t: Template         => r.bases shouldBe "AA"
+          case s: SampleBarcode    => r.bases shouldBe "CC"
+          case m: MolecularBarcode => r.bases shouldBe "GG"
+          case x: Skip             => r.bases shouldBe "TT"
         }
     }
     an[IllegalStateException] should be thrownBy rs.structureRead("AAAAAAA")
     // the last segment is truncated
-    rs.structureRead("AACCGGT", strict=false).foreach {
-      case (bases: String, segment: ReadSegment) =>
-        segment match {
-          case t: Template         => bases shouldBe "AA"
-          case s: SampleBarcode    => bases shouldBe "CC"
-          case m: MolecularBarcode => bases shouldBe "GG"
-          case x: Skip             => bases shouldBe "T"
-        }
+    rs.structureRead("AACCGGT", strict=false).foreach { case r =>
+      r.segment match {
+        case t: Template         => r.bases shouldBe "AA"
+        case s: SampleBarcode    => r.bases shouldBe "CC"
+        case m: MolecularBarcode => r.bases shouldBe "GG"
+        case x: Skip             => r.bases shouldBe "T"
+      }
     }
     // the last segment is skipped
-    rs.structureRead("AACCGG", strict=false).foreach {
-      case (bases: String, segment: ReadSegment) =>
-        segment match {
-          case t: Template         => bases shouldBe "AA"
-          case s: SampleBarcode    => bases shouldBe "CC"
-          case m: MolecularBarcode => bases shouldBe "GG"
-          case x: Skip             => throw new IllegalStateException("Skip should not be found")
-        }
+    rs.structureRead("AACCGG", strict=false).foreach { case r =>
+      r.segment match {
+        case t: Template         => r.bases shouldBe "AA"
+        case s: SampleBarcode    => r.bases shouldBe "CC"
+        case m: MolecularBarcode => r.bases shouldBe "GG"
+        case x: Skip             => throw new IllegalStateException("Skip should not be found")
+      }
     }
   }
 
 
   "ReadStructure.structureReadWithQualities" should "get extract the bases and qualities for each segment" in {
     val rs = ReadStructure("2T2B2M2S")
-    rs.structureReadWithQualities("AACCGGTT", "11223344").foreach {
-      case (bases: String, quals: String, segment: ReadSegment) =>
-        segment match {
-          case t: Template         => bases shouldBe "AA"; quals shouldBe "11"
-          case s: SampleBarcode    => bases shouldBe "CC"; quals shouldBe "22"
-          case m: MolecularBarcode => bases shouldBe "GG"; quals shouldBe "33"
-          case x: Skip             => bases shouldBe "TT"; quals shouldBe "44"
-        }
+    rs.structureReadWithQualities("AACCGGTT", "11223344").foreach { case r =>
+      r.segment match {
+        case t: Template         => r.bases shouldBe "AA"; r.quals.value shouldBe "11"
+        case s: SampleBarcode    => r.bases shouldBe "CC"; r.quals.value shouldBe "22"
+        case m: MolecularBarcode => r.bases shouldBe "GG"; r.quals.value shouldBe "33"
+        case x: Skip             => r.bases shouldBe "TT"; r.quals.value shouldBe "44"
+      }
     }
     an[IllegalStateException] should be thrownBy rs.structureReadWithQualities("AAAAAAA", "AAAAAAA")
     // the last segment is truncated
-    rs.structureReadWithQualities("AACCGGT", "1122334", strict=false).foreach {
-      case (bases: String, quals: String, segment: ReadSegment) =>
-        segment match {
-          case t: Template         => bases shouldBe "AA"; quals shouldBe "11"
-          case s: SampleBarcode    => bases shouldBe "CC"; quals shouldBe "22"
-          case m: MolecularBarcode => bases shouldBe "GG"; quals shouldBe "33"
-          case x: Skip             => bases shouldBe "T"; quals shouldBe "4"
-        }
+    rs.structureReadWithQualities("AACCGGT", "1122334", strict=false).foreach { case r =>
+      r.segment match {
+        case t: Template         => r.bases shouldBe "AA"; r.quals.value shouldBe "11"
+        case s: SampleBarcode    => r.bases shouldBe "CC"; r.quals.value shouldBe "22"
+        case m: MolecularBarcode => r.bases shouldBe "GG"; r.quals.value shouldBe "33"
+        case x: Skip             => r.bases shouldBe "T";  r.quals.value shouldBe "4"
+      }
     }
     // the last segment is skipped
-    rs.structureReadWithQualities("AACCGG", "112233", strict=false).foreach {
-      case (bases: String, quals: String, segment: ReadSegment) =>
-        segment match {
-          case t: Template         => bases shouldBe "AA"; quals shouldBe "11"
-          case s: SampleBarcode    => bases shouldBe "CC"; quals shouldBe "22"
-          case m: MolecularBarcode => bases shouldBe "GG"; quals shouldBe "33"
-          case x: Skip             => throw new IllegalStateException("Skip should not be found")
-        }
+    rs.structureReadWithQualities("AACCGG", "112233", strict=false).foreach { case r =>
+      r.segment match {
+        case t: Template         => r.bases shouldBe "AA"; r.quals.value shouldBe "11"
+        case s: SampleBarcode    => r.bases shouldBe "CC"; r.quals.value shouldBe "22"
+        case m: MolecularBarcode => r.bases shouldBe "GG"; r.quals.value shouldBe "33"
+        case x: Skip             => throw new IllegalStateException("Skip should not be found")
+      }
     }
   }
 

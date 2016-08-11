@@ -26,7 +26,9 @@
 package com.fulcrumgenomics.umi
 
 import com.fulcrumgenomics.cmdline.{ClpGroups, FgBioTool}
+import com.fulcrumgenomics.util.ReadStructure.SubRead
 import com.fulcrumgenomics.util.{ProgressLogger, _}
+import com.fulcrumgenomics.FgBioDef.unreachable
 import dagr.commons.CommonsDef.PathToBam
 import dagr.commons.io.Io
 import dagr.commons.util.LazyLogging
@@ -41,7 +43,7 @@ import scala.collection.JavaConversions._
   """
     |Extracts unique molecular indexes from reads in a BAM file into tags.
     |
-    |Currently only paired end read data are supported.
+    |Currently only unmapped paired end read data are supported.
     |
     |Only template bases will be retained as read bases (stored in the SEQ field) as specified by the read structure.
     |
@@ -76,7 +78,8 @@ class ExtractUmisFromBam
   @arg(flag = "r", doc = "The read structure, one per read in a template.")      val readStructure: Seq[String],
   @arg(flag = "b", doc = "SAM tags in which to store the molecular barcodes (one-per segment).")
                                                                                  val molecularBarcodeTags: Seq[String] = Seq.empty,
-  @arg(flag = "a", doc = "Annotate the read names with the molecular barcodes. See usage for more details.") val annotateReadNames: Boolean = false
+  @arg(flag = "a", doc = "Annotate the read names with the molecular barcodes. See usage for more details.") val annotateReadNames: Boolean = false,
+  @arg(flag = "c", doc = "The SAM tag with the position in read to clip adapters (e.g. XT as produced by Picard's MarkIlluminaAdapters).") val clippingAttribute: Option[String] = None
 ) extends FgBioTool with LazyLogging {
 
   val progress = new ProgressLogger(logger, verb="written", unit=5e6.toInt)
@@ -131,8 +134,8 @@ class ExtractUmisFromBam
         if (!r2.getSecondOfPairFlag) throw fail(s"Read ${r2.getReadName} was not the second end of a pair")
         if (!r1.getReadName.equals(r2.getReadName)) throw fail(s"Read names did not match: '${r1.getReadName}' and '${r2.getReadName}'")
         // now do some work
-        val bases1 = ExtractUmisFromBam.annotateRecord(record=r1, readStructure=rs1, molecularBarcodeTags=molecularBarcodeTags1)
-        val bases2 = ExtractUmisFromBam.annotateRecord(record=r2, readStructure=rs2, molecularBarcodeTags=molecularBarcodeTags2)
+        val bases1 = ExtractUmisFromBam.annotateRecord(record=r1, readStructure=rs1, molecularBarcodeTags=molecularBarcodeTags1, clippingAttribute=clippingAttribute)
+        val bases2 = ExtractUmisFromBam.annotateRecord(record=r2, readStructure=rs2, molecularBarcodeTags=molecularBarcodeTags2, clippingAttribute=clippingAttribute)
         if (annotateReadNames) {
           // Developer Note: the delimiter must be an ascii character less than what is usually in the read names.  For
           // example "|" doesn't work.  I am not completely sure why.
@@ -168,13 +171,14 @@ object ExtractUmisFromBam {
     */
   private[umi] def annotateRecord(record: SAMRecord,
                                   readStructure: ReadStructure,
-                                  molecularBarcodeTags: Seq[String]): String = {
+                                  molecularBarcodeTags: Seq[String],
+                                  clippingAttribute: Option[String] = None): String = {
     val bases = record.getReadString
     val qualities = record.getBaseQualityString
     // get the bases associated with each segment
     val readStructureBases = readStructure.structureReadWithQualities(bases, qualities, strict = false)
     // get the molecular barcode segments
-    val molecularBarcodeBases = readStructureBases.collect { case (b: String, q: String, m: MolecularBarcode) => b }
+    val molecularBarcodeBases = readStructureBases.collect { case SubRead(b: String, _, m: MolecularBarcode) => b }
     // set the barcode tags
     molecularBarcodeTags match {
       case Seq(tag) => record.setAttribute(tag, molecularBarcodeBases.mkString(UmiDelimiter))
@@ -184,16 +188,37 @@ object ExtractUmisFromBam {
         molecularBarcodeTags.zip(molecularBarcodeBases).foreach { case (tag, b) => record.setAttribute(tag, b) }
     }
     // keep only template bases and qualities in the output read
-    val basesAndQualities = readStructureBases.flatMap {
-      case (b: String, q: String, s: ReadSegment) =>
-        s match {
-          case m: Template => Some((b, q))
-          case _ => None
-        }
+    val basesAndQualities = readStructureBases.flatMap { r =>
+      r.segment match {
+        case m: Template => Some((r.bases, r.quals.getOrElse(unreachable())))
+        case _ => None
+      }
     }
+    // update any clipping information
+    updateClippingInformation(record=record, clippingAttribute=clippingAttribute, readStructure=readStructure)
     record.setReadString(basesAndQualities.map(_._1).mkString)
     record.setBaseQualityString(basesAndQualities.map(_._2).mkString)
     // return the concatenation of the molecular barcodes in sequencing order
     molecularBarcodeBases.mkString
+  }
+
+
+  /**
+    * Update the clipping information produced by Picard's MarkIlluminaAdapters to account for any non-template bases
+    * that will be removed from the read.
+    */
+  private[umi] def updateClippingInformation(record: SAMRecord,
+                                             clippingAttribute: Option[String],
+                                             readStructure: ReadStructure): Unit = {
+    clippingAttribute.map(tag => (tag, record.getIntegerAttribute(tag))) match {
+      case None => Unit
+      case Some((tag, null)) => Unit
+      case Some((tag, clippingPosition)) =>
+        val newClippingPosition = readStructure.takeWhile(_.offset < clippingPosition).collect { case t: Template =>
+          if (t.offset + t.length < clippingPosition) t.length
+          else clippingPosition - t.offset
+        }.sum
+        record.setAttribute(tag, newClippingPosition)
+    }
   }
 }
