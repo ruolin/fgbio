@@ -26,6 +26,7 @@
 package com.fulcrumgenomics.vcf
 
 import com.fulcrumgenomics.testing.UnitSpec
+import com.fulcrumgenomics.util.Io
 import dagr.commons.io.PathUtil
 import dagr.commons.CommonsDef._
 import htsjdk.variant.variantcontext.VariantContext
@@ -38,11 +39,14 @@ import scala.collection.JavaConversions._
   */
 class HapCutToVcfTest extends UnitSpec {
 
-  private val dir         = PathUtil.pathTo("src/test/resources/com/fulcrumgenomics/vcf")
-  private val originalVcf = dir.resolve("NA12878.GIABPedigreev0.2.17.41100000.41300000.vcf")
-  private val hapCut      = dir.resolve("NA12878.GIABPedigreev0.2.17.41100000.41300000.hapcut")
-  private val output      = dir.resolve("NA12878.GIABPedigreev0.2.17.41100000.41300000.hapcut.vcf")
-  private val outputGatk  = dir.resolve("NA12878.GIABPedigreev0.2.17.41100000.41300000.hapcut.gatk.vcf")
+  private val dir            = PathUtil.pathTo("src/test/resources/com/fulcrumgenomics/vcf")
+  private val originalVcf    = dir.resolve("NA12878.GIABPedigreev0.2.17.41100000.41300000.vcf")
+  private val hapCut1Out     = dir.resolve("NA12878.GIABPedigreev0.2.17.41100000.41300000.hapcut")
+  private val hapCut1Vcf     = dir.resolve("NA12878.GIABPedigreev0.2.17.41100000.41300000.hapcut.vcf")
+  private val hapCut1GatkVcf = dir.resolve("NA12878.GIABPedigreev0.2.17.41100000.41300000.hapcut.gatk.vcf")
+  private val hapCut2Out     = dir.resolve("NA12878.GIABPedigreev0.2.17.41100000.41300000.hapcut2")
+  private val hapCut2Vcf     = dir.resolve("NA12878.GIABPedigreev0.2.17.41100000.41300000.hapcut2.vcf")
+  private val hapCut2GatkVcf = dir.resolve("NA12878.GIABPedigreev0.2.17.41100000.41300000.hapcut2.gatk.vcf")
 
   private def countVcfRecords(vcf: PathToVcf): Int = {
     val vcfReader = new VCFFileReader(vcf.toFile, false)
@@ -79,28 +83,39 @@ class HapCutToVcfTest extends UnitSpec {
     val hasPhasingSetTag = vcfReader
       .iterator()
       .filterNot { ctx => isPhased(ctx, gatkPhasingFormat) }
-      .exists { ctx => ctx.getGenotypes.exists(_.hasExtendedAttribute(HapCutVcfHeaderLines.PhaseSetFormatTag)) }
+      .exists { ctx => ctx.getGenotypes.exists(_.hasExtendedAttribute(HapCut1VcfHeaderLines.PhaseSetFormatTag)) }
     vcfReader.close()
     hasPhasingSetTag
   }
 
-  "HapCutReader" should "read in a HAPCUT file" in {
-    val reader = new HapCutReader(hapCut)
+  "HapCutReader" should "read in a HAPCUT1 file" in {
+    val reader = HapCutReader(hapCut1Out)
     val allCalls = reader.toSeq
     val calls = allCalls.flatten
     allCalls.length shouldBe 342 // 342 total variants
     calls.length shouldBe 237 // 237 phased variants
     calls.map(_.phaseSet).distinct.length shouldBe 8 // eight phased blocks
+    reader.close()
   }
 
-  "HapCutToVcf" should "convert a HAPCUT file to VCF in both GATK and VCF-spec phasing format" in {
+  it should "read in a HAPCUT2 file" in {
+    val reader = HapCutReader(hapCut2Out)
+    val allCalls = reader.toSeq
+    val calls = allCalls.flatten
+    allCalls.length shouldBe 342 // 342 total variants
+    calls.length shouldBe 237 // 237 phased variants
+    calls.map(_.phaseSet).distinct.length shouldBe 8 // eight phased blocks
+    reader.close()
+  }
+
+  "HapCutToVcf" should "convert a HAPCUT1 file to VCF in both GATK and VCF-spec phasing format" in {
     Stream(true, false).foreach { gatkPhasingFormat =>
-      val expectedOutput = if (gatkPhasingFormat) outputGatk else output
+      val expectedOutput = if (gatkPhasingFormat) hapCut1GatkVcf else hapCut1Vcf
       val out = makeTempFile("hap_cut_to_vcf.hapcut", ".vcf")
 
       new HapCutToVcf(
         vcf               = originalVcf,
-        input             = hapCut,
+        input             = hapCut1Out,
         output            = out,
         gatkPhasingFormat = gatkPhasingFormat
       ).execute()
@@ -115,12 +130,76 @@ class HapCutToVcfTest extends UnitSpec {
       val numPhasedFromOut = getNumPhasedFromVcf(out, gatkPhasingFormat)
 
       // check that the # of variants phased in the output agrees with the # of phased calls produced by HapCut
-      val hapCutReader = new HapCutReader(hapCut)
+      val hapCutReader = HapCutReader(hapCut1Out)
       val numPhasedFromHapCut = hapCutReader.flatten.length
       numPhasedFromOut shouldBe numPhasedFromHapCut
+      hapCutReader.close()
 
       // check that the # of variants phased in the output agrees with the # of phased calls in the expected output
       numPhasedFromOut shouldBe getNumPhasedFromVcf(expectedOutput, gatkPhasingFormat)
+
+      // check that if a variant is not phased it does not have a PS tag
+      hasPhasingSetFormatTagButUnphased(out, gatkPhasingFormat) shouldBe false
+    }
+  }
+
+  it should "convert a HAPCUT2 file to VCF in both GATK and VCF-spec phasing format" in {
+    Stream(true, false).foreach { gatkPhasingFormat =>
+      val expectedOutput = if (gatkPhasingFormat) hapCut2GatkVcf else hapCut2Vcf
+      val out = makeTempFile("hap_cut_to_vcf.hapcut2", ".vcf")
+
+      new HapCutToVcf(
+        vcf               = originalVcf,
+        input             = hapCut2Out,
+        output            = out,
+        gatkPhasingFormat = gatkPhasingFormat
+      ).execute()
+
+      // check that we have the same # of records in the output as the input
+      countVcfRecords(out) shouldBe countVcfRecords(originalVcf)
+
+      // check that all records in the output are found in the input
+      compareVcfs(out, originalVcf)
+
+      // get the # of phased variants from the output
+      val numPhasedFromOut = getNumPhasedFromVcf(out, gatkPhasingFormat)
+
+      // check that the # of variants phased in the output agrees with the # of phased calls produced by HapCut
+      val hapCutReader = HapCutReader(hapCut2Out)
+      val numPhasedFromHapCut = hapCutReader.flatten.length
+      numPhasedFromOut shouldBe numPhasedFromHapCut
+      hapCutReader.close()
+
+      // check that the # of variants phased in the output agrees with the # of phased calls in the expected output
+      numPhasedFromOut shouldBe getNumPhasedFromVcf(expectedOutput, gatkPhasingFormat)
+
+      // check that if a variant is not phased it does not have a PS tag
+      hasPhasingSetFormatTagButUnphased(out, gatkPhasingFormat) shouldBe false
+    }
+  }
+
+  it should "convert an empty HAPCUT1/HAPCUT2 file to VCF in both GATK and VCF-spec phasing format" in {
+    Stream(true, false).foreach { gatkPhasingFormat =>
+      val out       = makeTempFile("hap_cut_to_vcf.hapcut", ".vcf")
+      val hapCutOut = makeTempFile("hap_cut_to_vcf.hapcut", ".hapcut")
+
+      Io.writeLines(hapCutOut, Seq.empty)
+
+      new HapCutToVcf(
+        vcf               = originalVcf,
+        input             = hapCutOut,
+        output            = out,
+        gatkPhasingFormat = gatkPhasingFormat
+      ).execute()
+
+      // check that we have the same # of records in the output as the input
+      countVcfRecords(out) shouldBe countVcfRecords(originalVcf)
+
+      // check that all records in the output are found in the input
+      compareVcfs(out, originalVcf)
+
+      // get the # of phased variants from the output
+      getNumPhasedFromVcf(out, gatkPhasingFormat) shouldBe 0
 
       // check that if a variant is not phased it does not have a PS tag
       hasPhasingSetFormatTagButUnphased(out, gatkPhasingFormat) shouldBe false
