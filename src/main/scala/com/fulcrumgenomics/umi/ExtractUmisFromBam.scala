@@ -26,7 +26,9 @@
 package com.fulcrumgenomics.umi
 
 import com.fulcrumgenomics.cmdline.{ClpGroups, FgBioTool}
+import com.fulcrumgenomics.util.ReadStructure.SubRead
 import com.fulcrumgenomics.util.{ProgressLogger, _}
+import com.fulcrumgenomics.FgBioDef.unreachable
 import dagr.commons.CommonsDef.PathToBam
 import dagr.commons.io.Io
 import dagr.commons.util.LazyLogging
@@ -176,7 +178,7 @@ object ExtractUmisFromBam {
     // get the bases associated with each segment
     val readStructureBases = readStructure.structureReadWithQualities(bases, qualities, strict = false)
     // get the molecular barcode segments
-    val molecularBarcodeBases = readStructureBases.collect { case (b: String, q: String, m: MolecularBarcode) => b }
+    val molecularBarcodeBases = readStructureBases.collect { case SubRead(b: String, _, m: MolecularBarcode) => b }
     // set the barcode tags
     molecularBarcodeTags match {
       case Seq(tag) => record.setAttribute(tag, molecularBarcodeBases.mkString(UmiDelimiter))
@@ -186,12 +188,11 @@ object ExtractUmisFromBam {
         molecularBarcodeTags.zip(molecularBarcodeBases).foreach { case (tag, b) => record.setAttribute(tag, b) }
     }
     // keep only template bases and qualities in the output read
-    val basesAndQualities = readStructureBases.flatMap {
-      case (b: String, q: String, s: ReadSegment) =>
-        s match {
-          case m: Template => Some((b, q))
-          case _ => None
-        }
+    val basesAndQualities = readStructureBases.flatMap { r =>
+      r.segment match {
+        case m: Template => Some((r.bases, r.quals.getOrElse(unreachable())))
+        case _ => None
+      }
     }
     // update any clipping information
     updateClippingInformation(record=record, clippingAttribute=clippingAttribute, readStructure=readStructure)

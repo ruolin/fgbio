@@ -64,6 +64,9 @@ object ReadStructure {
     rs
   }
 
+  /** Contains the bases and optionally base qualities that correspond to the given read segment. */
+  case class SubRead(bases: String, quals: Option[String] = None, segment: ReadSegment)
+
   /**
     * Inserts square brackets around the characers in the read structure that are causing the error.
     *
@@ -90,6 +93,7 @@ object ReadStructure {
   *                     structure.  New segment objects will be created in this case.
   */
 class ReadStructure(segs: Seq[ReadSegment], resetOffsets: Boolean = false) extends immutable.Seq[ReadSegment] {
+  import ReadStructure.SubRead
   private val segments: Seq[ReadSegment] = if (resetOffsets) {
     var idx = 0
     var off = 0
@@ -113,24 +117,24 @@ class ReadStructure(segs: Seq[ReadSegment], resetOffsets: Boolean = false) exten
   /** Splits the given bases into tuples with its associated read segment.  If strict is false then only return
     * tuples for which we have bases in `bases`, otherwise throw an exception.
     **/
-  def structureRead(bases: String, strict: Boolean = true): Seq[(String, ReadSegment)] = {
+  def structureRead(bases: String, strict: Boolean = true): Seq[SubRead] = {
     // TODO: TF: strict == false allows us to skip segments (in the filter)
     this.filter(s => strict || s.offset < bases.length).map {
       segment =>
         val (start, end) = segment.range(bases.length, strict=strict)
-        (bases.substring(start, end), ReadSegment(segment, end - start))
+        SubRead(bases=bases.substring(start, end), segment=ReadSegment(segment, end - start))
     }
   }
 
   /** Splits the given bases and qualities into triples with its associated read segment.  If strict is false then only
     * return tuples for which we have bases in `bases`, otherwise throw an exception.
     **/
-  def structureReadWithQualities(bases: String, qualities: String, strict: Boolean = true): Seq[(String, String, ReadSegment)] = {
+  def structureReadWithQualities(bases: String, qualities: String, strict: Boolean = true): Seq[SubRead] = {
     assert(bases.length == qualities.length)
     this.filter(s => strict || s.offset < bases.length).map {
       segment =>
         val (start, end) = segment.range(Math.min(bases.length, qualities.length), strict=strict)
-        (bases.substring(start, end), qualities.substring(start,end), ReadSegment(segment, end - start))
+        SubRead(bases=bases.substring(start, end), quals=Some(qualities.substring(start,end)), segment=ReadSegment(segment, end - start))
     }
   }
 
