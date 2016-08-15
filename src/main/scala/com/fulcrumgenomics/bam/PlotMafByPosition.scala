@@ -26,15 +26,15 @@ package com.fulcrumgenomics.bam
 
 import com.fulcrumgenomics.FgBioDef._
 import com.fulcrumgenomics.cmdline.{ClpGroups, FgBioTool}
-import com.fulcrumgenomics.util.{Io, RScriptRunner}
+import com.fulcrumgenomics.util.{Io, ProgressLogger, RScriptRunner}
 import dagr.commons.util.LazyLogging
 import dagr.sopt.{arg, clp}
-import htsjdk.samtools.SamReaderFactory
-import htsjdk.samtools.filter.DuplicateReadFilter
+import htsjdk.samtools.filter.{DuplicateReadFilter, SamRecordFilter}
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory
 import htsjdk.samtools.util.SamLocusIterator.LocusInfo
+import htsjdk.samtools.util.SequenceUtil.isNoCall
 import htsjdk.samtools.util.{CollectionUtil, IntervalList, SamLocusIterator, SequenceUtil}
-import SequenceUtil.isNoCall
+import htsjdk.samtools.{SAMRecord, SamReaderFactory}
 import htsjdk.variant.vcf.VCFFileReader
 
 import scala.collection.JavaConversions.{asScalaIterator, iterableAsScalaIterable}
@@ -54,6 +54,8 @@ class PlotMafByPosition
   @arg(flag="r", doc="Reference fasta file.")            val ref: PathToFasta,
   @arg(flag="q", doc="Ignore bases below this quality.") val minQuality: Int = 20,
   @arg(flag="d", doc="Minimum coverage depth to emit a locus.") val minDepth: Int = 100,
+  @arg(flag="e", doc="Filter out reads with > read_len*maxErrorRate edits (requires NM tag).") val maxErrorRate: Option[Double] = None,
+  @arg(flag="N", doc="Exclude sites with this or higher fraction of Ns.") val maxNFraction: Double = 0.01,
   @arg(flag="D", doc="Downsample all sites to minDepth first.") val downsampleToMinDepth: Boolean = false,
   @arg(flag="v", doc="A VCF of known/expected variant sites.")  val variants: Option[PathToVcf],
   @arg(flag="n", doc="Name of the dataset, used in plotting.")  val name: Option[String] = None
@@ -81,6 +83,7 @@ class PlotMafByPosition
     out.write(Seq("id", "chrom", "pos", "ref", "group", "depth", "ref_count", "non_ref_count", "no_call_count", "non_ref_fraction", "no_call_fraction").mkString(Sep))
     out.newLine()
 
+    val progress = new ProgressLogger(logger, noun="sites", unit=5000)
     while (iter.hasNext) {
       val xs = iter.next()
       val refBase = refFile.getSubsequenceAt(xs.getSequenceName, xs.getPosition, xs.getPosition).getBases()(0)
@@ -88,13 +91,15 @@ class PlotMafByPosition
       val total = (refCount + nonRefCount + noCallCount).toDouble
       val group = if (expected.contains(xs.getSequenceName + ":" + xs.getPosition)) "Expected" else "Unexpected"
 
-      if (total >= minDepth) {
+      if (total >= minDepth && noCallCount / total <= maxNFraction) {
         val fields = Seq(id, xs.getSequenceName, xs.getPosition, refBase.toChar, group, total,
                          refCount, nonRefCount, noCallCount, nonRefCount / total, noCallCount / total)
         out.write(fields.mkString("\t"))
         out.newLine()
         id += 1
       }
+
+      progress.record(xs.getSequenceName, xs.getPosition)
     }
 
     out.close()
@@ -135,7 +140,21 @@ class PlotMafByPosition
     iter.setEmitUncoveredLoci(true)
     iter.setIncludeIndels(false)
     iter.setMaxReadsToAccumulatePerLocus(Int.MaxValue)
-    iter.setSamFilters(CollectionUtil.makeList(new DuplicateReadFilter))
+
+    class NmFilter extends SamRecordFilter {
+      val max = maxErrorRate.getOrElse(throw new IllegalStateException("Must have a maximum error rate specified."))
+      override def filterOut(rec: SAMRecord): Boolean = {
+        val limit = rec.getReadLength * max
+        val nm = rec.getIntegerAttribute("NM")
+        nm == null || nm > limit
+      }
+      override def filterOut(r1: SAMRecord, r2: SAMRecord): Boolean = filterOut(r1) || filterOut(r2)
+    }
+
+    val filters = new java.util.ArrayList[SamRecordFilter]()
+    filters.add(new DuplicateReadFilter)
+    if (maxErrorRate.isDefined) filters.add(new NmFilter())
+    iter.setSamFilters(filters)
     iter
   }
 
@@ -148,7 +167,7 @@ class PlotMafByPosition
     var altCount = 0
     var nCount   = 0
 
-    info.getRecordAndPositions.filter(r => r.getBaseQuality >= this.minQuality || (isNoCall(r.getReadBase) && r.getBaseQuality != 2)).foreach(recAndOffset => {
+    info.getRecordAndPositions.filter(r => r.getBaseQuality >= this.minQuality || isNoCall(r.getReadBase)).foreach(recAndOffset => {
       val name = recAndOffset.getRecord.getReadName
       if (!seen.contains(name)) {
         seen.add(name)
