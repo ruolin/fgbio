@@ -1,0 +1,26 @@
+@HD	VN:1.5	SO:unsorted
+@SQ	SN:chr1	LN:29940	M5:6181711c9a1670e3979edc0043ffd3cd	UR:file:/Users/nhomer/git/fg/fgbio/src/test/resources/com/fulcrumgenomics/error_rate_by_read_position.fasta
+@SQ	SN:chr2	LN:60	M5:e009747e74dd24f3274fc71c240921b7	UR:file:/Users/nhomer/git/fg/fgbio/src/test/resources/com/fulcrumgenomics/error_rate_by_read_position.fasta
+@SQ	SN:chr3	LN:60	M5:e009747e74dd24f3274fc71c240921b7	UR:file:/Users/nhomer/git/fg/fgbio/src/test/resources/com/fulcrumgenomics/error_rate_by_read_position.fasta
+@SQ	SN:chr4	LN:60	M5:e009747e74dd24f3274fc71c240921b7	UR:file:/Users/nhomer/git/fg/fgbio/src/test/resources/com/fulcrumgenomics/error_rate_by_read_position.fasta
+@SQ	SN:chr5	LN:60	M5:e009747e74dd24f3274fc71c240921b7	UR:file:/Users/nhomer/git/fg/fgbio/src/test/resources/com/fulcrumgenomics/error_rate_by_read_position.fasta
+@SQ	SN:chr6	LN:60	M5:e009747e74dd24f3274fc71c240921b7	UR:file:/Users/nhomer/git/fg/fgbio/src/test/resources/com/fulcrumgenomics/error_rate_by_read_position.fasta
+@SQ	SN:chr7	LN:60	M5:e009747e74dd24f3274fc71c240921b7	UR:file:/Users/nhomer/git/fg/fgbio/src/test/resources/com/fulcrumgenomics/error_rate_by_read_position.fasta
+@SQ	SN:chr8	LN:60	M5:e009747e74dd24f3274fc71c240921b7	UR:file:/Users/nhomer/git/fg/fgbio/src/test/resources/com/fulcrumgenomics/error_rate_by_read_position.fasta
+@SQ	SN:chr9	LN:60	M5:e009747e74dd24f3274fc71c240921b7	UR:file:/Users/nhomer/git/fg/fgbio/src/test/resources/com/fulcrumgenomics/error_rate_by_read_position.fasta
+@SQ	SN:chr10	LN:60	M5:e009747e74dd24f3274fc71c240921b7	UR:file:/Users/nhomer/git/fg/fgbio/src/test/resources/com/fulcrumgenomics/error_rate_by_read_position.fasta
+@SQ	SN:chr11	LN:60	M5:e009747e74dd24f3274fc71c240921b7	UR:file:/Users/nhomer/git/fg/fgbio/src/test/resources/com/fulcrumgenomics/error_rate_by_read_position.fasta
+@SQ	SN:chr12	LN:60	M5:e009747e74dd24f3274fc71c240921b7	UR:file:/Users/nhomer/git/fg/fgbio/src/test/resources/com/fulcrumgenomics/error_rate_by_read_position.fasta
+@SQ	SN:chr13	LN:60	M5:e009747e74dd24f3274fc71c240921b7	UR:file:/Users/nhomer/git/fg/fgbio/src/test/resources/com/fulcrumgenomics/error_rate_by_read_position.fasta
+@SQ	SN:chr14	LN:60	M5:e009747e74dd24f3274fc71c240921b7	UR:file:/Users/nhomer/git/fg/fgbio/src/test/resources/com/fulcrumgenomics/error_rate_by_read_position.fasta
+@SQ	SN:chr15	LN:60	M5:e009747e74dd24f3274fc71c240921b7	UR:file:/Users/nhomer/git/fg/fgbio/src/test/resources/com/fulcrumgenomics/error_rate_by_read_position.fasta
+@SQ	SN:chr16	LN:60	M5:e009747e74dd24f3274fc71c240921b7	UR:file:/Users/nhomer/git/fg/fgbio/src/test/resources/com/fulcrumgenomics/error_rate_by_read_position.fasta
+@SQ	SN:chr17	LN:60	M5:e009747e74dd24f3274fc71c240921b7	UR:file:/Users/nhomer/git/fg/fgbio/src/test/resources/com/fulcrumgenomics/error_rate_by_read_position.fasta
+@SQ	SN:chr18	LN:60	M5:e009747e74dd24f3274fc71c240921b7	UR:file:/Users/nhomer/git/fg/fgbio/src/test/resources/com/fulcrumgenomics/error_rate_by_read_position.fasta
+@SQ	SN:chr19	LN:60	M5:e009747e74dd24f3274fc71c240921b7	UR:file:/Users/nhomer/git/fg/fgbio/src/test/resources/com/fulcrumgenomics/error_rate_by_read_position.fasta
+@SQ	SN:chr20	LN:60	M5:e009747e74dd24f3274fc71c240921b7	UR:file:/Users/nhomer/git/fg/fgbio/src/test/resources/com/fulcrumgenomics/error_rate_by_read_position.fasta
+@SQ	SN:chr21	LN:60	M5:e009747e74dd24f3274fc71c240921b7	UR:file:/Users/nhomer/git/fg/fgbio/src/test/resources/com/fulcrumgenomics/error_rate_by_read_position.fasta
+@SQ	SN:chr22	LN:60	M5:e009747e74dd24f3274fc71c240921b7	UR:file:/Users/nhomer/git/fg/fgbio/src/test/resources/com/fulcrumgenomics/error_rate_by_read_position.fasta
+@SQ	SN:chrX	LN:60	M5:e009747e74dd24f3274fc71c240921b7	UR:file:/Users/nhomer/git/fg/fgbio/src/test/resources/com/fulcrumgenomics/error_rate_by_read_position.fasta
+@SQ	SN:chrY	LN:60	M5:e009747e74dd24f3274fc71c240921b7	UR:file:/Users/nhomer/git/fg/fgbio/src/test/resources/com/fulcrumgenomics/error_rate_by_read_position.fasta
+@SQ	SN:chrM	LN:60	M5:e009747e74dd24f3274fc71c240921b7	UR:file:/Users/nhomer/git/fg/fgbio/src/test/resources/com/fulcrumgenomics/error_rate_by_read_position.fasta

@@ -72,7 +72,7 @@ class FilterBam
 
   override def execute(): Unit = {
     val progress = new ProgressLogger(logger, verb="written", unit=5e6.toInt)
-    val in       = SamReaderFactory.make.open(input.toFile)
+    val in       = SamReaderFactory.make.open(input)
     val iterator = buildInputIterator(in, intervals)
     val out      = new SAMFileWriterFactory().makeWriter(in.getFileHeader, true, output.toFile, null)
     val kept = iterator.count { rec => {
