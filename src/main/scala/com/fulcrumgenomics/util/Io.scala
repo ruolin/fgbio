@@ -24,11 +24,14 @@
 package com.fulcrumgenomics.util
 
 import java.io.{InputStream, OutputStream}
+import java.net.URL
 import java.nio.file.{Files, Path, Paths}
 import java.util.zip.{GZIPInputStream, GZIPOutputStream}
 
 import dagr.commons.io.{IoUtil, PathUtil}
 import dagr.commons.CommonsDef.DirPath
+
+import scala.io.Source
 
 /**
   * Provides common IO utility methods.  Can be instantiated to create a custom factory, or
@@ -53,6 +56,14 @@ class Io(val compressionLevel: Int = 5, override val bufferSize: Int = 128*1024)
 
   /** Returns the system default temporary directory path. */
   def defaultTempDir(): DirPath = Paths.get(System.getProperty("java.io.tmpdir"))
+
+  /** Creates a Source by reading from the URL. If the path ends with .gz the stream will be inflated on
+    * the fly.  The returned Source will close the underlying input stream when close() is called.
+    */
+  def toSource(url: URL): Source = {
+    val stream = if (url.getPath.endsWith(".gz")) new GZIPInputStream(url.openStream(), bufferSize) else url.openStream()
+    Source.fromInputStream(stream).withClose(() => stream.close())
+  }
 }
 
 /** Singleton object that can be used when the default buffer size and compression are desired. */

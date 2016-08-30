@@ -83,14 +83,14 @@ class SummarizeKrakenOutput
         progress.record()
     }
 
-    logger.info(s"Raw     = Queries: ${counter.totalCounts}; Hits: ${counter.totalCounts-counter.countOf(0)}; Taxa: ${counter.size-1}.")
+    logger.info(s"Raw     = Queries: ${counter.total}; Hits: ${counter.total-counter.countOf(0)}; Taxa: ${counter.size-1}.")
 
     // Roll things down from higher levels to lower levels
     val tree = buildSummaryTree(counter, taxa)
     tree.rolldown(rank)
     tree.rollup(rank)
 
-    logger.info(s"Summary = Queries: ${counter.totalCounts}; Hits: ${tree.total}; Taxa: ${tree.filter(_.count > 0).size}.")
+    logger.info(s"Summary = Queries: ${counter.to}; Hits: ${tree.total}; Taxa: ${tree.count(_.count > 0)}.")
 
     writeReport(tree, counter.countOf(0))
   }
