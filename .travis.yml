@@ -16,7 +16,7 @@ before_install:
 - pip install --user codecov
 after_success:
 - codecov
-- test "$TRAVIS_REPO_SLUG" == 'fulcrumgenomics/fgbio' && test "$TRAVIS_PULL_REQUEST" == 'false' && test "$TRAVIS_BRANCH" == 'master' #&& sbt 'set version := version.value + "." + System.getenv("TRAVIS_BUILD_NUMBER")' publish
+- test "$TRAVIS_REPO_SLUG" == 'fulcrumgenomics/fgbio' && test "$TRAVIS_PULL_REQUEST" == 'false' && test "$TRAVIS_BRANCH" == 'master' && sbt publish #&& sbt 'set version := version.value + "." + System.getenv("TRAVIS_BUILD_NUMBER")' publish
 env:
   global:
   - secure: K87b3FHR9nEJQzVwFmPtyyfnu5f/h9luWIlIe37It9erBHJpNQh8knPCqfZgcIOrxIinE7xOJQyHDBTqkhKDtWKVG69B8w5km0XSm3s/WObuN+XZegmpGlvL5kdwQwgTMn4gyQb5aG4pSzWk5pzz691pM0ecJ+olTE6K+Eqlri7tnLf99pUhqND4JUHEgs6AMlazPnnT4FXbZ22tlvNwpIajawj1dvRTS7mUyyYvHtKs6hJB+poLyJs/pBe07jVp8BCZ35rJ72kObUQ68azyLh0IRj+owHz8hyjWgO0n7YspoJI1i7gDt2PP7fzUzG5OLdBOZOt8QVm1S7ZbLrjBdnY9jJad72PUADC0a3Q0WJRBat/T8nIBDtCXm6iPyewfgCkpHcZJnOpixBJpR/jGOGj+gY7eYJwZ9FXizbk8PnM+uRhCP6dghrkhD5mFVRPHXVPcrzJON5kCXpmqPdvZ9IVbYuDbFbp66K6EbYlzKBCL0SigK3d/7xkTnPNsawlf9Xya9lZ9BwUijdN0Iyji1vxGXAj4PHbJGDZw9CQMNW6F3qe8+mk2eahTw+wE1XZcToTEFba00S1yOBGVc/dNvewITQxBVOigFj06UsPAMfq/00xMsw6YlWn5qGcLmD8Zq4mGh6kLoTDrps9Z5fBcjYAMBXE9mvYADhznh6X0QSE=
