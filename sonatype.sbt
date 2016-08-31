@@ -8,8 +8,8 @@ pomExtra in Global := {
       </license>
     </licenses>
     <scm>
-      <url>git@github.com:fulcrumgenomics/dagr</url>
-      <connection>scm:git:git@github.com:fulcrumgenomics/dagr.git</connection>
+      <url>git@github.com:fulcrumgenomics/fgbio</url>
+      <connection>scm:git:git@github.com:fulcrumgenomics/fgbio.git</connection>
     </scm>
     <developers>
       <developer>
