@@ -43,7 +43,7 @@ import scala.collection.JavaConversions._
   """
     |Extracts unique molecular indexes from reads in a BAM file into tags.
     |
-    |Currently only unmapped paired end read data are supported.
+    |Currently only unmapped reads are supported.
     |
     |Only template bases will be retained as read bases (stored in the SEQ field) as specified by the read structure.
     |
@@ -87,8 +87,10 @@ class ExtractUmisFromBam
   Io.assertCanWriteFile(output)
 
   val (rs1, rs2) = readStructure match {
-    case Seq(readStructure1, readStructure2) => (ReadStructure(readStructure1), ReadStructure(readStructure2))
-    case _ => throw new ValidationException("Two read structures must be given (one per end of the template).")
+    case Seq(readStructure1, readStructure2) => (ReadStructure(readStructure1), Some(ReadStructure(readStructure2)))
+    case Seq(readStructure1) => (ReadStructure(readStructure1), None)
+    case Seq() => throw new ValidationException("No read structures given")
+    case _ => throw new ValidationException("More than two read structures given")
   }
 
   // validate the read structure versus the molecular barcode tags
@@ -116,26 +118,37 @@ class ExtractUmisFromBam
       case m: MolecularBarcode => true
       case _ => false
     })
-    assert(molecularBarcodeTags2.length == rs2.count {
-      case m: MolecularBarcode => true
-      case _ => false
-    })
+    rs2.foreach { rs =>
+      assert(molecularBarcodeTags2.length == rs.count {
+        case m: MolecularBarcode => true
+        case _ => false
+      })
+    }
     val in: SamReader = SamReaderFactory.make.open(input.toFile)
-    val iterator: SAMRecordIterator = in.iterator()
+    val iterator = in.iterator().buffered
     val out: SAMFileWriter = new SAMFileWriterFactory().makeSAMOrBAMWriter(in.getFileHeader, true, output.toFile)
-    iterator.grouped(2).foreach {
-      case Seq(r1: SAMRecord, r2: SAMRecord) =>
-        // verify everything is in order
+
+    while (iterator.hasNext) {
+      val r1 = iterator.next()
+
+      if (r1.getReadPairedFlag) {
+        // get the second read and make sure there's a read structure.
+        if (!iterator.hasNext) fail(s"Could not find mate for read ${r1.getReadName}")
+        if (rs2.isEmpty) fail(s"Missing read structure for read two (required for paired end data).")
+        val r2  = iterator.next()
+
+        // verify everything is in order for paired end reads
         Seq(r1, r2).foreach(r => {
-          if (!r.getReadPairedFlag) throw fail(s"Read ${r.getReadName} was not paired")
-          if (!r.getReadUnmappedFlag) throw fail(s"Read ${r.getReadName} was not unmapped")
+          if (!r.getReadPairedFlag) fail(s"Read ${r.getReadName} was not paired")
+          if (!r.getReadUnmappedFlag) fail(s"Read ${r.getReadName} was not unmapped")
         })
-        if (!r1.getFirstOfPairFlag) throw fail(s"Read ${r1.getReadName} was not the first end of a pair")
-        if (!r2.getSecondOfPairFlag) throw fail(s"Read ${r2.getReadName} was not the second end of a pair")
-        if (!r1.getReadName.equals(r2.getReadName)) throw fail(s"Read names did not match: '${r1.getReadName}' and '${r2.getReadName}'")
+        if (!r1.getFirstOfPairFlag) fail(s"Read ${r1.getReadName} was not the first end of a pair")
+        if (!r2.getSecondOfPairFlag) fail(s"Read ${r2.getReadName} was not the second end of a pair")
+        if (!r1.getReadName.equals(r2.getReadName)) fail(s"Read names did not match: '${r1.getReadName}' and '${r2.getReadName}'")
+
         // now do some work
         val bases1 = ExtractUmisFromBam.annotateRecord(record=r1, readStructure=rs1, molecularBarcodeTags=molecularBarcodeTags1, clippingAttribute=clippingAttribute)
-        val bases2 = ExtractUmisFromBam.annotateRecord(record=r2, readStructure=rs2, molecularBarcodeTags=molecularBarcodeTags2, clippingAttribute=clippingAttribute)
+        val bases2 = ExtractUmisFromBam.annotateRecord(record=r2, readStructure=rs2.get, molecularBarcodeTags=molecularBarcodeTags2, clippingAttribute=clippingAttribute)
         if (annotateReadNames) {
           // Developer Note: the delimiter must be an ascii character less than what is usually in the read names.  For
           // example "|" doesn't work.  I am not completely sure why.
@@ -148,15 +161,40 @@ class ExtractUmisFromBam
         val tagAndValues = (molecularBarcodeTags1.map { tag => (tag, r1.getStringAttribute(tag)) }
           ++ molecularBarcodeTags2.map { tag => (tag, r2.getStringAttribute(tag)) }).toList
         tagAndValues.groupBy(_._1).foreach { case (tag, tuples) =>
-            val attr = tuples.map(_._2).mkString(ExtractUmisFromBam.UmiDelimiter)
-            r1.setAttribute(tag, attr)
-            r2.setAttribute(tag, attr)
+          val attr = tuples.map(_._2).mkString(ExtractUmisFromBam.UmiDelimiter)
+          r1.setAttribute(tag, attr)
+          r2.setAttribute(tag, attr)
         }
 
         out.addAlignment(r1)
         out.addAlignment(r2)
         progress.record(r1, r2)
+
+      }
+      else {
+        // verify everything is in order for single end reads
+        if (!r1.getReadUnmappedFlag) fail(s"Read ${r1.getReadName} was not unmapped")
+
+        // now do some work
+        val bases1 = ExtractUmisFromBam.annotateRecord(record=r1, readStructure=rs1, molecularBarcodeTags=molecularBarcodeTags1, clippingAttribute=clippingAttribute)
+        if (annotateReadNames) {
+          // Developer Note: the delimiter must be an ascii character less than what is usually in the read names.  For
+          // example "|" doesn't work.  I am not completely sure why.
+          r1.setReadName(r1.getReadName + "+" + bases1)
+        }
+
+        // If we have duplicate tags, then concatenate them in the same order across the read
+        val tagAndValues = molecularBarcodeTags1.map { tag => (tag, r1.getStringAttribute(tag)) }
+        tagAndValues.groupBy(_._1).foreach { case (tag, tuples) =>
+          val attr = tuples.map(_._2).mkString(ExtractUmisFromBam.UmiDelimiter)
+          r1.setAttribute(tag, attr)
+        }
+
+        out.addAlignment(r1)
+        progress.record(r1)
+      }
     }
+
     out.close()
     CloserUtil.close(iterator)
   }
