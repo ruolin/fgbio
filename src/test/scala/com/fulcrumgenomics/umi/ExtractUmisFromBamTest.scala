@@ -60,7 +60,7 @@ class ExtractUmisFromBamTest extends UnitSpec with OptionValues {
     an[Exception] should be thrownBy ExtractUmisFromBam.annotateRecord(record=frag, ReadStructure("10M10M10M70T"), tags)
   }
 
-  it should "should annotate a single molecular barcode" in {
+  "ExtractUmisFromBam" should "should annotate a single molecular barcode for a read pair" in {
     val output  = newBam
     val builder = new SamRecordSetBuilder(readLength=100)
     val records = builder.addPair(name="Pair", start1=1, start2=1, record1Unmapped=true, record2Unmapped=true)
@@ -76,6 +76,23 @@ class ExtractUmisFromBamTest extends UnitSpec with OptionValues {
       rec.getReadLength shouldBe 90
       rec.getReadString shouldBe base * 90
     }
+  }
+
+  it should "should annotate a single molecular barcode for a fragment read" in {
+    val output  = newBam
+    val builder = new SamRecordSetBuilder(readLength=100)
+    builder.addFrag(name="Frag1", start=1, unmapped=true).map { rec => rec.setReadString("A" * 100); rec }
+    builder.addFrag(name="Frag2", start=1, unmapped=true).map { rec => rec.setReadString("C" * 100); rec }
+    new ExtractUmisFromBam(input=builder.toTempFile(), output=output, readStructure=Seq("10M90T"), molecularBarcodeTags=Seq("A1")).execute()
+    val recs = readBamRecs(output)
+
+    recs.head.getStringAttribute("A1") shouldBe "AAAAAAAAAA"
+    recs.head.getReadLength shouldBe 90
+    recs.head.getReadString shouldBe "A" * 90
+
+    recs.last.getStringAttribute("A1") shouldBe "CCCCCCCCCC"
+    recs.last.getReadLength shouldBe 90
+    recs.last.getReadString shouldBe "C" * 90
   }
 
   it should "accept a single molecular barcode SAM tag" in {
@@ -98,12 +115,12 @@ class ExtractUmisFromBamTest extends UnitSpec with OptionValues {
     an[Exception] should be thrownBy new ExtractUmisFromBam(input=builder.toTempFile(), output=output, readStructure=Seq("10M90T", "10M90T")).execute()
   }
 
-  it should "not accept fragments" in {
+  it should "not accept mapped fragments" in {
     val output = newBam
     val builder = new SamRecordSetBuilder(readLength=100)
     builder.addFrag(name="Frag1", start=1)
     builder.addFrag(name="Frag2", start=1)
-    an[Exception] should be thrownBy new ExtractUmisFromBam(input=builder.toTempFile(), output=output, readStructure=Seq("10M90T", "10M90T")).execute()
+    an[Exception] should be thrownBy new ExtractUmisFromBam(input=builder.toTempFile(), output=output, readStructure=Seq("10M90T")).execute()
   }
 
   it should "not accept mapped reads" in {
@@ -111,6 +128,14 @@ class ExtractUmisFromBamTest extends UnitSpec with OptionValues {
     val builder = new SamRecordSetBuilder(readLength=100)
     builder.addPair(name="Pair", start1=1, start2=1)
     an[Exception] should be thrownBy new ExtractUmisFromBam(input=builder.toTempFile(), output=output, readStructure=Seq("10M90T", "10M90T")).execute()
+  }
+
+
+  it should "not accept read pairs when only one read structure is given" in {
+    val output  = newBam
+    val builder = new SamRecordSetBuilder(readLength=100)
+    val records = builder.addPair(name="Pair", start1=1, start2=1)
+    an[Exception] should be thrownBy new ExtractUmisFromBam(input=builder.toTempFile(), output=output, readStructure=Seq("10M90T")).execute()
   }
 
   it should "only not accept paired records with the first end before the second end" in {
@@ -159,6 +184,24 @@ class ExtractUmisFromBamTest extends UnitSpec with OptionValues {
     }
   }
 
+  it should "accept duplicate molecular barcode SAM tags and concatenate the values for fragment reads" in {
+    val output  = newBam
+    val builder = new SamRecordSetBuilder(readLength=100)
+    builder.addFrag(name="Frag1", start=1, unmapped=true).map { rec => rec.setReadString("A" * 100); rec }
+    builder.addFrag(name="Frag2", start=1, unmapped=true).map { rec => rec.setReadString("C" * 100); rec }
+
+    new ExtractUmisFromBam(input=builder.toTempFile(), output=output, readStructure=Seq("10M80T10M"), molecularBarcodeTags=Seq("A1", "A1")).execute()
+    val recs = readBamRecs(output)
+
+    recs.head.getStringAttribute("A1") shouldBe "AAAAAAAAAA-AAAAAAAAAA"
+    recs.head.getReadLength shouldBe 80
+    recs.head.getReadString shouldBe "A" * 80
+
+    recs.last.getStringAttribute("A1") shouldBe "CCCCCCCCCC-CCCCCCCCCC"
+    recs.last.getReadLength shouldBe 80
+    recs.last.getReadString shouldBe "C" * 80
+  }
+
   it should "extract the molecular barcodes and annotate them for a read pair in tags" in {
     val output  = newBam
     val builder = new SamRecordSetBuilder(readLength=100)
@@ -201,6 +244,26 @@ class ExtractUmisFromBamTest extends UnitSpec with OptionValues {
         rec.getReadName shouldBe "Pair+" + "A" * 11
       }
     }
+  }
+
+  it should "extract the molecular barcodes and annotate them for a fragment reads in tags and in the names" in {
+    val output  = newBam
+    val builder = new SamRecordSetBuilder(readLength=100)
+    builder.addFrag(name="Frag1", start=1, unmapped=true).map { rec => rec.setReadString("A" * 100); rec }
+    builder.addFrag(name="Frag2", start=1, unmapped=true).map { rec => rec.setReadString("C" * 100); rec }
+
+    new ExtractUmisFromBam(input=builder.toTempFile(), output=output, readStructure=Seq("1M99T"), molecularBarcodeTags=Seq("P1"), annotateReadNames=true).execute()
+    val recs = readBamRecs(output)
+
+    recs.head.getStringAttribute("P1") shouldBe "A"
+    recs.head.getReadLength shouldBe 99
+    recs.head.getReadString shouldBe "A" * 99
+    recs.head.getReadName shouldBe "Frag1+A"
+
+    recs.last.getStringAttribute("P1") shouldBe "C"
+    recs.last.getReadLength shouldBe 99
+    recs.last.getReadString shouldBe "C" * 99
+    recs.last.getReadName shouldBe "Frag2+C"
   }
 
   it should "should annotate a single molecular barcode and update clipping information" in {
