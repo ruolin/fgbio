@@ -31,7 +31,6 @@ import com.fulcrumgenomics.FgBioDef._
 import com.fulcrumgenomics.cmdline.{ClpGroups, FgBioTool}
 import com.fulcrumgenomics.util.Io
 import com.fulcrumgenomics.vcf.MakeTwoSampleMixtureVcf._
-import dagr.sopt
 import dagr.sopt.{arg, clp}
 import htsjdk.samtools.util.IntervalList
 import htsjdk.variant.variantcontext._
@@ -52,7 +51,7 @@ object MakeTwoSampleMixtureVcf {
   *
   * @author Tim Fennell
   */
-@sopt.clp(group=ClpGroups.VcfOrBcf, description=
+@clp(group=ClpGroups.VcfOrBcf, description=
   """
     |Creates a VCF by in-silico mixing data from two samples. Writes a new VCF for a 'tumor' and
     |optionally a 'normal' where the tumor is a mixture of two germline samples, and the normal
@@ -84,8 +83,8 @@ class MakeTwoSampleMixtureVcf
 
     val out = if (tumorOnly) makeWriter(in.getFileHeader, "tumor") else makeWriter(in.getFileHeader, "tumor", "normal")
     iterator(in, this.intervals).filterNot(_.getAlternateAlleles.size() > 1).foreach { ctx =>
-      val oldTumorGt  = ctx.getGenotype(tumor)
-      val oldNormalGt = ctx.getGenotype(normal)
+      val oldTumorGt  = genotypeOf(tumor, ctx)
+      val oldNormalGt = genotypeOf(normal, ctx)
       val oldGts = Seq(oldTumorGt, oldNormalGt)
 
       val refAllele = ctx.getReference
@@ -95,7 +94,7 @@ class MakeTwoSampleMixtureVcf
       val newTumorGt = {
         val builder = new GenotypeBuilder("tumor")
         val alleles = new util.ArrayList[Allele]()
-        if (noCallIsHomRef || oldGts.forall(_.isCalled)) {
+        if (oldGts.forall(_.isCalled)) {
           if (oldGts.map(_.countAllele(refAllele)).sum + oldGts.count(_.isNoCall) > 0) alleles.add(refAllele)
           if (oldGts.map(_.countAllele(altAllele)).sum > 0) alleles.add(altAllele)
           if (alleles.size() == 1) alleles.add(alleles.get(0))
@@ -115,10 +114,7 @@ class MakeTwoSampleMixtureVcf
       // Build the normal genotype
       val newNormalGt = tumorOnly match {
         case true  => None
-        case false =>
-          val builder = new GenotypeBuilder("normal")
-          builder.alleles(oldNormalGt.getAlleles)
-          Some(builder.make())
+        case false => Some(new GenotypeBuilder("normal", oldNormalGt.getAlleles).make())
       }
 
       val gts     = Seq(Some(newTumorGt), newNormalGt).flatten
@@ -134,6 +130,13 @@ class MakeTwoSampleMixtureVcf
 
     out.close()
     in.safelyClose()
+  }
+
+  /** Gets the genotype of the sample, substituting in a HomRef genotype for no-calls if required. */
+  private def genotypeOf(sample: String, ctx: VariantContext): Genotype = {
+    val actual = ctx.getGenotype(sample)
+    if (actual.isNoCall && this.noCallIsHomRef) new GenotypeBuilder(sample, util.Arrays.asList(ctx.getReference)).make()
+    else actual
   }
 
   /** Builds a header that can be used to write the mixture VCF. */
