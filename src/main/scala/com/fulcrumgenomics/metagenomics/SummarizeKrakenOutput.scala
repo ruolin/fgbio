@@ -50,8 +50,8 @@ class SummarizeKrakenOutput
   @arg(flag="o", doc="Output summary report file.") val output: FilePath,
   @arg(flag="d", doc="The kraken database used.")   val database: DirPath,
   @arg(flag="r", doc="The taxanomic rank to summarize at.") val rank: Rank = Rank.genus,
-  @arg(flag="m", doc="Minimum number of hits to support rank assignment.") val minimumHits: Int = 1,
-  @arg(flag="p", doc="Push rank assignments 'up' until all kmer hits are in-tree.")  val push: Boolean = false,
+  @arg(flag="m", doc="Minimum number of hits to support rank assignment.") val minimumHits: Int = 2,
+  @arg(flag="p", doc="Push rank assignments 'up' until all kmer hits are in-tree.")  val push: Boolean = true,
   @arg(flag="f", doc="Filter kmer hits to non-orgamism parts of the taxonomy tree.") val filterOther: Boolean = true
 ) extends FgBioTool with LazyLogging {
 
@@ -74,13 +74,15 @@ class SummarizeKrakenOutput
     logger.info("Loading kraken results.")
     val progress = new ProgressLogger(logger, noun="records")
     val counter = new SimpleCounter[TaxonId]
-    new KrakenReader(input)
-      .foreach { rec =>
-        val filtered  = if (filterOther) filterOther(rec) else rec
-        val pushed    = if (push) push(filtered) else rec
+    new KrakenReader(input).foreach { rec =>
+      if (this.taxa.get(rec.taxonId).isDefined) {
+        val filtered = if (filterOther) filterOther(rec) else rec
+        val pushed = if (push) push(filtered) else rec
         val supported = hitSupportedRank(pushed)
         counter.count(supported.taxonId)
-        progress.record()
+      }
+
+      progress.record()
     }
 
     logger.info(s"Raw     = Queries: ${counter.total}; Hits: ${counter.total-counter.countOf(0)}; Taxa: ${counter.size-1}.")
@@ -90,7 +92,7 @@ class SummarizeKrakenOutput
     tree.rolldown(rank)
     tree.rollup(rank)
 
-    logger.info(s"Summary = Queries: ${counter.to}; Hits: ${tree.total}; Taxa: ${tree.count(_.count > 0)}.")
+    logger.info(s"Summary = Queries: ${counter.total}; Hits: ${tree.total}; Taxa: ${tree.count(_.count > 0)}.")
 
     writeReport(tree, counter.countOf(0))
   }
@@ -114,7 +116,7 @@ class SummarizeKrakenOutput
       rec
     }
     else {
-      var taxon = taxa(rec.taxonId)
+      val taxon = taxa(rec.taxonId)
       val ok = rec.kmerCounts.forall {
         case (UnassignedTaxonId, n) => true
         case (RootTaxonId, n)       => true

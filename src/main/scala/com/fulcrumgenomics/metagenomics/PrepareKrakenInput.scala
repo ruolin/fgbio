@@ -26,13 +26,14 @@ package com.fulcrumgenomics.metagenomics
 
 import com.fulcrumgenomics.FgBioDef._
 import com.fulcrumgenomics.cmdline.{ClpGroups, FgBioTool}
-import com.fulcrumgenomics.fastq.{FastqRecord, FastqSource, FastqWriter}
 import com.fulcrumgenomics.util.{Io, ProgressLogger}
 import dagr.commons.util.LazyLogging
-import dagr.sopt.cmdline.ValidationException
 import dagr.sopt.{arg, clp}
-import htsjdk.samtools.SAMUtils
-import htsjdk.samtools.util.TrimmingUtil
+import htsjdk.samtools.SAMFileHeader.{GroupOrder, SortOrder}
+import htsjdk.samtools._
+import htsjdk.samtools.util.{SortingCollection, TrimmingUtil}
+
+import scala.collection.JavaConversions.iterableAsScalaIterable
 
 
 @clp(group=ClpGroups.Metagenomics, description=
@@ -52,30 +53,21 @@ import htsjdk.samtools.util.TrimmingUtil
 """)
 class PrepareKrakenInput
 (
-  @arg(flag="1", doc="One or more read1 fastq files.")         val read1: Seq[PathToFastq],
-  @arg(flag="2", doc="One or more read2 fastq files.")         val read2: Seq[PathToFastq] = Seq.empty,
-  @arg(flag="o", doc="Output (singular) fastq file to write.") val output: PathToFasta = Io.StdOut,
-  @arg(flag="q", doc="Trim/mask bases below quality q.")       val minQuality: Int = 20,
-  @arg(flag="k", doc="Kmer size of kraken database.")          val kmerSize: Int = 31,
-  @arg(flag="l", doc="Discard reads shorter than this length.") val minReadLength: Int = 75
+  @arg(flag="i", doc="Input BAM file.")                         val input: PathToBam,
+  @arg(flag="o", doc="Output (singular) fasta file to write.")  val output: PathToFasta = Io.StdOut,
+  @arg(flag="q", doc="Trim/mask bases below quality q.")        val minQuality: Int = 20,
+  @arg(flag="k", doc="Kmer size of kraken database.")           val kmerSize: Int = 31,
+  @arg(flag="m", doc="Discard template with fewer than this kmers after processing.") val minKmers: Int = 50
 ) extends FgBioTool with LazyLogging {
-  if (read2.nonEmpty && read1.size != read2.size) {
-    throw new ValidationException("If read2 fastqs are supplied, must be equal in number to read1 fastqs.")
-  }
 
-  Io.assertReadable(read1 ++ read2)
+  Io.assertReadable(input)
   Io.assertCanWriteFile(output)
 
-  private val q2Phred    = SAMUtils.phredToFastq(2).toByte
-  private val baseSpacer = "N" * kmerSize
-  private val qualSpacer = q2Phred.toChar.toString * kmerSize
-  private val minQualityPhred33 = SAMUtils.phredToFastq(minQuality).toByte
+  // String of N bases that is used between reads for the sample template in the output
+  private val spacer = "N" * kmerSize
 
   override def execute(): Unit = {
-    val fq1 = FastqSource(read1.map(Io.readLines).foldLeft(Iterator.empty.asInstanceOf[Iterator[String]])(_ ++ _))
-    val fq2Maybe = if (read2.isEmpty) None else Some(FastqSource(read2.map(Io.readLines).foldLeft(Iterator.empty.asInstanceOf[Iterator[String]])(_ ++ _)))
     val out = Io.toWriter(output)
-    val progress = new ProgressLogger(logger)
 
     // Utility method to write a fasta record to an output writer
     def writeFasta(name: String, bases: String): Unit = {
@@ -86,41 +78,84 @@ class PrepareKrakenInput
       out.newLine()
     }
 
-    while (fq1.hasNext) {
-      val r1 = fq1.next()
-      val r1Bases = trimAndMask(r1)
+    val iterator = byQueryIterator(input).filterNot(_.isSecondaryOrSupplementary).bufferBetter
+    val progress = new ProgressLogger(logger)
+    while (iterator.hasNext) {
+      val name = iterator.head.getReadName
+      val baseString = iterator.takeWhile(_.getReadName == name).toSeq
+        .map(r => trimAndMask(r.getReadBases, r.getBaseQualities))
+        .map(bs => new String(bs))
+        .mkString(spacer)
 
-      fq2Maybe match {
-        case None      =>
-          if (r1Bases.length >= minReadLength) writeFasta(r1.name, r1Bases)
-        case Some(fq2) =>
-          val r2 = fq2.next()
-          if (r1.name != r2.name) fail(s"Fastq files out of sync. Read one: ${r1.name} arrived with read two: ${r2.name}")
-
-          val r2Bases = trimAndMask(r2)
-          if (r1Bases.length >= minReadLength && r2Bases.length >= minReadLength) writeFasta(r1.name, r1Bases + baseSpacer + r2Bases)
-      }
-
+      if (hasMinKmers(baseString)) writeFasta(name, baseString)
       progress.record()
     }
 
     out.close()
-    fq1.safelyClose()
-    fq2Maybe.foreach(_.safelyClose())
   }
 
-  /** Trims the end of the read based on quality and then masks any remaining low quality bases to Ns. */
-  def trimAndMask(fq: FastqRecord): String = {
-    val trimPoint = TrimmingUtil.findQualityTrimPoint(SAMUtils.fastqToPhred(fq.quals), minQuality)
-    val bases = fq.bases.getBytes()
-    val quals = fq.quals.getBytes()
+  /** Returns an iterator over records in queryname order, sorting if necessary. */
+  private def byQueryIterator(bam: PathToBam): Iterator[SAMRecord] = {
+    val in = SamReaderFactory.make().open(bam)
+    val header = in.getFileHeader
 
-    var i = 0
-    while (i<trimPoint) {
-      if (quals(i) < minQualityPhred33) bases(i) = 'N'
-      i += 1
+    if (header.getSortOrder == SortOrder.queryname || header.getGroupOrder == GroupOrder.query) {
+      in.toIterator
+    }
+    else {
+      logger.info("Sorting records into queryname order.")
+      val progress = new ProgressLogger(logger, verb="Sorted")
+      val sorter = SortingCollection.newInstance[SAMRecord](classOf[SAMRecord], new BAMRecordCodec(header), new SAMRecordQueryNameComparator, 1e6.toInt)
+      in.foreach { rec =>
+        shrinkRead(rec)
+        sorter.add(rec)
+        progress.record(rec)
+      }
+      logger.info("Done sorting records into queryname order.")
+      sorter.toIterator
+    }
+  }
+
+  /** Does what it can to skinny the read down as much as possible before sorting. */
+  private def shrinkRead(rec: SAMRecord): Unit = {
+    SAMUtils.makeReadUnmapped(rec)
+    val rg = rec.getAttribute("RG")
+    rec.clearAttributes()
+    rec.setAttribute("RG", rg)
+  }
+
+  /**
+    * Trims the end of the read based on quality and then masks any remaining low quality bases to Ns.
+    *
+    * @param bases the read bases as an array of bytes
+    * @param quals the base qualities as an array of bytes (integer phred scores)
+    * @return a trimmed and masked version of the bases
+    * */
+  private def trimAndMask(bases: Array[Byte], quals: Array[Byte]): Array[Byte] = {
+    val trimPoint = TrimmingUtil.findQualityTrimPoint(quals, this.minQuality)
+    forloop (from=0, until=trimPoint) { i =>
+        if (quals(i) < this.minQuality) bases(i) = 'N'
     }
 
-    new String(bases, 0, trimPoint)
+    bases.take(trimPoint)
+  }
+
+  /** Counts how many kmers the read has that do not contain any Ns. */
+  private def hasMinKmers(s: String): Boolean = {
+    if (s.length < this.kmerSize) {
+      false
+    }
+    else {
+      var goodLength = 0
+      var kmers = 0
+      forloop (from=0, until=s.length) { i =>
+        if (s.charAt(i) == 'N') goodLength = 0
+        else goodLength += 1
+
+        if (goodLength >= this.kmerSize) kmers += 1
+      }
+
+      kmers >= this.minKmers
+    }
   }
 }
