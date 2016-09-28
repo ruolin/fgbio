@@ -175,6 +175,7 @@ class TrimPrimersTest extends UnitSpec {
           case (true , "q3") => 1
           case (false, "q4") => 2
           case (true , "q4") => 2
+          case (_,        _) => unreachable()
         }
 
         rec.getIntegerAttribute("NM") shouldBe expectedNm
