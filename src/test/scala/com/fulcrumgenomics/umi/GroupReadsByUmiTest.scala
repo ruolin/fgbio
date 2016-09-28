@@ -248,7 +248,6 @@ class GroupReadsByUmiTest extends UnitSpec {
     val in  = builder.toTempFile()
     val out = Files.createTempFile("umi_grouped.", ".sam")
     new GroupReadsByUmi(input=in, output=out, rawTag="RX", assignTag="MI", strategy="edit", edits=1).execute()
-    println(out.toString)
 
     val reader = SamReaderFactory.make().open(out.toFile)
     val groups = reader.iterator().toSeq.groupBy(_.getReadName.charAt(0))
