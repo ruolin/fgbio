@@ -27,8 +27,9 @@ package com.fulcrumgenomics.vcf
 
 import com.fulcrumgenomics.testing.UnitSpec
 import com.fulcrumgenomics.util.Io
-import dagr.commons.io.PathUtil
+import com.fulcrumgenomics.vcf.HapCutType.{HapCut1, HapCut2, HapCutType}
 import dagr.commons.CommonsDef._
+import dagr.commons.io.PathUtil
 import htsjdk.variant.variantcontext.VariantContext
 import htsjdk.variant.vcf.VCFFileReader
 
@@ -97,24 +98,42 @@ class HapCutToVcfTest extends UnitSpec {
     hasPhasingSetTag
   }
 
-  "HapCutReader" should "read in a HAPCUT1 file" in {
-    val reader = HapCutReader(hapCut1Out)
+  private def checkHapCutReader(path: FilePath, hapCutType: HapCutType): Unit = {
+    val reader = HapCutReader(path)
+    reader.hapCutType shouldBe hapCutType
     val allCalls = reader.toSeq
     val calls = allCalls.flatMap(_.call)
     allCalls.length shouldBe 342 // 342 total variants
     calls.length shouldBe 237 // 237 phased variants
     calls.map(_.phaseSet).distinct.length shouldBe 8 // eight phased blocks
-    reader.close()
+
+    // Check the second block (two variants).  The first variants is 1/0 while the second is 0/1.
+    {
+      val call = calls(3)
+      call.phaseSet shouldBe 41106449
+      call.hap1Allele shouldBe 1
+      call.hap2Allele shouldBe 0
+      val ctx = call.toVariantContext("Sample")
+      ctx.getGenotype(0).isPhased shouldBe true
+      ctx.getGenotype(0).getAlleles.map(_.getBaseString).toList should contain theSameElementsInOrderAs Seq("CT", "C")
+    }
+    {
+      val call = calls(4)
+      call.phaseSet shouldBe 41106449
+      call.hap1Allele shouldBe 0
+      call.hap2Allele shouldBe 1
+      val ctx = call.toVariantContext("Sample")
+      ctx.getGenotype(0).isPhased shouldBe true
+      ctx.getGenotype(0).getAlleles.map(_.getBaseString).toList should contain theSameElementsInOrderAs Seq("T", "G")
+    }
+  }
+
+  "HapCutReader" should "read in a HAPCUT1 file" in {
+    checkHapCutReader(hapCut1Out, HapCut1)
   }
 
   it should "read in a HAPCUT2 file" in {
-    val reader = HapCutReader(hapCut2Out)
-    val allCalls = reader.toSeq
-    val calls = allCalls.flatMap(_.call)
-    allCalls.length shouldBe 342 // 342 total variants
-    calls.length shouldBe 237 // 237 phased variants
-    calls.map(_.phaseSet).distinct.length shouldBe 8 // eight phased blocks
-    reader.close()
+    checkHapCutReader(hapCut2Out, HapCut2)
   }
 
   it should "read in a HAPCUT1 file that has phased genotypes" in {

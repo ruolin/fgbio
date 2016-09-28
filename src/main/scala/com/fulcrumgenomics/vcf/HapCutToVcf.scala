@@ -275,7 +275,7 @@ private class HapCutAndVcfMergingIterator(hapCutPath: FilePath,
   /** Returns the the HapCut type (HapCut1 or HapCut2), or Unknown if the file was empty. */
   def hapCutType: HapCutType = hapCutReader.hapCutType
 
-  def close(): Unit = { this.hapCutReader.close }
+  def close(): Unit = { this.hapCutReader.close() }
 
   /** Returns a new variant context with the phase unset (if it was set) and appropriately formatted (filtered as
     * not phased if `gatkPhasingFormat` is true).
@@ -385,10 +385,10 @@ private case class HapCut2BlockInfo (protected val phaseSetOption: Option[Int] =
 
 private object GenotypeInfo {
   import HapCutType._
-  def apply(info: String, hapCutType: HapCutType, thresholdPruning: Boolean = false): GenotypeInfo = {
+  def apply(info: String, hapCutType: HapCutType, missingAlleles: Boolean = false, thresholdPruning: Boolean = false): GenotypeInfo = {
     hapCutType match {
       case HapCut1 => HapCut1GenotypeInfo(info=info)
-      case HapCut2 => HapCut2GenotypeInfo(info=info, thresholdPruning=thresholdPruning)
+      case HapCut2 => HapCut2GenotypeInfo(info=info, missingAlleles=missingAlleles, thresholdPruning=thresholdPruning)
       case _       => unreachable("Unknown HapCut type when building a GenotypeInfo.")
     }
   }
@@ -460,10 +460,10 @@ private object HapCut2GenotypeInfo {
   }
 
   /** Parses the genotype information produced by HapCut2. */
-  def apply(info: String, thresholdPruning: Boolean): GenotypeInfo = {
+  def apply(info: String, missingAlleles: Boolean, thresholdPruning: Boolean): GenotypeInfo = {
     val tokens = info.split("\t")
     new HapCut2GenotypeInfo(
-      pruned           = "1" == tokens(0) || thresholdPruning,
+      pruned           = "1" == tokens(0) || missingAlleles || thresholdPruning,
       log10SwitchError = toDouble(tokens(1)),
       log10NoError     = toDouble(tokens(2))
     )
@@ -489,7 +489,8 @@ private case class HapCutCall private(block: BlockInfo,
                                       hap1Allele: Int, hap2Allele: Int,
                                       contig: String, pos: Int,
                                       ref: String, alts: String,
-                                      genotype: String, info: GenotypeInfo,
+                                      genotype: String,
+                                      info: GenotypeInfo,
                                       phaseSet: Int
                                      ) {
   import HapCut1VcfHeaderLines._
@@ -507,9 +508,18 @@ private case class HapCutCall private(block: BlockInfo,
     val alleles = refAllele +: altAlleles
     val allelesCollection = alleles.asJavaCollection
 
-    // Assumes the genotype is before the first ":" token
-    val genotypeAlleles = this.genotype.split(":").head.split("[/|]").map(_.toInt).map(i => alleles(i))
-    val genotype = this.info.addTo(new GenotypeBuilder(sampleName, genotypeAlleles.toList))
+    // Get the genotype alleles
+    val genotypeAlleles: List[Allele] = if (hap1Allele < 0) {
+      require(hap2Allele < 0)
+      // Assumes the genotype is before the first ":" token
+      this.genotype.split(":").head.split("[/|]").map(_.toInt).map(i => alleles(i)).toList
+    }
+    else {
+      List(alleles(hap1Allele), alleles(hap2Allele))
+    }
+
+    val genotype = this.info.addTo(new GenotypeBuilder(sampleName, genotypeAlleles))
+      .phased(true)
       .attribute(PhaseSetFormatTag, phaseSet)
       .make()
 
@@ -521,8 +531,8 @@ private case class HapCutCall private(block: BlockInfo,
       this.pos.toLong,
       allelesCollection
     )
-      .computeEndFromAlleles(seqAsJavaList(alleles), this.pos)
-      .genotypes(genotype).make()
+    .computeEndFromAlleles(seqAsJavaList(alleles), this.pos)
+    .genotypes(genotype).make()
   }
 }
 
@@ -555,7 +565,7 @@ private object HapCutCall {
       ref          = tokens(5),
       alts         = tokens(6),
       genotype     = tokens(7),
-      info         = GenotypeInfo(tokens.drop(8).mkString("\t"), hapCutType=hapCutType, thresholdPruning=thresholdPruning),
+      info         = GenotypeInfo(tokens.drop(8).mkString("\t"), hapCutType=hapCutType, missingAlleles=(hap1Allele < 0 || hap2Allele < 0), thresholdPruning=thresholdPruning),
       phaseSet     = firstVariantPosition.getOrElse(pos)
     )
   }
