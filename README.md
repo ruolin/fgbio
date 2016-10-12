@@ -79,6 +79,7 @@ In no particular order ...
 	* Pick molecular indices (ex. sample barcodes, or molecular indexes): `PickIlluminaIndices`.
 	* Convert the output of HAPCUT (a tool for phasing variants): `HapCutToVcf`.
 	* Find technical or synthetic sequences in read-level data: `FindTechnicalReads`.
+    * Assess phased variant calls: `AssessPhasing`.
 
 
 ## Contributing
