@@ -26,13 +26,17 @@ package com.fulcrumgenomics.testing
 import java.nio.file.{Files, Path}
 
 import com.fulcrumgenomics.FgBioDef._
+import dagr.commons.util.{LogLevel, Logger}
 import htsjdk.samtools.{SAMRecord, SamReaderFactory}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 
 import scala.collection.JavaConversions.asScalaIterator
 
 /** Base class for unit and integration testing */
 trait UnitSpec extends FlatSpec with Matchers {
+  // Turn down HTSJDK logging
+  htsjdk.samtools.util.Log.setGlobalLogLevel(htsjdk.samtools.util.Log.LogLevel.WARNING)
+
   /** Creates a new temp file for use in testing that will be deleted when the VM exits. */
   protected def makeTempFile(prefix: String, suffix: String) : Path = {
     val path = Files.createTempFile(prefix, suffix)
@@ -44,5 +48,22 @@ trait UnitSpec extends FlatSpec with Matchers {
   protected def readBamRecs(bam: PathToBam): IndexedSeq[SAMRecord] = {
     val in = SamReaderFactory.make().open(bam.toFile)
     yieldAndThen(in.iterator().toIndexedSeq) { in.safelyClose() }
+  }
+}
+
+/** Base class that turns up logging to [[LogLevel.Error]] before all the tests and restores
+  * the log level after all the tests.
+  */
+trait ErrorLogLevel extends UnitSpec with BeforeAndAfterAll {
+  private var logLevel = Logger.level
+
+  override protected def beforeAll(): Unit = {
+    this.logLevel = Logger.level
+    Logger.level  = LogLevel.Error
+  }
+
+  override protected def afterAll(): Unit = {
+    Logger.level = LogLevel.Info
+    Logger.level = this.logLevel
   }
 }

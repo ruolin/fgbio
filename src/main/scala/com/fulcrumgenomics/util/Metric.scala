@@ -117,7 +117,9 @@ object Metric {
   */
 trait Metric extends Product {
   private lazy val reflectiveBuilder = new ReflectiveBuilder(this.getClass)
-  private val formatter = new FormatUtil
+  private val formatter = new FormatUtil {
+    override def format(value: Boolean): String = value.toString
+  }
 
   /** Get the names of the arguments in the order they were defined. */
   def names: Seq[String] = {
