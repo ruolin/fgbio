@@ -32,7 +32,6 @@ import htsjdk.samtools.util.{SequenceUtil, SortingCollection}
 import htsjdk.samtools._
 import htsjdk.samtools.reference.ReferenceSequenceFileWalker
 
-import scala.collection.JavaConversions.iterableAsScalaIterable
 import scala.collection.mutable.ListBuffer
 
 /**

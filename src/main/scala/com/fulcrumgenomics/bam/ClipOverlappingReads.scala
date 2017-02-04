@@ -35,8 +35,6 @@ import htsjdk.samtools.SamPairUtil.PairOrientation
 import htsjdk.samtools._
 import htsjdk.samtools.reference.ReferenceSequenceFileWalker
 
-import scala.collection.JavaConversions.iterableAsScalaIterable
-
 @clp(group = ClpGroups.SamOrBam, description=
   """
     |Clips reads from the same template to eliminate overlap between the reads. Ensures that downstream
