@@ -12,10 +12,17 @@ cache:
   directories:
   - $HOME/.ivy2/cache
   - $HOME/.sbt/boot/
+  - /usr/local/lib/R/site-library’
+addons:
+  apt:
+    sources:
+      - r-packages-precise
+    packages:
+      - r-base
+      - r-recommended
 before_install:
 - pip install --user codecov
 - sudo bash .travis.install-git-lfs.sh
-- sudo apt-get install r-base
 - sudo Rscript -e 'install.packages("ggplot2", repos="http://cran.us.r-project.org")'
 after_success:
 - codecov
