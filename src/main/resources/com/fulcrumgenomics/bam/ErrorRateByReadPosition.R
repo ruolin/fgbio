@@ -51,10 +51,20 @@ ggplot(data) + aes(x=position) +
   labs(x="Position in Read", y="Error Rate", title=paste(name, "-", "Error Rate by Position in Read and Type")) +
   theme(plot.title = element_text(hjust = 0.5))
 
-ggplot(data) + aes(x=position, color=factor(read_number)) +
-  geom_line(aes(y=cumsum(bases_total * error_rate))) +
+
+# The cumulative plot is more awkward because cumsum will do the wrong thing if we use ggplots aes(color=read_number),
+# the R2 numbers will include the total at the end of R1!!  So instead we plot each read number separately!
+cumulative_plot = ggplot(data) + aes(x=position, color=factor(read_number)) +
   labs(x="Position in Read", y="Cumulative Number of Errors", title=paste(name, "-", "Cumulative Error Count by Position in Read")) +
   guides(color=guide_legend(title="Read")) +
   theme(plot.title = element_text(hjust = 0.5))
+
+for (readnum in unique(data$read_number)) {
+  subdata = subset(data, data$read_number == readnum, select=c("read_number", "position", "bases_total", "error_rate"))
+  subdata = rbind(c(readnum, 0, 0, 0), subdata) # adds in a point at 0,0
+  cumulative_plot = cumulative_plot + geom_step(aes(y=cumsum(bases_total * error_rate)), data=subdata)
+}
+
+print(cumulative_plot)
 
 dev.off()
