@@ -177,7 +177,11 @@ class FilterSomaticVcf
       f.VcfInfoLines.foreach(header.addMetaDataLine)
       f.VcfFilterLines.foreach(header.addMetaDataLine)
     }
-    header.setSequenceDictionary(in.getSequenceDictionary)
+
+    Option(in.getSequenceDictionary) match {
+      case Some(sd) => header.setSequenceDictionary(sd)
+      case None     => Unit
+    }
 
     val writer = new VariantContextWriterBuilder()
       .setOutputFile(output.toFile)
