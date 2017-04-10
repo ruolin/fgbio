@@ -23,12 +23,14 @@
  */
 package com.fulcrumgenomics.testing
 
+import java.io.PrintStream
 import java.nio.file.{Files, Path}
 
 import com.fulcrumgenomics.FgBioDef._
 import com.fulcrumgenomics.cmdline.FgBioTool
+import com.fulcrumgenomics.util.Io
 import dagr.commons.reflect.ReflectionUtil
-import dagr.commons.util.{LogLevel, Logger}
+import dagr.commons.util.{LazyLogging, LogLevel, Logger}
 import dagr.sopt.cmdline.CommandLineProgramParser
 import dagr.sopt.util.ParsingUtil
 import htsjdk.samtools.{SAMRecord, SamReaderFactory}
@@ -70,6 +72,30 @@ trait UnitSpec extends FlatSpec with Matchers {
 
     ParsingUtil.findClpAnnotation(cl).getOrElse(fail(s"${name} is missing the clp annotation."))
     new CommandLineProgramParser(cl)
+  }
+
+  /**
+    * Executes the provided tool and returns the tools logging output as a list of String.
+    */
+  protected def executeFgbioTool(tool: FgBioTool with LazyLogging): Seq[String] = {
+    val log = makeTempFile(tool.getClass.getSimpleName + ".", ".log")
+    val stream = new PrintStream(log.toFile)
+
+    // This is a little icky, but works without having to increase the visibility of 'logger' in LazyLogging
+    val loggerAccessor = classOf[LazyLogging].getMethod("logger")
+    val logger         = loggerAccessor.invoke(tool).asInstanceOf[Logger]
+
+    val previousStream = logger.out
+    logger.out = Some(stream)
+    try {
+      tool.execute()
+    }
+    finally {
+      stream.close()
+      logger.out = previousStream
+    }
+
+    Io.readLines(log).toSeq
   }
 }
 
