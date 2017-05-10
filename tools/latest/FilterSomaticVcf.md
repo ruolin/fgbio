@@ -43,7 +43,8 @@ Two options are available:
 ## Arguments
 
 |Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------||input|i|PathToVcf|Input VCF of somatic variant calls.|Required|1||
+|----|----|----|-----------|---------|----------|--------------|
+|input|i|PathToVcf|Input VCF of somatic variant calls.|Required|1||
 |output|o|PathToVcf|Output VCF of filtered somatic variants.|Required|1||
 |bam|b|PathToBam|BAM file for the tumor sample.|Required|1||
 |sample|s|String|Sample name in VCF if > 1 sample present.|Optional|1||

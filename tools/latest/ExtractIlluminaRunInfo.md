@@ -21,6 +21,7 @@ The output file will contain a header column and a single column containing the 
 ## Arguments
 
 |Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------||input|i|FilePath|The input RunInfo.xml typically found in the run folder.|Required|1||
+|----|----|----|-----------|---------|----------|--------------|
+|input|i|FilePath|The input RunInfo.xml typically found in the run folder.|Required|1||
 |output|o|FilePath|The output file.|Required|1||
 

@@ -53,7 +53,8 @@ reversed where necessary in order to line up with the bases and quals.
 ## Arguments
 
 |Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------||input|i|PathToBam|The input SAM or BAM file of consensus reads.|Required|1||
+|----|----|----|-----------|---------|----------|--------------|
+|input|i|PathToBam|The input SAM or BAM file of consensus reads.|Required|1||
 |output|o|PathToBam|Output SAM or BAM file.|Required|1||
 |ref|r|PathToFasta|Reference fasta file.|Required|1||
 |reverse-per-base-tags|R|Boolean|Reverse [complement] per base tags on reverse strand reads.|Optional|1|false|

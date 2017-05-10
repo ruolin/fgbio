@@ -79,7 +79,8 @@ barcode, as well as an in-line 8bp sample barcode in read one, the command line 
 ## Arguments
 
 |Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------||inputs|i|PathToFastq|One or more input fastq files each corresponding to a sub-read (ex. index read, read one, read two, fragment).|Required|Unlimited||
+|----|----|----|-----------|---------|----------|--------------|
+|inputs|i|PathToFastq|One or more input fastq files each corresponding to a sub-read (ex. index read, read one, read two, fragment).|Required|Unlimited||
 |output|o|DirPath|The output directory in which to place sample BAMs.|Required|1||
 |metadata|x|FilePath|A file containing the metadata about the samples.|Required|1||
 |read-structures|r|ReadStructure|The read structure for each of the FASTQs.|Required|Unlimited||

@@ -28,7 +28,8 @@ the (uncompressed) fastq.
 ## Arguments
 
 |Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------||input|i|PathToBam|The input SAM or BAM file.|Required|1||
+|----|----|----|-----------|---------|----------|--------------|
+|input|i|PathToBam|The input SAM or BAM file.|Required|1||
 |fastq|f|PathToFastq|Input FASTQ file with UMI reads.|Required|1||
 |output|o|PathToBam|Output BAM file to write.|Required|1||
 |attribute|t|String|The BAM attribute to store UMIs in.|Optional|1|RX|

@@ -42,7 +42,8 @@ with reads in the same order as they appear in the fastq file.
 ## Arguments
 
 |Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------||input|i|PathToFastq|Fastq files corresponding to each sequencing read (e.g. R1, I1, etc.).|Required|Unlimited||
+|----|----|----|-----------|---------|----------|--------------|
+|input|i|PathToFastq|Fastq files corresponding to each sequencing read (e.g. R1, I1, etc.).|Required|Unlimited||
 |output|o|PathToBam|The output SAM or BAM file to be written.|Required|1||
 |read-structures|r|ReadStructure|Read structures, one for each of the FASTQs.|Optional|Unlimited||
 |sort|s|Boolean|If true, queryname sort the BAM file, otherwise preserve input order.|Optional|1|false|

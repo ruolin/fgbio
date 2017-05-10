@@ -54,7 +54,8 @@ For more information about HAPCUT2, see the source code below.
 ## Arguments
 
 |Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------||vcf|v|PathToVcf|The original VCF provided to HAPCUT1/HAPCUT2.|Required|1||
+|----|----|----|-----------|---------|----------|--------------|
+|vcf|v|PathToVcf|The original VCF provided to HAPCUT1/HAPCUT2.|Required|1||
 |input|i|FilePath|The output file from HAPCUT1/HAPCUT2.|Required|1||
 |output|o|PathToVcf|The output VCF with both phased and unphased variants.|Required|1||
 |gatk-phasing-format|r|Boolean|Output phased variants in GATK's ReadBackedPhasing format.|Optional|1|false|

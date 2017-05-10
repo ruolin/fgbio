@@ -20,7 +20,8 @@ query sequence must be adjacent in the file, though the ordering between queries
 ## Arguments
 
 |Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------||input|i|PathToBam|Input SAM/BAM/CRAM file.|Optional|1|/dev/stdin|
+|----|----|----|-----------|---------|----------|--------------|
+|input|i|PathToBam|Input SAM/BAM/CRAM file.|Optional|1|/dev/stdin|
 |output|o|PathToBam|Output SAM/BAM/CRAM file.|Optional|1|/dev/stdout|
 |ref|r|PathToFasta|Reference fasta, only needed if writing CRAM.|Optional|1||
 |allow-missing-mates|x|Boolean|If specified, do not fail when reads marked as paired are missing their mate pairs.|Optional|1|false|

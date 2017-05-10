@@ -27,7 +27,8 @@ written in coordinate order.
 ## Arguments
 
 |Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------||input|i|PathToBam|Input SAM or BAM file of aligned reads in coordinate order.|Required|1||
+|----|----|----|-----------|---------|----------|--------------|
+|input|i|PathToBam|Input SAM or BAM file of aligned reads in coordinate order.|Required|1||
 |output|o|PathToBam|Output SAM or BAM file.|Required|1||
 |soft-clip|s|Boolean|Soft clip reads instead of hard clipping.|Optional|1|false|
 |ref|r|PathToFasta|Reference sequence fasta file.|Required|1||

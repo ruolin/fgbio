@@ -61,7 +61,8 @@ min-input-base-quality are not counted in tag value calculations.
 ## Arguments
 
 |Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------||input|i|PathToBam|The input SAM or BAM file.|Required|1||
+|----|----|----|-----------|---------|----------|--------------|
+|input|i|PathToBam|The input SAM or BAM file.|Required|1||
 |output|o|PathToBam|Output SAM or BAM file to write consensus reads.|Required|1||
 |rejects|r|PathToBam|Optional output SAM or BAM file to write reads not used.|Optional|1||
 |tag|t|String|The SAM attribute with the unique molecule tag.|Optional|1|MI|

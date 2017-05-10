@@ -35,7 +35,8 @@ of error rate plots will also be generated with extension .error_rate_by_read_po
 ## Arguments
 
 |Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------||input|i|PathToBam|Input BAM file.|Required|1||
+|----|----|----|-----------|---------|----------|--------------|
+|input|i|PathToBam|Input BAM file.|Required|1||
 |output|o|PathPrefix|Output metrics prefix. If not given, will use the input BAM basename.|Optional|1||
 |ref|r|PathToFasta|Reference sequence fasta file.|Required|1||
 |variants|v|PathToVcf|Optional file of variant sites to ignore.|Optional|1||

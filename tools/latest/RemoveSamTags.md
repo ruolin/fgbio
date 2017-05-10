@@ -12,7 +12,8 @@ Removes SAM tags from a SAM or BAM file.  If no tags to remove are given, the or
 ## Arguments
 
 |Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------||input|i|PathToBam|Input SAM or BAM.|Required|1||
+|----|----|----|-----------|---------|----------|--------------|
+|input|i|PathToBam|Input SAM or BAM.|Required|1||
 |output|o|PathToBam|Output SAM or BAM.|Required|1||
 |tags-to-remove|t|String|The tags to remove.|Optional|Unlimited||
 

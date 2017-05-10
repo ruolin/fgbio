@@ -38,7 +38,8 @@ be single, non-hyphenated UMIs (e.g. if a record has RX:Z:ACGT-GGCA, you would u
 ## Arguments
 
 |Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------||input|i|PathToBam|Input SAM or BAM file.|Required|1||
+|----|----|----|-----------|---------|----------|--------------|
+|input|i|PathToBam|Input SAM or BAM file.|Required|1||
 |output|o|PathToBam|Output SAM or BAM file.|Required|1||
 |rejects|r|PathToBam|Reject BAM file to save unassigned reads.|Optional|1||
 |metrics|M|FilePath|Metrics file to write.|Optional|1||

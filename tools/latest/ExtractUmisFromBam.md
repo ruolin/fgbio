@@ -43,7 +43,8 @@ information see: https://github.com/fulcrumgenomics/fgbio/wiki/Read-Structures
 ## Arguments
 
 |Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------||input|i|PathToBam|Input BAM file.|Required|1||
+|----|----|----|-----------|---------|----------|--------------|
+|input|i|PathToBam|Input BAM file.|Required|1||
 |output|o|PathToBam|Output BAM file.|Required|1||
 |read-structure|r|ReadStructure|The read structure, one per read in a template.|Required|Unlimited||
 |molecular-barcode-tags|b|String|[DEPRECATED] SAM tags in which to store the molecular barcodes (one-per segment).|Optional|Unlimited||

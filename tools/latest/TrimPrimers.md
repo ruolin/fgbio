@@ -26,7 +26,8 @@ information between paired-end reads can be corrected before writing the output 
 ## Arguments
 
 |Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------||input|i|PathToBam|Input BAM file.|Required|1||
+|----|----|----|-----------|---------|----------|--------------|
+|input|i|PathToBam|Input BAM file.|Required|1||
 |output|o|PathToBam|Output BAM file.|Required|1||
 |primers|p|FilePath|File with primer locations.|Required|1||
 |hard-clip|H|Boolean|If true, hard clip reads, else soft clip.|Optional|1|false|

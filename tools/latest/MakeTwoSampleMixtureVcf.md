@@ -31,7 +31,8 @@ to the output VCF, though in several cases the variants will be filtered:
 ## Arguments
 
 |Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------||input|i|PathToVcf|Input VCF file.|Required|1||
+|----|----|----|-----------|---------|----------|--------------|
+|input|i|PathToVcf|Input VCF file.|Required|1||
 |output|o|PathToVcf|Output VCF file.|Required|1||
 |tumor|t|String|Name of the 'tumor' sample in the input VCF.|Required|1||
 |normal|n|String|Name of the 'normal' sample in the input VCF.|Required|1||

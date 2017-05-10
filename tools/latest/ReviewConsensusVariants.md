@@ -33,7 +33,8 @@ genotypes will be used.
 ## Arguments
 
 |Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------||input|i|FilePath|Input VCF or IntervalList of variant locations.|Required|1||
+|----|----|----|-----------|---------|----------|--------------|
+|input|i|FilePath|Input VCF or IntervalList of variant locations.|Required|1||
 |sample|s|String|Name of the sample being reviewed.|Optional|1||
 |consensus-bam|c|PathToBam|BAM file of consensus reads used to call variants.|Required|1||
 |grouped-bam|g|PathToBam|BAM file of grouped raw reads used to build consensuses.|Required|1||

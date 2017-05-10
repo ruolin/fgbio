@@ -15,7 +15,8 @@ turned off by specifying --query-group=false.
 ## Arguments
 
 |Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------||input|i|PathToBam|The input SAM or BAM file.|Optional|1|/dev/stdin|
+|----|----|----|-----------|---------|----------|--------------|
+|input|i|PathToBam|The input SAM or BAM file.|Optional|1|/dev/stdin|
 |output|o|PathToBam|The output SAM or BAM file.|Optional|1|/dev/stdout|
 |seed|s|Int|Random seed.|Optional|1|42|
 |query-group|q|Boolean|Group together reads by queryname.|Optional|1|true|

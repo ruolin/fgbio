@@ -25,7 +25,8 @@ Various filtering parameters can be used to control which loci are used:
 ## Arguments
 
 |Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------||vcf|v|PathToVcf|VCF of individual sample genotypes.|Required|1||
+|----|----|----|-----------|---------|----------|--------------|
+|vcf|v|PathToVcf|VCF of individual sample genotypes.|Required|1||
 |bam|b|PathToBam|Path to BAM file of sequencing data.|Required|1||
 |output|o|FilePath|Output file to write with pooling fractions.|Required|1||
 |intervals|l|PathToIntervals|Zero or more set of regions to restrict analysis to.|Optional|Unlimited||

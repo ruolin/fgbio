@@ -24,7 +24,8 @@ file.
 ## Arguments
 
 |Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------||input|i|PathToBam|Input SAM or BAM file|Required|1||
+|----|----|----|-----------|---------|----------|--------------|
+|input|i|PathToBam|Input SAM or BAM file|Required|1||
 |output|o|PathToBam|Output SAM or BAM file|Required|1||
 |sample|s|String|The sample to insert into the read groups|Required|1||
 |library|l|String|The library to insert into the read groups|Required|1||

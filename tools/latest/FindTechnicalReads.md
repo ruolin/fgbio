@@ -30,7 +30,8 @@ with the sample index/barcode region masked to Ns.
 ## Arguments
 
 |Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------||input|i|PathToBam|Input SAM or BAM file|Required|1||
+|----|----|----|-----------|---------|----------|--------------|
+|input|i|PathToBam|Input SAM or BAM file|Required|1||
 |output|o|PathToBam|Output SAM or BAM file|Required|1||
 |match-length|m|Int|The number of bases at the start of the read to match against.|Optional|1|15|
 |max-errors|e|Int|The maximum number of errors in the matched region.|Optional|1|1|

@@ -42,7 +42,8 @@ min-input-base-quality are not counted in tag value calculations.
 ## Arguments
 
 |Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------||input|i|PathToBam|The input SAM or BAM file.|Required|1||
+|----|----|----|-----------|---------|----------|--------------|
+|input|i|PathToBam|The input SAM or BAM file.|Required|1||
 |output|o|PathToBam|Output SAM or BAM file to write consensus reads.|Required|1||
 |read-name-prefix|p|String|The prefix all consensus read names|Optional|1||
 |read-group-id|R|String|The new read group ID for all the consensus reads.|Optional|1|A|

@@ -18,7 +18,8 @@ read 2 is included, but not both), but does not update any flag fields.
 ## Arguments
 
 |Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------||input|i|PathToBam|Input BAM file.|Required|1||
+|----|----|----|-----------|---------|----------|--------------|
+|input|i|PathToBam|Input BAM file.|Required|1||
 |output|o|PathToBam|Output BAM file.|Required|1||
 |intervals|l|PathToIntervals|Optionally remove reads not overlapping intervals.|Optional|1||
 |remove-duplicates|D|Boolean|If true remove all reads that are marked as duplicates.|Optional|1|true|

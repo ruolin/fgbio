@@ -27,7 +27,8 @@ chromosome will be analyzed and start/stop positions will be ignored.
 ## Arguments
 
 |Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------||called-vcf|c|PathToVcf|The VCF with called phased variants.|Required|1||
+|----|----|----|-----------|---------|----------|--------------|
+|called-vcf|c|PathToVcf|The VCF with called phased variants.|Required|1||
 |truth-vcf|t|PathToVcf|The VCF with known phased variants.|Required|1||
 |output|o|PathPrefix|The output prefix for all output files.|Required|1||
 |known-intervals|k|PathToIntervals|The interval list over which known phased variants should be kept.|Optional|1||

@@ -49,7 +49,8 @@ non-identical UMIs.
 ## Arguments
 
 |Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------||input|i|PathToBam|The input BAM file.|Optional|1|/dev/stdin|
+|----|----|----|-----------|---------|----------|--------------|
+|input|i|PathToBam|The input BAM file.|Optional|1|/dev/stdin|
 |output|o|PathToBam|The output BAM file.|Optional|1|/dev/stdout|
 |family-size-histogram|f|FilePath|Optional output of tag family size counts.|Optional|1||
 |raw-tag|t|String|The tag containing the raw UMI.|Optional|1|RX|

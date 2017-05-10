@@ -24,7 +24,8 @@ file.  Each BAM file will have path "<output>/<sample-name>.<barcode-sequence>.<
 ## Arguments
 
 |Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------||input|i|FilePath|The input sample sheet.|Required|1||
+|----|----|----|-----------|---------|----------|--------------|
+|input|i|FilePath|The input sample sheet.|Required|1||
 |output|o|DirPath|The output folder to where per-lane parameter files should be written.|Required|1||
 |bam-output|b|DirPath|Optional output folder to where per-lane BAM files should be written, otherwise the output directory will be used.|Optional|1||
 |lanes|l|Int|The lane(s) (1-based) for which to write per-lane parameter files.|Required|Unlimited||

@@ -26,7 +26,8 @@ the number of read pairs that had the given insert size.
 ## Arguments
 
 |Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------||input|i|PathToBam|Input BAM file.|Required|1||
+|----|----|----|-----------|---------|----------|--------------|
+|input|i|PathToBam|Input BAM file.|Required|1||
 |ref-flat|r|FilePath|Input gene annotations in refFlat form.  Format described here: http://genome.ucsc.edu/goldenPath/gbdDescriptionsOld.html#RefFlat|Required|1||
 |prefix|p|PathPrefix|Output prefix file.  The file will have the extension '.rna_seq_insert_size.txt'|Optional|1||
 |include-duplicates|d|Boolean|Include duplicates|Optional|1|false|

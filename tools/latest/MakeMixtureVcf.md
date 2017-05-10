@@ -29,7 +29,8 @@ the mixture, and will be filtered.
 ## Arguments
 
 |Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------||input|i|PathToVcf|Input VCF containing genotypes for the samples to be mixed.|Required|1||
+|----|----|----|-----------|---------|----------|--------------|
+|input|i|PathToVcf|Input VCF containing genotypes for the samples to be mixed.|Required|1||
 |output|o|PathToVcf|Output VCF of mixture sample.|Required|1||
 |samples|s|String|Samples to mix. See general usage for format and examples.|Optional|Unlimited||
 |output-sample-name|S|String|Output sample name.|Optional|1|mixture|

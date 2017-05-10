@@ -26,7 +26,8 @@ group.  Otherwise, only the attributes in the provided SAM header file will be u
 ## Arguments
 
 |Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------||input|i|PathToBam|Input BAM file.|Required|1||
+|----|----|----|-----------|---------|----------|--------------|
+|input|i|PathToBam|Input BAM file.|Required|1||
 |output|o|PathToBam|Output BAM file.|Required|1||
 |read-groups-file|r|PathToBam|A SAM header file with the replacement read groups (see detailed usage).|Required|1||
 |keep-read-group-attributes|k|Boolean|Keep all read group attributes that are not replaced.|Optional|1|false|

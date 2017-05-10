@@ -14,7 +14,8 @@ to allow easy indexing with "samtools faidx".
 ## Arguments
 
 |Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------||input|i|PathToFasta|Input FASTA file.|Required|1||
+|----|----|----|-----------|---------|----------|--------------|
+|input|i|PathToFasta|Input FASTA file.|Required|1||
 |output|o|PathToFasta|Output FASTA file.|Required|1||
 |line-length|l|Int|Line length or sequence lines.|Optional|1|100|
 
