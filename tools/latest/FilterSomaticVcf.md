@@ -5,7 +5,7 @@ title: FilterSomaticVcf
 # FilterSomaticVcf
 
 ## Overview
-Group: VCF/BCF
+**Group:** VCF/BCF
 
 Applies one or more filters to a VCF of somatic variants. The VCF must contain genotype information
 for the tumor sample.  If the VCF also contains genotypes for one or more other samples, the
@@ -42,8 +42,8 @@ Two options are available:
 
 ## Arguments
 
-|Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------|
+|Name|Flag|Type|Description|Required?|Max Values|Default Value(s)|
+|----|----|----|-----------|---------|----------|----------------|
 |input|i|PathToVcf|Input VCF of somatic variant calls.|Required|1||
 |output|o|PathToVcf|Output VCF of filtered somatic variants.|Required|1||
 |bam|b|PathToBam|BAM file for the tumor sample.|Required|1||

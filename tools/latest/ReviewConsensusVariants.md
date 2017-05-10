@@ -5,7 +5,7 @@ title: ReviewConsensusVariants
 # ReviewConsensusVariants
 
 ## Overview
-Group: Unique Molecular Identifiers (UMIs)
+**Group:** Unique Molecular Identifiers (UMIs)
 
 Extracts data to make reviewing of variant calls from consensus reads easier. Creates
 a list of variant sites from the input VCF (SNPs only) or IntervalList then extracts all
@@ -32,8 +32,8 @@ genotypes will be used.
 
 ## Arguments
 
-|Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------|
+|Name|Flag|Type|Description|Required?|Max Values|Default Value(s)|
+|----|----|----|-----------|---------|----------|----------------|
 |input|i|FilePath|Input VCF or IntervalList of variant locations.|Required|1||
 |sample|s|String|Name of the sample being reviewed.|Optional|1||
 |consensus-bam|c|PathToBam|BAM file of consensus reads used to call variants.|Required|1||

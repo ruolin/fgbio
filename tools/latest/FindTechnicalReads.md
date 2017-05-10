@@ -5,7 +5,7 @@ title: FindTechnicalReads
 # FindTechnicalReads
 
 ## Overview
-Group: SAM/BAM
+**Group:** SAM/BAM
 
 Find reads that are from technical or synthetic sequences in a BAM file. Takes in
 a BAM file, extracts the read pairs and fragment reads that are unmapped, and tests
@@ -15,7 +15,7 @@ dimer).
 The identification of reads is done by testing the first N bases (controlled by the
 match-length parameter) of each read against all sub-sequences of length N from the
 technical sequences.  Sub-sequences are generated from both the sequences and the
-reverse complement of the sequences, ignoring any sub-sequences that include 'N's.
+reverse complement of the sequences, ignoring any sub-sequences that include `N`s.
 
 By default the output BAM file will contain all reads that matched to a sub-sequence of the
 technical sequences and, if the read is paired, the read's mate pair.  An option is
@@ -29,8 +29,8 @@ with the sample index/barcode region masked to Ns.
 
 ## Arguments
 
-|Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------|
+|Name|Flag|Type|Description|Required?|Max Values|Default Value(s)|
+|----|----|----|-----------|---------|----------|----------------|
 |input|i|PathToBam|Input SAM or BAM file|Required|1||
 |output|o|PathToBam|Output SAM or BAM file|Required|1||
 |match-length|m|Int|The number of bases at the start of the read to match against.|Optional|1|15|

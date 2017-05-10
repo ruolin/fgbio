@@ -5,7 +5,7 @@ title: DemuxFastqs
 # DemuxFastqs
 
 ## Overview
-Group: FASTQ
+**Group:** FASTQ
 
 Performs sample demultiplexing on FASTQs.
 
@@ -78,8 +78,8 @@ barcode, as well as an in-line 8bp sample barcode in read one, the command line 
 
 ## Arguments
 
-|Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------|
+|Name|Flag|Type|Description|Required?|Max Values|Default Value(s)|
+|----|----|----|-----------|---------|----------|----------------|
 |inputs|i|PathToFastq|One or more input fastq files each corresponding to a sub-read (ex. index read, read one, read two, fragment).|Required|Unlimited||
 |output|o|DirPath|The output directory in which to place sample BAMs.|Required|1||
 |metadata|x|FilePath|A file containing the metadata about the samples.|Required|1||
@@ -87,11 +87,7 @@ barcode, as well as an in-line 8bp sample barcode in read one, the command line 
 |metrics|m|FilePath|The file to which per-barcode metrics are written.  If none given, a file named 'demux_barcode_metrics.txt' will be written to the output directory.|Optional|1||
 |column-for-sample-barcode|c|String|The column name in the sample sheet or metadata CSV for the sample barcode.|Optional|1|Sample_Barcode|
 |unmatched|u|String|Output BAM file name for the unmatched records.|Optional|1|unmatched.bam|
-|quality-format|q|FastqQualityFormat|A value describing how the quality values are encoded in the FASTQ.
-Either Solexa for pre-pipeline 1.3 style scores (solexa scaling + 66),
-Illumina for pipeline 1.3 and above (phred scaling + 64) or Standard
-for phred scaled scores with a character shift of 33.  If this value
-is not specified, the quality format will be detected automatically.|Optional|1||
+|quality-format|q|FastqQualityFormat|A value describing how the quality values are encoded in the FASTQ. Either Solexa for pre-pipeline 1.3 style scores (solexa scaling + 66), Illumina for pipeline 1.3 and above (phred scaling + 64) or Standard for phred scaled scores with a character shift of 33.  If this value is not specified, the quality format will be detected automatically.|Optional|1||
 |threads|t|Int|The number of threads to use while de-multiplexing. The performance does not increase linearly with the # of threads and seems not to improve beyond 2-4 threads.|Optional|1|1|
 |max-mismatches||Int|Maximum mismatches for a barcode to be considered a match.|Optional|1|1|
 |min-mismatch-delta||Int|Minimum difference between number of mismatches in the best and second best barcodes for a barcode to be considered a match.|Optional|1|2|

@@ -5,14 +5,14 @@ title: PickIlluminaIndices
 # PickIlluminaIndices
 
 ## Overview
-Group: Utilities
+**Group:** Utilities
 
 Picks a set of molecular indices that should work well together.
 
 ## Arguments
 
-|Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------|
+|Name|Flag|Type|Description|Required?|Max Values|Default Value(s)|
+|----|----|----|-----------|---------|----------|----------------|
 |length|l|Int|The length of each barcode sequence.|Optional|1|8|
 |indices|n|Int|The number of indices desired.|Required|1||
 |edit-distance|e|Int|The minimum edit distance between two indices in the set.|Optional|1|3|

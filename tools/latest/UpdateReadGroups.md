@@ -5,7 +5,7 @@ title: UpdateReadGroups
 # UpdateReadGroups
 
 ## Overview
-Group: SAM/BAM
+**Group:** SAM/BAM
 
 Updates one or more read groups and their identifiers.
 
@@ -25,8 +25,8 @@ group.  Otherwise, only the attributes in the provided SAM header file will be u
 
 ## Arguments
 
-|Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------|
+|Name|Flag|Type|Description|Required?|Max Values|Default Value(s)|
+|----|----|----|-----------|---------|----------|----------------|
 |input|i|PathToBam|Input BAM file.|Required|1||
 |output|o|PathToBam|Output BAM file.|Required|1||
 |read-groups-file|r|PathToBam|A SAM header file with the replacement read groups (see detailed usage).|Required|1||

@@ -5,7 +5,7 @@ title: FastqToBam
 # FastqToBam
 
 ## Overview
-Group: FASTQ
+**Group:** FASTQ
 
 Generates an unmapped BAM (or SAM or CRAM) file from fastq files.  Takes in one or more fastq files (optionally
 gzipped), each representing a different sequencing read (e.g. R1, R2, I1 or I2) and can use a set of read
@@ -20,18 +20,23 @@ operators are recognized:
 3. `M` identifies a unique molecular index read
 4. `S` identifies a set of bases that should be skipped or ignored
 
-The last `<number><operator>` pair may be specified using a '+' sign instead of number to denote "all remaining
+The last `<number><operator>` pair may be specified using a `+` sign instead of number to denote "all remaining
 bases". This is useful if, e.g., fastqs have been trimmed and contain reads of varying length.  For example
 to convert a paired-end run with an index read and where the first 5 bases of R1 are a UMI and the second
 five bases are monotemplate you might specify:
 
-```--input r1.fq r2.fq i1.fq --read-structures 5M5S+T +T +B```
+```
+--input r1.fq r2.fq i1.fq --read-structures 5M5S+T +T +B
+```
 
 Alternative if you know your reads are of fixed length you could specify:
 
-```--input r1.fq r2.fq i1.fq --read-structures 5M5S65T 75T 8B```
+```
+--input r1.fq r2.fq i1.fq --read-structures 5M5S65T 75T 8B
+```
 
-For more information on read structures see: https://github.com/fulcrumgenomics/fgbio/wiki/Read-Structures
+For more information on read structures see the
+[Read Structure Wiki Page](https://github.com/fulcrumgenomics/fgbio/wiki/Read-Structures)
 
 The same number of input files and read structures must be provided, with one exception: if supplying exactly
 1 or 2 fastq files, both of which are solely template reads, no read structures need be provided.
@@ -41,8 +46,8 @@ with reads in the same order as they appear in the fastq file.
 
 ## Arguments
 
-|Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------|
+|Name|Flag|Type|Description|Required?|Max Values|Default Value(s)|
+|----|----|----|-----------|---------|----------|----------------|
 |input|i|PathToFastq|Fastq files corresponding to each sequencing read (e.g. R1, I1, etc.).|Required|Unlimited||
 |output|o|PathToBam|The output SAM or BAM file to be written.|Required|1||
 |read-structures|r|ReadStructure|Read structures, one for each of the FASTQs.|Optional|Unlimited||

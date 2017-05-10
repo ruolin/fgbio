@@ -5,7 +5,7 @@ title: AnnotateBamWithUmis
 # AnnotateBamWithUmis
 
 ## Overview
-Group: SAM/BAM
+**Group:** SAM/BAM
 
 Annotates existing BAM files with UMIs (Unique Molecular Indices, aka Molecular IDs,
 Molecular barcodes) from a separate FASTQ file. Takes an existing BAM file and a FASTQ
@@ -27,8 +27,8 @@ the (uncompressed) fastq.
 
 ## Arguments
 
-|Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------|
+|Name|Flag|Type|Description|Required?|Max Values|Default Value(s)|
+|----|----|----|-----------|---------|----------|----------------|
 |input|i|PathToBam|The input SAM or BAM file.|Required|1||
 |fastq|f|PathToFastq|Input FASTQ file with UMI reads.|Required|1||
 |output|o|PathToBam|Output BAM file to write.|Required|1||

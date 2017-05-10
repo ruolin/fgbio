@@ -5,7 +5,7 @@ title: ExtractUmisFromBam
 # ExtractUmisFromBam
 
 ## Overview
-Group: SAM/BAM
+**Group:** SAM/BAM
 
 Extracts unique molecular indexes from reads in a BAM file into tags.
 
@@ -42,8 +42,8 @@ information see: https://github.com/fulcrumgenomics/fgbio/wiki/Read-Structures
 
 ## Arguments
 
-|Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------|
+|Name|Flag|Type|Description|Required?|Max Values|Default Value(s)|
+|----|----|----|-----------|---------|----------|----------------|
 |input|i|PathToBam|Input BAM file.|Required|1||
 |output|o|PathToBam|Output BAM file.|Required|1||
 |read-structure|r|ReadStructure|The read structure, one per read in a template.|Required|Unlimited||

@@ -5,7 +5,7 @@ title: MakeMixtureVcf
 # MakeMixtureVcf
 
 ## Overview
-Group: VCF/BCF
+**Group:** VCF/BCF
 
 Creates a VCF with one sample whose genotypes are a mixture of other samples'.
 
@@ -28,8 +28,8 @@ the mixture, and will be filtered.
 
 ## Arguments
 
-|Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------|
+|Name|Flag|Type|Description|Required?|Max Values|Default Value(s)|
+|----|----|----|-----------|---------|----------|----------------|
 |input|i|PathToVcf|Input VCF containing genotypes for the samples to be mixed.|Required|1||
 |output|o|PathToVcf|Output VCF of mixture sample.|Required|1||
 |samples|s|String|Samples to mix. See general usage for format and examples.|Optional|Unlimited||

@@ -30,7 +30,7 @@ Tools for manipulating FASTQ files.
 |----|-----------|
 |[DemuxFastqs](DemuxFastqs.md)|Performs sample demultiplexing on FASTQs|
 |[FastqToBam](FastqToBam.md)|Generates an unmapped BAM (or SAM or CRAM) file from fastq files|
-|[TrimFastq](TrimFastq.md)|Trims reads in one or more line-matched fastq files to a specific read length, and optionally supports dropping reads from all files when one or more reads is shorter than the desired length|
+|[TrimFastq](TrimFastq.md)|Trims reads in one or more line-matched fastq files to a specific read length|
 
 ## Personal
 
@@ -39,7 +39,6 @@ Various personal programs (not supported).
 |Tool|Description|
 |----|-----------|
 |[GenerateRegionsFromFasta](GenerateRegionsFromFasta.md)|Generates a list of freebayes/bamtools region specifiers|
-|[HasSequence](HasSequence.md)|Searches for DNA sequences in the read pairs|
 |[SplitTag](SplitTag.md)|Splits an optional tag in a SAM or BAM into multiple optional tags|
 
 ## SAM/BAM
@@ -52,7 +51,7 @@ Tools for manipulating SAM, BAM, or related data.
 |[AutoGenerateReadGroupsByName](AutoGenerateReadGroupsByName.md)|Adds read groups to a BAM file for a single sample by parsing the read names|
 |[ClipOverlappingReads](ClipOverlappingReads.md)|Clips reads from the same template to eliminate overlap between the reads|
 |[ErrorRateByReadPosition](ErrorRateByReadPosition.md)|Calculates the error rate by read position on coordinate sorted mapped BAMs|
-|[EstimatePoolingFractions](EstimatePoolingFractions.md)|Examines a pooled sample and estimates the fraction of each constituent sample|
+|[EstimatePoolingFractions](EstimatePoolingFractions.md)|Examines sequence data generated from a pooled sample and estimates the fraction of sequence data coming from each constituent sample|
 |[EstimateRnaSeqInsertSize](EstimateRnaSeqInsertSize.md)|Computes the insert size for RNA-Seq experiments|
 |[ExtractUmisFromBam](ExtractUmisFromBam.md)|Extracts unique molecular indexes from reads in a BAM file into tags|
 |[FilterBam](FilterBam.md)|Filters reads out of a BAM file|

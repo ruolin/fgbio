@@ -5,7 +5,7 @@ title: MakeTwoSampleMixtureVcf
 # MakeTwoSampleMixtureVcf
 
 ## Overview
-Group: VCF/BCF
+**Group:** VCF/BCF
 
 Creates a simulated tumor or tumor/normal VCF by in-silico mixing genotypes from two samples.
 The tumor genotypes are created by mixing the incoming genotypes for the for the
@@ -30,8 +30,8 @@ to the output VCF, though in several cases the variants will be filtered:
 
 ## Arguments
 
-|Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------|
+|Name|Flag|Type|Description|Required?|Max Values|Default Value(s)|
+|----|----|----|-----------|---------|----------|----------------|
 |input|i|PathToVcf|Input VCF file.|Required|1||
 |output|o|PathToVcf|Output VCF file.|Required|1||
 |tumor|t|String|Name of the 'tumor' sample in the input VCF.|Required|1||

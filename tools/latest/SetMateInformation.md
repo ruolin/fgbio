@@ -5,7 +5,7 @@ title: SetMateInformation
 # SetMateInformation
 
 ## Overview
-Group: SAM/BAM
+**Group:** SAM/BAM
 
 Adds and/or fixes mate information on paired-end reads. Sets the MQ (mate mapping quality),
 MC (mate cigar string), ensures all mate-related flag fields are set correctly, and that
@@ -19,8 +19,8 @@ query sequence must be adjacent in the file, though the ordering between queries
 
 ## Arguments
 
-|Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------|
+|Name|Flag|Type|Description|Required?|Max Values|Default Value(s)|
+|----|----|----|-----------|---------|----------|----------------|
 |input|i|PathToBam|Input SAM/BAM/CRAM file.|Optional|1|/dev/stdin|
 |output|o|PathToBam|Output SAM/BAM/CRAM file.|Optional|1|/dev/stdout|
 |ref|r|PathToFasta|Reference fasta, only needed if writing CRAM.|Optional|1||

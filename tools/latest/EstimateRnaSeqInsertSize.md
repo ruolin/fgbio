@@ -5,7 +5,7 @@ title: EstimateRnaSeqInsertSize
 # EstimateRnaSeqInsertSize
 
 ## Overview
-Group: SAM/BAM
+**Group:** SAM/BAM
 
 Computes the insert size for RNA-Seq experiments.
 
@@ -25,16 +25,13 @@ the number of read pairs that had the given insert size.
 
 ## Arguments
 
-|Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------|
+|Name|Flag|Type|Description|Required?|Max Values|Default Value(s)|
+|----|----|----|-----------|---------|----------|----------------|
 |input|i|PathToBam|Input BAM file.|Required|1||
 |ref-flat|r|FilePath|Input gene annotations in refFlat form.  Format described here: http://genome.ucsc.edu/goldenPath/gbdDescriptionsOld.html#RefFlat|Required|1||
 |prefix|p|PathPrefix|Output prefix file.  The file will have the extension '.rna_seq_insert_size.txt'|Optional|1||
 |include-duplicates|d|Boolean|Include duplicates|Optional|1|false|
-|deviations|D|Double|Generate mean and standard deviation by filtering to 'median + deviations*median_absolute_deviation'.
-This is done because insert size data typically includes enough anomalous values from chimeras
-and other artifacts to make the mean and sd grossly misleading regarding the real distribution.
-  "|Optional|1|10.0|
+|deviations|D|Double|Generate mean and standard deviation by filtering to 'median + deviations*median_absolute_deviation'. This is done because insert size data typically includes enough anomalous values from chimeras and other artifacts to make the mean and sd grossly misleading regarding the real distribution.   "|Optional|1|10.0|
 |minimum-mapping-quality|q|Int|Ignore reads with mapping quality less than this value.|Optional|1|30|
 |minimum-overlap|m|Double|The minimum fraction of read bases that must overlap exonic sequence in a transcript|Optional|1|0.95|
 

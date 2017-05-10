@@ -5,7 +5,7 @@ title: ExtractIlluminaRunInfo
 # ExtractIlluminaRunInfo
 
 ## Overview
-Group: Basecalling
+**Group:** Basecalling
 
 Extracts information about an Illumina sequencing run from the RunInfo.xml.
 
@@ -20,8 +20,8 @@ The output file will contain a header column and a single column containing the 
 
 ## Arguments
 
-|Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------|
+|Name|Flag|Type|Description|Required?|Max Values|Default Value(s)|
+|----|----|----|-----------|---------|----------|----------------|
 |input|i|FilePath|The input RunInfo.xml typically found in the run folder.|Required|1||
 |output|o|FilePath|The output file.|Required|1||
 

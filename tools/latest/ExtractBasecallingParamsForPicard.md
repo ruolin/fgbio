@@ -5,7 +5,7 @@ title: ExtractBasecallingParamsForPicard
 # ExtractBasecallingParamsForPicard
 
 ## Overview
-Group: Basecalling
+**Group:** Basecalling
 
 Extracts sample and library information from an sample sheet for a given lane.
 
@@ -23,8 +23,8 @@ file.  Each BAM file will have path "<output>/<sample-name>.<barcode-sequence>.<
 
 ## Arguments
 
-|Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------|
+|Name|Flag|Type|Description|Required?|Max Values|Default Value(s)|
+|----|----|----|-----------|---------|----------|----------------|
 |input|i|FilePath|The input sample sheet.|Required|1||
 |output|o|DirPath|The output folder to where per-lane parameter files should be written.|Required|1||
 |bam-output|b|DirPath|Optional output folder to where per-lane BAM files should be written, otherwise the output directory will be used.|Optional|1||

@@ -5,7 +5,7 @@ title: AutoGenerateReadGroupsByName
 # AutoGenerateReadGroupsByName
 
 ## Overview
-Group: SAM/BAM
+**Group:** SAM/BAM
 
 Adds read groups to a BAM file for a single sample by parsing the read names.
 
@@ -23,8 +23,8 @@ file.
 
 ## Arguments
 
-|Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------|
+|Name|Flag|Type|Description|Required?|Max Values|Default Value(s)|
+|----|----|----|-----------|---------|----------|----------------|
 |input|i|PathToBam|Input SAM or BAM file|Required|1||
 |output|o|PathToBam|Output SAM or BAM file|Required|1||
 |sample|s|String|The sample to insert into the read groups|Required|1||

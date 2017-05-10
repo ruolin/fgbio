@@ -5,7 +5,7 @@ title: AssessPhasing
 # AssessPhasing
 
 ## Overview
-Group: VCF/BCF
+**Group:** VCF/BCF
 
 Assess the accuracy of phasing for a set of variants.
 
@@ -26,8 +26,8 @@ chromosome will be analyzed and start/stop positions will be ignored.
 
 ## Arguments
 
-|Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------|
+|Name|Flag|Type|Description|Required?|Max Values|Default Value(s)|
+|----|----|----|-----------|---------|----------|----------------|
 |called-vcf|c|PathToVcf|The VCF with called phased variants.|Required|1||
 |truth-vcf|t|PathToVcf|The VCF with known phased variants.|Required|1||
 |output|o|PathPrefix|The output prefix for all output files.|Required|1||

@@ -5,7 +5,7 @@ title: PickLongIndices
 # PickLongIndices
 
 ## Overview
-Group: Utilities
+**Group:** Utilities
 
 Picks a set of molecular indices that have at least a given number of mismatches between
 them. Whereas PickIlluminaIndices attempts to pick a near-optimal set of indices,
@@ -35,8 +35,8 @@ satisfy all constraints.  Existing indices are included in the generated output 
 
 ## Arguments
 
-|Name|Flag|Type|Description|Required?|Max Values|Default Values|
-|----|----|----|-----------|---------|----------|--------------|
+|Name|Flag|Type|Description|Required?|Max Values|Default Value(s)|
+|----|----|----|-----------|---------|----------|----------------|
 |length|l|Int|The length of each index sequence.|Optional|1|8|
 |number-of-indices|n|Int|The number of indices desired.|Required|1||
 |edit-distance|e|Int|The minimum edit distance between two indices in the set.|Optional|1|3|
