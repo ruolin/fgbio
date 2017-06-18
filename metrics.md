@@ -11,20 +11,21 @@ the type of each field/column is given, including two commonly used types:
 
 |Metric Type|Description|
 |-----------|-----------|
-|[PhaseBlockLengthMetric](phaseblocklengthmetric)|Provides the number of phased blocks of a given length|
-|[AssessPhasingMetric](assessphasingmetric)|Some counts about phasing |
-|[SampleBarcodeMetric](samplebarcodemetric)|Metrics for matching reads to sample barcodes|
-|[TagFamilySizeMetric](tagfamilysizemetric)|Metrics produced by `GroupReadsByUmi` to describe the distribution of tag family sizes observed during grouping|
-|[ConsensusVariantReviewInfo](consensusvariantreviewinfo)|Detailed information produced by `ReviewConsensusVariants` on variants called in consensus reads|
-|[UmiCorrectionMetrics](umicorrectionmetrics)|Metrics produced by `CorrectUmis` regarding the correction of UMI sequences to a fixed set of known UMIs|
-|[UmiMetric](umimetric)|Metrics produced by `CollectDuplexSeqMetrics` describing the set of observed UMI sequences and the frequency of their observations|
-|[DuplexYieldMetric](duplexyieldmetric)|Metrics produced by `CollectDuplexSeqMetrics` that are sampled at various levels of coverage, via random downsampling, during the construction of duplex metrics|
-|[DuplexFamilySizeMetric](duplexfamilysizemetric)|Metrics produced by `CollectDuplexSeqMetrics` to describe the distribution of double-stranded (duplex) tag families in terms of the number of reads observed on each strand|
-|[FamilySizeMetric](familysizemetric)|Metrics produced by `CollectDuplexSeqMetrics` to quantify the distribution of different kinds of read family sizes|
-|[RunInfo](runinfo)|Stores the result of parsing the run info (RunInfo|
-|[PoolingFractionMetric](poolingfractionmetric)|Metrics produced by `EstimatePoolingFractions` to quantify the estimated proportion of a sample mixture that is attributable to a specific sample with a known set of genotypes|
-|[InsertSizeMetric](insertsizemetric)|Metrics produced by `EstimateRnaSeqInsertSize` to describe the distribution of insert sizes within an RNA-seq experiment|
-|[ErrorRateByReadPositionMetric](errorratebyreadpositionmetric)|Metrics produced by `ErrorRateByReadPosition` describing the number of base observations and substitution errors at each position within each sequencing read|
+|[PhaseBlockLengthMetric](#phaseblocklengthmetric)|Provides the number of phased blocks of a given length|
+|[AssessPhasingMetric](#assessphasingmetric)|Some counts about phasing |
+|[SampleBarcodeMetric](#samplebarcodemetric)|Metrics for matching reads to sample barcodes|
+|[TagFamilySizeMetric](#tagfamilysizemetric)|Metrics produced by `GroupReadsByUmi` to describe the distribution of tag family sizes observed during grouping|
+|[ConsensusVariantReviewInfo](#consensusvariantreviewinfo)|Detailed information produced by `ReviewConsensusVariants` on variants called in consensus reads|
+|[UmiCorrectionMetrics](#umicorrectionmetrics)|Metrics produced by `CorrectUmis` regarding the correction of UMI sequences to a fixed set of known UMIs|
+|[UmiMetric](#umimetric)|Metrics produced by `CollectDuplexSeqMetrics` describing the set of observed UMI sequences and the frequency of their observations|
+|[DuplexYieldMetric](#duplexyieldmetric)|Metrics produced by `CollectDuplexSeqMetrics` that are sampled at various levels of coverage, via random downsampling, during the construction of duplex metrics|
+|[DuplexFamilySizeMetric](#duplexfamilysizemetric)|Metrics produced by `CollectDuplexSeqMetrics` to describe the distribution of double-stranded (duplex) tag families in terms of the number of reads observed on each strand|
+|[FamilySizeMetric](#familysizemetric)|Metrics produced by `CollectDuplexSeqMetrics` to quantify the distribution of different kinds of read family sizes|
+|[RunInfo](#runinfo)|Stores the result of parsing the run info (RunInfo|
+|[PoolingFractionMetric](#poolingfractionmetric)|Metrics produced by `EstimatePoolingFractions` to quantify the estimated proportion of a sample mixture that is attributable to a specific sample with a known set of genotypes|
+|[InsertSizeMetric](#insertsizemetric)|Metrics produced by `EstimateRnaSeqInsertSize` to describe the distribution of insert sizes within an RNA-seq experiment|
+|[ErrorRateByReadPositionMetric](#errorratebyreadpositionmetric)|Metrics produced by `ErrorRateByReadPosition` describing the number of base observations and substitution errors at each position within each sequencing read|
+
 ## Metric File Descriptions
 
 
