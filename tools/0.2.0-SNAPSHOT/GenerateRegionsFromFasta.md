@@ -7,7 +7,7 @@ title: GenerateRegionsFromFasta
 ## Overview
 **Group:** Personal
 
-Generates a list of freebayes/bamtools region specifiers.
+Generates a list of `freebayes`/`bamtools` region specifiers.
 
 ## Arguments
 

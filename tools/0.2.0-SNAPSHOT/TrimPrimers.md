@@ -32,8 +32,7 @@ information between paired-end reads can be corrected before writing the output 
 |primers|p|FilePath|File with primer locations.|Required|1||
 |hard-clip|H|Boolean|If true, hard clip reads, else soft clip.|Optional|1|false|
 |slop|S|Int|Match to primer locations +/- this many bases.|Optional|1|5|
-|sort-order|s|SortOrder|Sort order of output BAM file (defaults to input sort order).|Optional|1||
+|sort-order|s|SamOrder|Sort order of output BAM file (defaults to input sort order).|Optional|1||
 |ref|r|PathToFasta|Optional reference fasta for recalculating NM, MD and UQ tags.|Optional|1||
-|tmp|t|DirPath|Temporary directory to use when sorting.|Optional|1||
 |auto-trim-attributes|a|Boolean|Automatically trim extended attributes that are the same length as bases.|Optional|1|false|
 

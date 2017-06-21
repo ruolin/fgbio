@@ -43,9 +43,10 @@ alias fgbio="java -Xmx4g -XX:+AggressiveOpts -XX:+AggressiveHeap -jar /path/to/f
 
 Each tool has detailed uage and argument documentation that can be viewed at the command line by running the tool in question with no arguments.
 
-[Online Documentation](tools/latest) of all the tools is also available.
-
-For developers, API documentation is available through [javadoc.io](http://www.javadoc.io/doc/com.fulcrumgenomics/fgbio_2.12).
+Documentation is also available online:
+* Tool usage documentation is available [here](tools/latest)
+* Documentation of the various metrics files is available [here](metrics/latest)
+* API documentation for developers is available through [javadoc.io](http://www.javadoc.io/doc/com.fulcrumgenomics/fgbio_2.12).
 
 ## Getting Help
 

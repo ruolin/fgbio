@@ -38,7 +38,8 @@ Grouping of UMIs is performed by one of three strategies:
                   one other read in the group with <= edits differences and there are inter-group
                   pairings with <= edits differences. Effective when there are small numbers of
                   reads per UMI, but breaks down at very high coverage of UMIs.
-3. **adjacency**: a version of the directed adjacency method described in [umi_tools](http://dx.doi.org/10.1101/051755).
+3. **adjacency**: a version of the directed adjacency method described in [umi_tools](http://dx.doi.org/10.1101/051755)
+                  that allows for errors between UMIs but only when there is a count gradient.
 4. **paired**:    similar to adjacency but for methods that produce template with a pair of UMIs
                   such that a read with A-B is related to but not identical to a read with B-A.
                   Expects the pair of UMIs to be stored in a single tag, separated by a hyphen
@@ -62,5 +63,4 @@ non-identical UMIs.
 |include-non-pf-reads|n|Boolean|Include non-PF reads.|Optional|1|false|
 |strategy|s|String|The UMI assignment strategy; one of 'identity', 'edit', 'adjacency' or 'paired'.|Required|1||
 |edits|e|Int|The allowable number of edits between UMIs.|Optional|1|1|
-|tmp-dir||DirPath|Temporary directory for sorting.|Optional|1|/var/folders/mz/34h8j89n1jj2mg6frd0lmqxh0000gn/T|
 

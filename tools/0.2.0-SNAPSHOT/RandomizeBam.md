@@ -20,5 +20,4 @@ turned off by specifying --query-group=false.
 |output|o|PathToBam|The output SAM or BAM file.|Optional|1|/dev/stdout|
 |seed|s|Int|Random seed.|Optional|1|42|
 |query-group|q|Boolean|Group together reads by queryname.|Optional|1|true|
-|temp-directory|t|DirPath|Temporary directory for sorting.|Optional|1|/var/folders/mz/34h8j89n1jj2mg6frd0lmqxh0000gn/T|
 

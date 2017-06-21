@@ -56,5 +56,6 @@ min-input-base-quality are not counted in tag value calculations.
 |error-rate-pre-umi|1|PhredScore|The Phred-scaled error rate for an error prior to the UMIs being integrated.|Optional|1|45|
 |error-rate-post-umi|2|PhredScore|The Phred-scaled error rate for an error post the UMIs have been integrated.|Optional|1|40|
 |min-input-base-quality|m|PhredScore|Ignore bases in raw reads that have Q below this value.|Optional|1|10|
-|sort-order|S|SortOrder|The sort order of the output, if None then the same as the input.|Optional|1|queryname|
+|trim|t|Boolean|If true quality trim input reads in addition to masking low Q bases.|Optional|1|false|
+|sort-order|S|SamOrder|The sort order of the output, if `:none:` then the same as the input.|Optional|1|Queryname|
 

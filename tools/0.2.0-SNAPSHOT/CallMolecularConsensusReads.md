@@ -82,6 +82,6 @@ The per base depths and errors are both capped at 32,767. In all cases no-calls 
 |min-reads|M|Int|The minimum number of reads to produce a consensus base.|Required|1||
 |max-reads||Int|The maximum number of reads to use when building a consensus. If more than this many reads are present in a tag family, the family is randomly downsampled to exactly max-reads reads.|Optional|1||
 |output-per-base-tags|B|Boolean|If true produce tags on consensus reads that contain per-base information.|Optional|1|true|
-|sort-order|S|SortOrder|The sort order of the output, if None then the same as the input.|Optional|1|queryname|
+|sort-order|S|SamOrder|The sort order of the output, if `:none:` then the same as the input.|Optional|1|Queryname|
 |debug|D|Boolean|Turn on debug logging.|Optional|1|false|
 
