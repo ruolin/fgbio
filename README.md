@@ -11,7 +11,7 @@ fgbio
 ====
 
 A set of tools to analyze genomic data with a focus on Next Generation Sequencing.  This readme document is mostly for developers/contributors and those attempting to build the project from source.
-Detailed user documentation is available on the [project website](http://fulcrumgenomics.github.io/fgbio/) including [tool usage](http://fulcrumgenomics.github.io/fgbio/tools/latest) and [documentation of metrics produced](http://fulcrumgenomics.github.io/fgbio/metrics/latest).  Detailed developer documentation can be found on [here](http://javadoc.io/doc/com.fulcrumgenomics/fgbio_2.12).
+Detailed user documentation is available on the [project website](http://fulcrumgenomics.github.io/fgbio/) including [tool usage](http://fulcrumgenomics.github.io/fgbio/tools/latest) and [documentation of metrics produced](http://fulcrumgenomics.github.io/fgbio/metrics/latest).  Detailed developer documentation can be found [here](http://javadoc.io/doc/com.fulcrumgenomics/fgbio_2.12).
 
 <!---toc start-->
   * [Goals](#goals)
