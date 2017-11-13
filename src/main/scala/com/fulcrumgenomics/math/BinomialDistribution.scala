@@ -36,7 +36,7 @@ import scala.math.{BigDecimal, BigInt}
   * One implementation choice to be aware of when using this implementation is that each instance of the
   * class will calculate and cache factorials up to factorial(n) where n is the highest value of n
   * supplied to any call to [[probability()]] or [[cumulativeProbability()]].  Thus to ensure reasonable
-  * performance it is recommended to create one instance of this class and reuse it for as may
+  * performance it is recommended to create one instance of this class and reuse it for as many
   * calculations as is practical.
   */
 class BinomialDistribution {
