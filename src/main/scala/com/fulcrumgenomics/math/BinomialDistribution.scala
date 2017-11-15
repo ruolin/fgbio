@@ -24,6 +24,8 @@
 
 package com.fulcrumgenomics.math
 
+import java.math.MathContext
+
 import com.fulcrumgenomics.FgBioDef._
 
 import scala.math.{BigDecimal, BigInt}
@@ -38,14 +40,24 @@ import scala.math.{BigDecimal, BigInt}
   * supplied to any call to [[probability()]] or [[cumulativeProbability()]].  Thus to ensure reasonable
   * performance it is recommended to create one instance of this class and reuse it for as many
   * calculations as is practical.
+  *
+  * @param mc the MathContext to use for controlling precision and rounding. Changing from the default
+  *           `UNLIMITED` can lead to a loss of precision.
   */
-class BinomialDistribution {
+class BinomialDistribution(val mc: MathContext = MathContext.UNLIMITED) {
   // This array will get expanded with more factorials any time a higher n is queried
   private var factorials = Array(BigInt(0), BigInt(1))
 
-  // Constant values for 0 and 1 in BigDecimal to avoid making them all the time
-  private val Zero = BigDecimal(0)
-  private val One  = BigDecimal(1)
+ // Constant values for 0 and 1 in BigDecimal to avoid making them all the time
+  private val Zero = BigDecimal(0, mc)
+  private val One  = BigDecimal(1, mc)
+
+  /** Limits a value to the range 0-1. */
+  @inline private def limit(d: BigDecimal): BigDecimal = {
+    if (d < Zero) Zero
+    else if (d > One) One
+    else d
+  }
 
   /** Get the factorial of n. Retrieves the value from a cached set of factorials. If the cache
     * does not contain factorial(n) yet, then all factorials up to factorial(n) are computed
@@ -72,7 +84,7 @@ class BinomialDistribution {
   }
 
   /** Computes the binomial coefficient, i.e. the number of combinations of k items given a total of
-    * n items, often phrased "n pick k".
+    * n items, often phrased "n choose k".
     *
     * @param n The number of items being picked from
     * @param k The number of items being picked (must be 0 <= k <= n)
@@ -95,51 +107,31 @@ class BinomialDistribution {
     * @param p The probability of the success in any one trial
     * @return The probability of exactly k successes in n trials of p probability
     */
-  def probability(k: Int, n: Int, p: Double): BigDecimal = probability(k, n, BigDecimal(p))
-
-  /**
-    * Calculates the probability of exactly `k` successes in `n` trials given `p` probability.
-    * Akin to `dbinom` in R.
-    *
-    * @param k The number of successful trials
-    * @param n The number of trials
-    * @param p The probability of the success in any one trial
-    * @return The probability of exactly k successes in n trials of p probability
-    */
   def probability(k: Int, n: Int, p: BigDecimal): BigDecimal = {
     require(p >= Zero && p <= One, s"Probability p must be between 0 and 1. p=$p.")
-    val coeff = BigDecimal(coefficient(n, k))
+    val coeff = BigDecimal(coefficient(n, k), mc)
     val p1 = p.pow(k)
     val p2 = (One-p).pow(n - k)
     coeff * p1 * p2
   }
 
   /**
-    * Calculates the cumulative probability of `[0, k]` successes from n trials with `p` probability
+    * Calculates the cumulative probability of `[0, k]` successes from `n` trials with `p` probability
     * of success in any individual trial.
     * Akin to `pbinom` in R.
     *
     * @param k the number of successes to compute the cumulative probability up to, inclusive
     * @param n the number of trials
     * @param p the probability of success in any single trial
+    * @param lower if true return the cumulative probability of `(0,k)` trials inclusive
+    *              otherwise return the cumulative probability of `(k+1, n)` trials inclusive.
     */
-  def cumulativeProbability(k: Int, n: Int, p: Double): BigDecimal = cumulativeProbability(k, n, BigDecimal(p))
-
-  /**
-    * Calculates the cumulative probability of `[0, k]` successes from n trials with `p` probability
-    * of success in any individual trial.
-    * Akin to `pbinom` in R.
-    *
-    * @param k the number of successes to compute the cumulative probability up to, inclusive
-    * @param n the number of trials
-    * @param p the probability of success in any single trial
-    */
-  def cumulativeProbability(k: Int, n: Int, p: BigDecimal): BigDecimal = {
+  def cumulativeProbability(k: Int, n: Int, p: BigDecimal, lower: Boolean=true): BigDecimal = {
     var result = Zero
     forloop (from=0, until=k+1) { ki =>
       result += probability(ki, n, p)
     }
 
-    result
+    limit(if (lower) result else One - result)
   }
 }

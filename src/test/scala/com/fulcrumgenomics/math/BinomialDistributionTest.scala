@@ -24,7 +24,11 @@
 
 package com.fulcrumgenomics.math
 
+import java.math.MathContext
+
 import com.fulcrumgenomics.testing.UnitSpec
+import com.fulcrumgenomics.commons.CommonsDef._
+import com.fulcrumgenomics.util.NumericTypes.LogProbability
 import org.apache.commons.math3.distribution.{BinomialDistribution => CommonsBinomial}
 
 class BinomialDistributionTest extends UnitSpec {
@@ -70,8 +74,36 @@ class BinomialDistributionTest extends UnitSpec {
   }
 
   it should "compute values where commons math runs out of precision" in {
-    val commons = new CommonsBinomial(500, 0.01)
-    commons.cumulativeProbability(250) shouldBe 1.0
-    binom.cumulativeProbability(k=250, n=500, p=1.0) < BigDecimal(1) shouldBe true
+    val (k, n, p) = (39, 55, 3/150.0)
+
+    val commons = new CommonsBinomial(n, p)
+
+    // Calculate the cumulative using log probabilities
+    val range    = Range(0,k)
+    val probs    = range.map(i => commons.logProbability(i)).toArray
+    val sum      = LogProbability.or(probs)
+    val oneMinus = LogProbability.not(sum)
+    val linear   = LogProbability.expProb(oneMinus)
+
+    // Results using three methods
+    val commonsResult    = 1 - commons.cumulativeProbability(k-1)
+    val commonsLogResult = linear
+    val result           = binom.cumulativeProbability(k=k-1, n=n, p=p, lower=false).toDouble
+
+    commonsResult    shouldBe 0.0 // The real answer is not 0.0, here to show this method underflows
+    commonsLogResult shouldBe 0.0 // The real answer is not 0.0, here to show this method underflows
+    result           shouldBe 1.193E-53 +- 0.001E-53 // Calculated @ https://www.wolframalpha.com/input/?i=cumulative+binomial+probability
+  }
+
+  it should "fail if given probabilities < 0 or > 1" in {
+    an[Exception] shouldBe thrownBy { binom.cumulativeProbability(k=5, n=10, p= -0.01) }
+    an[Exception] shouldBe thrownBy { binom.cumulativeProbability(k=5, n=10, p= 1.00000000000001) }
+  }
+
+  it should "yield answers from lower=true and lower=false than sum to 1" in {
+    val (k, n, p) = (5, 10, 0.3)
+    val lower = binom.cumulativeProbability(k, n, p, lower=true)
+    val upper = binom.cumulativeProbability(k, n, p, lower=false)
+    (lower + upper).toDouble shouldBe 1.0
   }
 }
