@@ -42,7 +42,7 @@ import scala.math.{BigDecimal, BigInt}
   * calculations as is practical.
   *
   * @param mc the MathContext to use for controlling precision and rounding. Changing from the default
-  *           `UNLIMITED` can lead to a loss of precision.
+  *           [[MathContext.UNLIMITED]] can lead to a loss of precision.
   */
 class BinomialDistribution(val mc: MathContext = MathContext.UNLIMITED) {
   // This array will get expanded with more factorials any time a higher n is queried
