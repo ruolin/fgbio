@@ -27,10 +27,10 @@ package com.fulcrumgenomics.fastq
 
 import java.io.Closeable
 
-import com.fulcrumgenomics.FgBioDef.unreachable
+import com.fulcrumgenomics.FgBioDef.{FgBioEnum, unreachable}
 import com.fulcrumgenomics.bam.api.{SamOrder, SamRecord, SamWriter}
 import com.fulcrumgenomics.cmdline.{ClpGroups, FgBioTool}
-import com.fulcrumgenomics.commons.CommonsDef.{DirPath, FilePath, PathPrefix, PathToBam, PathToFastq}
+import com.fulcrumgenomics.commons.CommonsDef.{DirPath, FilePath, PathPrefix, PathToFastq}
 import com.fulcrumgenomics.commons.io.PathUtil
 import com.fulcrumgenomics.commons.util.{LazyLogging, Logger}
 import com.fulcrumgenomics.fastq.FastqDemultiplexer.{DemuxRecord, DemuxResult}
@@ -42,7 +42,10 @@ import com.fulcrumgenomics.util.{ReadStructure, SampleBarcodeMetric, _}
 import htsjdk.samtools.SAMFileHeader.SortOrder
 import htsjdk.samtools._
 import htsjdk.samtools.util.{Iso8601Date, SequenceUtil}
+import enumeratum.EnumEntry
 
+import scala.collection.immutable.IndexedSeq
+import scala.collection.mutable.ListBuffer
 import scala.concurrent.forkjoin.ForkJoinPool
 
 object DemuxFastqs {
@@ -174,16 +177,20 @@ object DemuxFastqs {
       |the FASTQs, to assign each read to a sample.  Reads that do not match any sample within the given error tolerance
       |will be placed in the 'unmatched' file.
       |
-      |The output directory will contain one BAM file per sample in the sample sheet or metadata CSV file, plus a BAM for
-      |reads that could not be assigned to a sample given the criteria.  The output file names will be the concatenation
-      |of sample id, sample name, and sample barcode bases (expected not observed), delimited by `-`.  A metrics file
-      |will also be output providing analogous information to the metric described
-      |[SampleBarcodeMetric](https://broadinstitute.github.io/picard/picard-metric-definitions.html#SampleBarcodeMetric).
+      |The type of output is specified with the `--output-type` option, and can be BAM (`--output-type BamOnly`),
+      |gzipped FASTQ (`--output-type FastqOnly`), or both (`--output-type Both`).
       |
-      |Alternatively, gzipped FASTQs can be written using the `--output-fastqs=true` option instead of BAMs.  For paired
-      |end data, the output will have the suffix `_R1.fastq.gz` and `_R2.fastq.gz` for read one and read two respectively.
-      |The sample barcode and molecular barcodes (concatenated) will be appended to the read name and delimited by a
-      |colon.  If the `--illumina-standards` option is given, then the output read names and file names will follow the
+      |For BAM output, the output directory will contain one BAM file per sample in the sample sheet or metadata CSV file,
+      |plus a BAM for reads that could not be assigned to a sample given the criteria.  The output file names will be the
+      |concatenation of sample id, sample name, and sample barcode bases (expected not observed), delimited by `-`.  A
+      |metrics file will also be output providing analogous information to the metric described
+      |[SampleBarcodeMetric](http://fulcrumgenomics.github.io/fgbio/metrics/latest/#samplebarcodemetric).
+      |
+      |For gzipped FASTQ output, one or more gzipped FASTQs per sample in the sample sheet or metadata CSV file will be
+      |written to the output directory. For paired end data, the output will have the suffix `_R1.fastq.gz` and
+      |`_R2.fastq.gz` for read one and read two respectively.  The sample barcode and molecular barcodes (concatenated)
+      |will be appended to the read name and delimited by a colon.  If the `--illumina-standards` option is given, then
+      |the output read names and file names will follow the
       |[Illumina standards described here](https://help.basespace.illumina.com/articles/tutorials/upload-data-using-web-uploader/).
       |
       |The output base qualities will be standardized to Sanger/SAM format.
@@ -294,7 +301,9 @@ class DemuxFastqs
  @arg(doc="Platform model to insert into the group header (ex. miseq, hiseq2500, hiseqX)") val platformModel: Option[String] = None,
  @arg(doc="Comment(s) to include in the merged output file's header.", minElements = 0) val comments: List[String] = Nil,
  @arg(doc="Date the run was produced, to insert into the read group header") val runDate: Option[Iso8601Date] = None,
- @arg(doc="Output gzipped FASTQs (`.fastq.gz`) instead of BAM files") val outputFastqs: Boolean = false,
+ @arg(doc="The type of outputs to produce.", mutex=Array("outputFastqs")) var outputType: Option[OutputType] = None,
+ @deprecated("Use outputType instead.", since="0.5.0")
+ @arg(doc="*** Deprecated: use --output-type instead ***. Output gzipped FASTQs (`.fastq.gz`) instead of BAM files", mutex=Array("outputType")) val outputFastqs: Option[Boolean] = None,
  @arg(doc="Output FASTQs according to Illumina naming standards, for example, for upload to the BaseSpace Sequence Hub") val illuminaStandards: Boolean = false
 ) extends FgBioTool with LazyLogging {
 
@@ -302,9 +311,16 @@ class DemuxFastqs
 
   private[fastq] val metricsPath = metrics.getOrElse(output.resolve(DefaultDemuxMetricsFileName))
 
+  // NB: remove me when outputFastqs gets removed and use outputType directly
+  private val _outputType = (this.outputType, this.outputFastqs) match {
+    case (None, None) => OutputType.Bam
+    case (None, Some(fastqs)) => if (fastqs) OutputType.Fastq else OutputType.Bam
+    case (Some(tpe), None) => tpe
+    case _ => unreachable("Bug: outputType and outputFastqs should never be both defined")
+  }
+
   validate(inputs.length == readStructures.length, "The same number of read structures should be given as FASTQs.")
   validate(readStructures.flatMap(_.sampleBarcodeSegments).nonEmpty, s"No sample barcodes found in read structures: " + readStructures.map(_.toString).mkString(", "))
-
 
   private val pairedEnd = readStructures.count(_.templateSegments.nonEmpty) match {
     case 1 => false
@@ -313,7 +329,7 @@ class DemuxFastqs
   }
 
   if (illuminaStandards) {
-    validate(outputFastqs, "--illumina-standards may only be used with --output-fastqs")
+    validate(this._outputType != OutputType.Bam, s"--illumina-standards may only be used with '--output-type ${OutputType.Fastq}' and '--output-type ${OutputType.BamAndFastq}'.")
     validate(pairedEnd,  "--illumina-standards may only be used with paired end data")
   }
 
@@ -403,27 +419,35 @@ class DemuxFastqs
     val isUnmatched = sample.sampleName == UnmatchedSampleId
     val prefix = toSampleOutputPrefix(sample, isUnmatched, illuminaStandards, output, this.unmatched)
 
-    if (this.outputFastqs) {
-      new FastqRecordWriter(prefix, pairedEnd, illuminaStandards)
+    val writers = new ListBuffer[DemuxWriter]()
+
+    if (this._outputType.producesFastq) {
+      writers += new FastqRecordWriter(prefix, pairedEnd, illuminaStandards)
     }
-    else {
-      val readGroup = new SAMReadGroupRecord(sample.sampleId)
-      readGroup.setSample(sample.sampleName)
-      readGroup.setLibrary(sample.libraryId)
-      readGroup.setPlatform("Illumina")
-      sample.description.foreach(readGroup.setDescription)
-      platformUnit.foreach(readGroup.setPlatformUnit)
-      sequencingCenter.foreach(readGroup.setSequencingCenter)
-      predictedInsertSize.foreach(readGroup.setPredictedMedianInsertSize)
-      runDate.foreach(readGroup.setRunDate)
-      platformModel.foreach(readGroup.setPlatformModel)
 
-      val header: SAMFileHeader = new SAMFileHeader
-      header.addReadGroup(readGroup)
-      header.setSortOrder(sortOrder)
-      comments.foreach(header.addComment)
+    if (this._outputType.producesBam) {
+        val readGroup = new SAMReadGroupRecord(sample.sampleId)
+        readGroup.setSample(sample.sampleName)
+        readGroup.setLibrary(sample.libraryId)
+        readGroup.setPlatform("Illumina")
+        sample.description.foreach(readGroup.setDescription)
+        platformUnit.foreach(readGroup.setPlatformUnit)
+        sequencingCenter.foreach(readGroup.setSequencingCenter)
+        predictedInsertSize.foreach(readGroup.setPredictedMedianInsertSize)
+        runDate.foreach(readGroup.setRunDate)
+        platformModel.foreach(readGroup.setPlatformModel)
 
-      new SamRecordWriter(PathUtil.pathTo(prefix + ".bam"), header, this.umiTag, numSamples)
+        val header: SAMFileHeader = new SAMFileHeader
+        header.addReadGroup(readGroup)
+        header.setSortOrder(sortOrder)
+        comments.foreach(header.addComment)
+
+        writers += new SamRecordWriter(prefix, header, this.umiTag, numSamples)
+    }
+
+    new DemuxWriter {
+      def add(rec: DemuxRecord): Unit = writers.foreach { writer => writer.add(rec) }
+      override def close(): Unit = writers.foreach(_.close())
     }
   }
 }
@@ -434,12 +458,12 @@ private trait DemuxWriter extends Closeable {
 }
 
 /** A writer that writes [[DemuxRecord]]s as [[SamRecord]]s. */
-private class SamRecordWriter(output: PathToBam,
+private class SamRecordWriter(prefix: PathPrefix,
                               val header: SAMFileHeader,
                               val umiTag: String,
                               val numSamples: Int) extends DemuxWriter {
   val order: Option[SamOrder] = if (header.getSortOrder == SortOrder.unsorted) None else SamOrder(header)
-  private val writer = SamWriter(output, header, sort=order,
+  private val writer = SamWriter(PathUtil.pathTo(prefix + ".bam"), header, sort=order,
     async = DemuxFastqs.UseAsyncIo,
     maxRecordsInRam = Math.max(10000,  DemuxFastqs.MaxRecordsInRam / numSamples))
 
@@ -667,4 +691,15 @@ private class FastqDemultiplexer(val sampleInfos: Seq[SampleInfo],
 
     DemuxResult(sampleInfo=sampleInfo, numMismatches=numMismatches, records=records)
   }
+}
+
+sealed trait OutputType extends EnumEntry {
+  def producesBam: Boolean
+  def producesFastq: Boolean
+}
+object OutputType extends FgBioEnum[OutputType] {
+  def values: IndexedSeq[OutputType] = findValues
+  case object Fastq extends OutputType { val producesBam: Boolean = false; val producesFastq: Boolean = true; }
+  case object Bam extends OutputType { val producesBam: Boolean = true; val producesFastq: Boolean = false; }
+  case object BamAndFastq extends OutputType { val producesBam: Boolean = true; val producesFastq: Boolean = true; }
 }

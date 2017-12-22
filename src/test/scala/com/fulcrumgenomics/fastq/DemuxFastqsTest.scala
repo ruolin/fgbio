@@ -34,7 +34,6 @@ import com.fulcrumgenomics.testing.{ErrorLogLevel, UnitSpec}
 import com.fulcrumgenomics.util.{Io, Metric, ReadStructure, SampleBarcodeMetric}
 import com.fulcrumgenomics.commons.io.PathUtil
 import com.fulcrumgenomics.sopt.cmdline.ValidationException
-import htsjdk.samtools.{SAMFileHeader, SAMReadGroupRecord}
 import org.scalatest.OptionValues
 
 import scala.collection.mutable.ListBuffer
@@ -334,8 +333,8 @@ class DemuxFastqsTest extends UnitSpec with OptionValues with ErrorLogLevel {
 
   Seq(1, 2).foreach { threads =>
     Seq(true, false).foreach { useSampleSheet =>
-      Seq(true, false).foreach { outputFastqs =>
-        "DemuxFastqs" should s"run end-to-end with $threads threads using a ${if (useSampleSheet) "sample sheet" else "metadata CSV"} ${if (outputFastqs) "with" else "without"} FASTQ output" in {
+      OutputType.values.foreach { outputType =>
+        "DemuxFastqs" should s"run end-to-end with $threads threads using a ${if (useSampleSheet) "sample sheet" else "metadata CSV"} $outputType output" in {
 
           val output: DirPath = outputDir()
 
@@ -346,7 +345,7 @@ class DemuxFastqsTest extends UnitSpec with OptionValues with ErrorLogLevel {
 
           new DemuxFastqs(inputs=Seq(fastqPath), output=output, metadata=metadata,
             readStructures=structures, metrics=Some(metrics), maxMismatches=2, minMismatchDelta=3,
-            threads=threads, outputFastqs=outputFastqs).execute()
+            threads=threads, outputType=Some(outputType)).execute()
 
           val sampleInfos = toSampleInfos(structures)
           val samples: Seq[Sample] = sampleInfos.map(_.sample)
@@ -356,30 +355,32 @@ class DemuxFastqsTest extends UnitSpec with OptionValues with ErrorLogLevel {
             val sample = sampleInfo.sample
             val prefix = toSampleOutputPrefix(sample, sampleInfo.isUnmatched, false, output, UnmatchedSampleId)
 
-            val (names, sampleBarcodes) = if (outputFastqs) {
-              val fastq = PathUtil.pathTo(prefix + ".fastq.gz")
-              val records = FastqSource(fastq).toSeq
-              (records.map(_.name.replaceAll(":.*", "")), records.map(_.name.replaceAll(".*:", "")))
-            }
-            else {
-              val bam = PathUtil.pathTo(prefix + ".bam")
-              val records = readBamRecs(bam)
-              (records.map(_.name), records.map(_[String]("BC")))
+            def checkOutput(names: Seq[String], sampleBarcodes: Seq[String]): Unit = {
+              if (sample.sampleOrdinal == 1) {
+                names.length shouldBe 2
+                names should contain theSameElementsInOrderAs Seq("frag1", "frag2")
+                sampleBarcodes should contain theSameElementsInOrderAs Seq("AAAAAAAAGATTACAGA", "AAAAAAAAGATTACAGT")
+              }
+              else if (sample.sampleId == UnmatchedSampleId) {
+                names.length shouldBe 3
+                names should contain theSameElementsInOrderAs Seq("frag3", "frag4", "frag5")
+                sampleBarcodes should contain theSameElementsInOrderAs Seq("AAAAAAAAGATTACTTT", "GGGGGGTTGATTACAGA", "AAAAAAAAGANNNNNNN") // NB: raw not assigned
+              }
+              else {
+                names shouldBe 'empty
+                sampleBarcodes.isEmpty shouldBe true
+              }
             }
 
-            if (sample.sampleOrdinal == 1) {
-              names.length shouldBe 2
-              names should contain theSameElementsInOrderAs Seq("frag1", "frag2")
-              sampleBarcodes should contain theSameElementsInOrderAs Seq("AAAAAAAAGATTACAGA", "AAAAAAAAGATTACAGT")
+            if (outputType.producesFastq) {
+              val fastq = PathUtil.pathTo(prefix + ".fastq.gz")
+              val records = FastqSource(fastq).toSeq
+              checkOutput(records.map(_.name.replaceAll(":.*", "")), records.map(_.name.replaceAll(".*:", "")))
             }
-            else if (sample.sampleId == UnmatchedSampleId) {
-              names.length shouldBe 3
-              names should contain theSameElementsInOrderAs Seq("frag3", "frag4", "frag5")
-              sampleBarcodes should contain theSameElementsInOrderAs Seq("AAAAAAAAGATTACTTT", "GGGGGGTTGATTACAGA", "AAAAAAAAGANNNNNNN") // NB: raw not assigned
-            }
-            else {
-              names shouldBe 'empty
-              sampleBarcodes.isEmpty shouldBe true
+            if (outputType.producesBam) {
+              val bam = PathUtil.pathTo(prefix + ".bam")
+              val records = readBamRecs(bam)
+              checkOutput(records.map(_.name), records.map(_[String]("BC")))
             }
           }
 
@@ -443,7 +444,7 @@ class DemuxFastqsTest extends UnitSpec with OptionValues with ErrorLogLevel {
       val structures = Seq(ReadStructure("17B100T"), ReadStructure("117T"))
       new DemuxFastqs(inputs=Seq(illuminaReadNamesFastqPath, illuminaReadNamesFastqPath), output=output, metadata=sampleSheetPath,
         readStructures=structures, metrics=Some(metrics), maxMismatches=2, minMismatchDelta=3,
-        outputFastqs=true, illuminaStandards=illuminaStandards).execute()
+        outputType=Some(OutputType.Fastq), illuminaStandards=illuminaStandards).execute()
 
       val sampleInfos = toSampleInfos(structures)
 
@@ -510,7 +511,7 @@ class DemuxFastqsTest extends UnitSpec with OptionValues with ErrorLogLevel {
 
     new DemuxFastqs(inputs=Seq(illuminaReadNamesFastqPath), output=output, metadata=metadata,
       readStructures=structures, metrics=Some(metrics), maxMismatches=2, minMismatchDelta=3,
-      outputFastqs=false).execute()
+      outputType=Some(OutputType.Bam)).execute()
 
     val record = readBamRecs(output.resolve("foo-S1-TCGT.bam")).head
 
