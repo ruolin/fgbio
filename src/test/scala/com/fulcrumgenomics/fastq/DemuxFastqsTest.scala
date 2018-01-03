@@ -28,6 +28,7 @@ package com.fulcrumgenomics.fastq
 import java.nio.file.Files
 
 import com.fulcrumgenomics.FgBioDef.{DirPath, FilePath, PathToFastq}
+import com.fulcrumgenomics.bam.api.SamSource
 import com.fulcrumgenomics.fastq.FastqDemultiplexer.{DemuxRecord, DemuxResult}
 import com.fulcrumgenomics.illumina.{Sample, SampleSheet}
 import com.fulcrumgenomics.testing.{ErrorLogLevel, UnitSpec}
@@ -227,6 +228,21 @@ class DemuxFastqsTest extends UnitSpec with OptionValues with ErrorLogLevel {
     r2.sampleBarcode.value shouldBe "AAAA-AAAA-GAT-TACAGA"
   }
 
+  it should "demux a read structure with multiple independent template segments in one read" in {
+    val demuxer     = dx(structures=Seq(ReadStructure("17B20T20S20T20S20T"))) // 3 distinct templates segments!
+    val fastqRecord = fq(name="frag", bases=sampleBarcode1 + "A"*20 + "C"*20+ "A"*20 + "C"*20+ "A"*20) // template should be A*60
+
+    val demuxRecord = demuxer.demultiplex(fastqRecord)
+    demuxRecord.records.length shouldBe 1
+    val record = demuxRecord.records.headOption.value
+
+    record.name shouldBe "frag"
+    record.bases shouldBe "A"*60
+    record.quals shouldBe "I"*60
+    record.pairedEnd shouldBe false
+    record.molecularBarcode shouldBe 'empty
+  }
+
   it should "fail if zero or more than two read structures have template bases" in {
     an[Exception] should be thrownBy dx(structures=Seq.empty)
     an[Exception] should be thrownBy dx(structures = Seq(ReadStructure("100S")))
@@ -330,11 +346,88 @@ class DemuxFastqsTest extends UnitSpec with OptionValues with ErrorLogLevel {
     Io.writeLines(path, fastqs.map(_.toString))
     path
   }
+  
+  "DemuxFastqs"  should "fail if the number of fastqs does not equal the number of read structures" in {
+    val structures = Seq(ReadStructure("8B100T"), ReadStructure("100T"))
+    val fastq      = PathUtil.pathTo("/path/to/nowhere", ".fastq")
+    val output     = PathUtil.pathTo("/path/to/nowhere", "output")
+    val metrics    = PathUtil.pathTo("/path/to/nowhere", "metrics")
+    throwableMessageShouldInclude("same number of read structures should be given as FASTQs") {
+      new DemuxFastqs(inputs=Seq(fastq), output=output, metadata=sampleSheetPath,
+        readStructures=structures, metrics=Some(metrics), maxMismatches=2, minMismatchDelta=3)
+    }
+  }
+
+  it should "fail if no sample barcodes are found in the read structures" in {
+    val structures = Seq(ReadStructure("100T"))
+    val fastq      = PathUtil.pathTo("/path/to/nowhere", ".fastq")
+    val output     = PathUtil.pathTo("/path/to/nowhere", "output")
+    val metrics    = PathUtil.pathTo("/path/to/nowhere", "metrics")
+    throwableMessageShouldInclude("No sample barcodes found in read structures") {
+      new DemuxFastqs(inputs=Seq(fastq), output=output, metadata=sampleSheetPath,
+        readStructures=structures, metrics=Some(metrics), maxMismatches=2, minMismatchDelta=3)
+    }
+  }
+
+  it should "fail if there are not 1-2 read structures with template bases" in {
+    // 0 read structures with template bases
+    {
+      val structures = Seq(ReadStructure("8B"))
+      val fastq      = PathUtil.pathTo("/path/to/nowhere", ".fastq")
+      val output     = PathUtil.pathTo("/path/to/nowhere", "output")
+      val metrics    = PathUtil.pathTo("/path/to/nowhere", "metrics")
+      throwableMessageShouldInclude("with template bases but expected 1 or 2.") {
+        new DemuxFastqs(inputs=Seq(fastq), output=output, metadata=sampleSheetPath,
+          readStructures=structures, metrics=Some(metrics), maxMismatches=2, minMismatchDelta=3)
+      }
+    }
+
+    // 3 read structures with template bases
+    {
+      val structures = Seq(ReadStructure("8B92T"), ReadStructure("100T"), ReadStructure("100T"))
+      val fastq      = PathUtil.pathTo("/path/to/nowhere", ".fastq")
+      val output     = PathUtil.pathTo("/path/to/nowhere", "output")
+      val metrics    = PathUtil.pathTo("/path/to/nowhere", "metrics")
+      throwableMessageShouldInclude("with template bases but expected 1 or 2.") {
+        new DemuxFastqs(inputs=Seq(fastq, fastq, fastq), output=output, metadata=sampleSheetPath,
+          readStructures=structures, metrics=Some(metrics), maxMismatches=2, minMismatchDelta=3)
+      }
+    }
+  }
+
+  it should "fail if there are a different number of sample barcode bases in the read structure compare to the sample sheet" in {
+    val output: DirPath = outputDir()
+    val metrics = makeTempFile("metrics", ".txt")
+    val structures = Seq(ReadStructure("18B100T"))
+
+    val demuxFastqs = new DemuxFastqs(inputs=Seq(fastqPath), output=output, metadata=sampleSheetPath,
+      readStructures=structures, metrics=Some(metrics), maxMismatches=2, minMismatchDelta=3)
+    throwableMessageShouldInclude("The number of sample barcodes bases did not match") {
+      demuxFastqs.execute()
+    }
+  }
+
+  it should "fail if there are missing sample barcodes in the sample sheet" in {
+    val output: DirPath = outputDir()
+    val metrics = makeTempFile("metrics", ".txt")
+    val structures = Seq(ReadStructure("17B100T"))
+
+    // Add a sample without a sample barcode
+    val sampleSheetLines: Seq[String] = Io.readLines(sampleSheetPath).toSeq
+    val buggySampleSheet = makeTempFile("SampleSheet", ".csv")
+    Io.writeLines(buggySampleSheet, sampleSheetLines ++ Seq("20000101-EXPID-5,Sample_Name_5,,,,,,Sample_Project_5,Description_5"))
+
+    val demuxFastqs = new DemuxFastqs(inputs=Seq(fastqPath), output=output, metadata=buggySampleSheet,
+      readStructures=structures, metrics=Some(metrics), maxMismatches=2, minMismatchDelta=3)
+    throwableMessageShouldInclude("Sample barcode not found in column") {
+      demuxFastqs.execute()
+    }
+  }
 
   Seq(1, 2).foreach { threads =>
     Seq(true, false).foreach { useSampleSheet =>
       OutputType.values.foreach { outputType =>
-        "DemuxFastqs" should s"run end-to-end with $threads threads using a ${if (useSampleSheet) "sample sheet" else "metadata CSV"} $outputType output" in {
+        it should s"run end-to-end with $threads threads using a ${if (useSampleSheet) "sample sheet" else "metadata CSV"} $outputType output" in {
 
           val output: DirPath = outputDir()
 
@@ -569,92 +662,16 @@ class DemuxFastqsTest extends UnitSpec with OptionValues with ErrorLogLevel {
     }
   }
 
-  it should "fail if the number of fastqs does not equal the number of read structures" in {
-    val structures = Seq(ReadStructure("8B100T"), ReadStructure("100T"))
-    val fastq      = PathUtil.pathTo("/path/to/nowhere", ".fastq")
-    val output     = PathUtil.pathTo("/path/to/nowhere", "output")
-    val metrics    = PathUtil.pathTo("/path/to/nowhere", "metrics")
-    throwableMessageShouldInclude("same number of read structures should be given as FASTQs") {
-      new DemuxFastqs(inputs=Seq(fastq), output=output, metadata=sampleSheetPath,
-      readStructures=structures, metrics=Some(metrics), maxMismatches=2, minMismatchDelta=3)
-    }
-  }
 
-  it should "fail if no sample barcodes are found in the read structures" in {
-    val structures = Seq(ReadStructure("100T"))
-    val fastq      = PathUtil.pathTo("/path/to/nowhere", ".fastq")
-    val output     = PathUtil.pathTo("/path/to/nowhere", "output")
-    val metrics    = PathUtil.pathTo("/path/to/nowhere", "metrics")
-    throwableMessageShouldInclude("No sample barcodes found in read structures") {
-      new DemuxFastqs(inputs=Seq(fastq), output=output, metadata=sampleSheetPath,
-        readStructures=structures, metrics=Some(metrics), maxMismatches=2, minMismatchDelta=3)
-    }
-  }
-
-  it should "fail if there are not 1-2 read structures with template bases" in {
-    // 0 read structures with template bases
-    {
-      val structures = Seq(ReadStructure("8B"))
-      val fastq      = PathUtil.pathTo("/path/to/nowhere", ".fastq")
-      val output     = PathUtil.pathTo("/path/to/nowhere", "output")
-      val metrics    = PathUtil.pathTo("/path/to/nowhere", "metrics")
-      throwableMessageShouldInclude("with template bases but expected 1 or 2.") {
-        new DemuxFastqs(inputs=Seq(fastq), output=output, metadata=sampleSheetPath,
-          readStructures=structures, metrics=Some(metrics), maxMismatches=2, minMismatchDelta=3)
-      }
-    }
-
-    // 3 read structures with template bases
-    {
-      val structures = Seq(ReadStructure("8B92T"), ReadStructure("100T"), ReadStructure("100T"))
-      val fastq      = PathUtil.pathTo("/path/to/nowhere", ".fastq")
-      val output     = PathUtil.pathTo("/path/to/nowhere", "output")
-      val metrics    = PathUtil.pathTo("/path/to/nowhere", "metrics")
-      throwableMessageShouldInclude("with template bases but expected 1 or 2.") {
-        new DemuxFastqs(inputs=Seq(fastq, fastq, fastq), output=output, metadata=sampleSheetPath,
-          readStructures=structures, metrics=Some(metrics), maxMismatches=2, minMismatchDelta=3)
-      }
-    }
-  }
-
-  it should "fail if there are a different number of sample barcode bases in the read structure compare to the sample sheet" in {
-    val output: DirPath = outputDir()
-    val metrics = makeTempFile("metrics", ".txt")
-    val structures = Seq(ReadStructure("18B100T"))
-
-    val demuxFastqs = new DemuxFastqs(inputs=Seq(fastqPath), output=output, metadata=sampleSheetPath,
-      readStructures=structures, metrics=Some(metrics), maxMismatches=2, minMismatchDelta=3)
-    throwableMessageShouldInclude("The number of sample barcodes bases did not match") {
-      demuxFastqs.execute()
-    }
-  }
-
-  it should "fail if there are missing sample barcodes in the sample sheet" in {
-    val output: DirPath = outputDir()
-    val metrics = makeTempFile("metrics", ".txt")
-    val structures = Seq(ReadStructure("17B100T"))
-
-    // Add a sample without a sample barcode
-    val sampleSheetLines: Seq[String] = Io.readLines(sampleSheetPath).toSeq
-    val buggySampleSheet = makeTempFile("SampleSheet", ".csv")
-    Io.writeLines(buggySampleSheet, sampleSheetLines ++ Seq("20000101-EXPID-5,Sample_Name_5,,,,,,Sample_Project_5,Description_5"))
-
-    val demuxFastqs = new DemuxFastqs(inputs=Seq(fastqPath), output=output, metadata=buggySampleSheet,
-      readStructures=structures, metrics=Some(metrics), maxMismatches=2, minMismatchDelta=3)
-    throwableMessageShouldInclude("Sample barcode not found in column") {
-      demuxFastqs.execute()
-    }
+  private def write(rec: FastqRecord): PathToFastq = {
+    val path = makeTempFile("fastq", ".fastq")
+    val writer = FastqWriter(path)
+    writer.write(rec)
+    writer.close()
+    path
   }
 
   it should "demux dual-indexed paired end reads" in {
-    def write(rec: FastqRecord): PathToFastq = {
-      val path = makeTempFile("fastq", ".fastq")
-      val writer = FastqWriter(path)
-      writer.write(rec)
-      writer.close()
-      path
-    }
-
     val fq1 = write(fq(name="frag", bases="AAAAAAAA"))
     val fq2 = write(fq(name="frag", bases="A"*100))
     val fq3 = write(fq(name="frag", bases="T"*100))
@@ -700,6 +717,47 @@ class DemuxFastqsTest extends UnitSpec with OptionValues with ErrorLogLevel {
         metric.pf_one_mismatch_matches shouldBe 0
       }
     }
+  }
+
+  it should "include all bases if the include-all-bases-in-fastqs option is used" in {
+    val fq1 = write(fq(name="frag", bases="AAAAAAAA"))
+    val fq2 = write(fq(name="frag", bases="A"*100))
+    val fq3 = write(fq(name="frag", bases="T"*100))
+    val fq4 = write(fq(name="frag", bases="GATTACAGA"))
+    val structures = Seq(ReadStructure("8B"), ReadStructure("5M10S5M10S70T"), ReadStructure("10S90T"), ReadStructure("9B"))
+
+    val output: DirPath = outputDir()
+    val metrics = makeTempFile("metrics", ".txt")
+
+    new DemuxFastqs(inputs=Seq(fq1, fq2, fq3, fq4), output=output, metadata=sampleSheetPath,
+      readStructures=structures, metrics=Some(metrics), maxMismatches=2, minMismatchDelta=3,
+      outputType=Some(OutputType.BamAndFastq), includeAllBasesInFastqs=true).execute()
+
+    val sampleInfos         = toSampleInfos(structures)
+    val matchedSampleInfo   = sampleInfos.find(!_.isUnmatched).get
+
+    matchedSampleInfo.sample.sampleOrdinal shouldBe 1
+
+    val prefix = toSampleOutputPrefix(matchedSampleInfo.sample, matchedSampleInfo.isUnmatched, false, output, UnmatchedSampleId)
+    prefix.toString shouldBe output.resolve("20000101-EXPID-1-Sample_Name_1-AAAAAAAAGATTACAGA").toString
+
+    val extensions = FastqRecordWriter.extensions(pairedEnd=true, illuminaStandards=false)
+    def fastqRecord(which: Int): FastqRecord = {
+      val path = PathUtil.pathTo(prefix + extensions(which-1))
+      FastqSource(path).toSeq.headOption.value
+    }
+
+    val fastqR1    = fastqRecord(1)
+    val fastqR2    = fastqRecord(2)
+    val records    = readBamRecs(output.resolve(prefix + ".bam"))
+    val recR1      = records.find(_.firstOfPair).value
+    val recR2      = records.find(_.secondOfPair).value
+
+    fastqR1.bases shouldBe "A"*100
+    fastqR2.bases shouldBe "T"*100
+
+    recR1.basesString shouldBe "A"*70
+    recR2.basesString shouldBe "T"*90
   }
 
   "FastqRecordWriter.readName" should "set the read name based if it should follow Illumina standards" in {
