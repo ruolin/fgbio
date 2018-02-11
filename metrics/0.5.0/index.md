@@ -4,46 +4,59 @@
 This page contains descriptions of all metrics produced by all fgbio tools.  Within the descriptions
 the type of each field/column is given, including two commonly used types:
 
-* `Count` is a 64-bit integer representing the count of some item
-* `Proportion` is a 64-bit real number with a value between 0 and 1 representing a proportion or fraction
+* `Count` is an integer representing the count of some item
+* `Proportion` is a real number with a value between 0 and 1 representing a proportion or fraction
 
 ## Table of Contents
 
 |Metric Type|Description|
 |-----------|-----------|
-|[PhaseBlockLengthMetric](#phaseblocklengthmetric)|Provides the number of phased blocks of a given length|
-|[AssessPhasingMetric](#assessphasingmetric)|Some counts about phasing |
+|[PhaseBlockLengthMetric](#phaseblocklengthmetric)|Metrics produced by `AssessPhasing` describing the number of phased blocks of a given length|
+|[AssessPhasingMetric](#assessphasingmetric)|Metrics produced by `AssessPhasing` describing various statistics assessing the performance of phasing variants relative to a known set of phased variant calls|
 |[SampleBarcodeMetric](#samplebarcodemetric)|Metrics for matching reads to sample barcodes|
 |[TagFamilySizeMetric](#tagfamilysizemetric)|Metrics produced by `GroupReadsByUmi` to describe the distribution of tag family sizes observed during grouping|
 |[ConsensusVariantReviewInfo](#consensusvariantreviewinfo)|Detailed information produced by `ReviewConsensusVariants` on variants called in consensus reads|
 |[UmiCorrectionMetrics](#umicorrectionmetrics)|Metrics produced by `CorrectUmis` regarding the correction of UMI sequences to a fixed set of known UMIs|
+|[DuplexUmiMetric](#duplexumimetric)|Metrics produced by `CollectDuplexSeqMetrics` describing the set of observed duplex UMI sequences and the frequency of their observations|
 |[UmiMetric](#umimetric)|Metrics produced by `CollectDuplexSeqMetrics` describing the set of observed UMI sequences and the frequency of their observations|
 |[DuplexYieldMetric](#duplexyieldmetric)|Metrics produced by `CollectDuplexSeqMetrics` that are sampled at various levels of coverage, via random downsampling, during the construction of duplex metrics|
 |[DuplexFamilySizeMetric](#duplexfamilysizemetric)|Metrics produced by `CollectDuplexSeqMetrics` to describe the distribution of double-stranded (duplex) tag families in terms of the number of reads observed on each strand|
 |[FamilySizeMetric](#familysizemetric)|Metrics produced by `CollectDuplexSeqMetrics` to quantify the distribution of different kinds of read family sizes|
+|[InsertSizeMetric](#insertsizemetric)|Metrics produced by `EstimateRnaSeqInsertSize` to describe the distribution of insert sizes within an RNA-seq experiment|
+|[ErccSummaryMetrics](#erccsummarymetrics)|Metrics produced by `CollectErccMetrics` describing various summary metrics related to the spike-in of ERCC (External RNA Controls Consortium) into an RNA-Seq experiment|
+|[ErccDetailedMetric](#erccdetailedmetric)|Metrics produced by `CollectErccMetrics` describing various per-transcript metrics related to the spike-in of ERCC (External RNA Controls Consortium) into an RNA-Seq experiment|
 |[RunInfo](#runinfo)|Stores the result of parsing the run info (RunInfo|
 |[PoolingFractionMetric](#poolingfractionmetric)|Metrics produced by `EstimatePoolingFractions` to quantify the estimated proportion of a sample mixture that is attributable to a specific sample with a known set of genotypes|
-|[InsertSizeMetric](#insertsizemetric)|Metrics produced by `EstimateRnaSeqInsertSize` to describe the distribution of insert sizes within an RNA-seq experiment|
 |[ErrorRateByReadPositionMetric](#errorratebyreadpositionmetric)|Metrics produced by `ErrorRateByReadPosition` describing the number of base observations and substitution errors at each position within each sequencing read|
+|[ClippingMetrics](#clippingmetrics)|Metrics produced by ClipBam that detail how many reads and bases are clipped respectively|
 
 ## Metric File Descriptions
 
 
 ### PhaseBlockLengthMetric
 
-Provides the number of phased blocks of a given length.
+Metrics produced by `AssessPhasing` describing the number of phased blocks of a given length.  The output will have
+multiple rows, one for each observed phased block length.
 
 
 |Column|Type|Description|
 |------|----|-----------|
-|dataset|String|The name of the dataset (ex. truth or call)|
-|length|Long|The length of the phased block|
+|dataset|String|The name of the dataset being assessed (i.e. "truth" or "called").|
+|length|Long|The length of the phased block.|
 |count|Long|The number of phased blocks of the given length.|
 
 
 ### AssessPhasingMetric
 
-Some counts about phasing
+Metrics produced by `AssessPhasing` describing various statistics assessing the performance of phasing variants
+relative to a known set of phased variant calls.  Included are methods for assessing sensitivity and accuracy from
+a number of previous papers (ex. http://dx.doi.org/10.1038%2Fng.3119).The N50, N90, and L50 statistics are defined as follows:
+- The N50 is the longest block length such that the bases covered by all blocks this length and longer are at least
+50% of the # of bases covered by all blocks.
+- The N90 is the longest block length such that the bases covered by all blocks this length and longer are at least
+90% of the # of bases covered by all blocks.
+- The L50 is the smallest number of blocks such that the sum of the lengths of the blocks is `>=` 50% of the sum of
+the lengths of all blocks.
 
 
 |Column|Type|Description|
@@ -66,10 +79,10 @@ Some counts about phasing
 |frac_phased_with_truth_phased|Double|The fraction of known phased variants called with phase.|
 |frac_truth_phased_in_called_block|Double|The fraction of phased known genotypes in a called phased block.|
 |frac_phased_with_truth_phased_in_called_block|Double|The fraction of called phased variants that had a known phased genotype in a called phased block.|
-|short_accuracy|Double|1 - (num_short_switch_errors / num_switch_sites)|
-|long_accuracy|Double|1 - (num_long_switch_errors / num_switch_sites)|
-|illumina_point_accuracy|Double|1 - (num_illumina_point_switch_errors / num_illumina_switch_sites )|
-|illumina_long_accuracy|Double|1 - (num_illumina_long_switch_errors / num_illumina_switch_sites )|
+|short_accuracy|Double|The fraction of switch sites without short switch errors (`1 - (num_short_switch_errors / num_switch_sites)`).|
+|long_accuracy|Double|The fraction of switch sites without long switch errors (`1 - (num_long_switch_errors / num_switch_sites)`).|
+|illumina_point_accuracy|Double|The fraction of switch sites without point switch errors according to the Illumina                                method defining switch sites and errors (`1 - (num_illumina_point_switch_errors / num_illumina_switch_sites )`).|
+|illumina_long_accuracy|Double|The fraction of switch sites wihtout long switch errors  according to the Illumina                               method defining switch sites and errors (`1 - (num_illumina_long_switch_errors / num_illumina_switch_sites )`).|
 |mean_called_block_length|Double|The mean phased block length in the callset.|
 |median_called_block_length|Double|The median phased block length in the callset.|
 |stddev_called_block_length|Double|The standard deviation of the phased block length in the callset.|
@@ -169,6 +182,29 @@ Metrics produced by `CorrectUmis` regarding the correction of UMI sequences to a
 |representation|Double|The `total_matches` for this UMI divided by the _mean_ `total_matches` for all UMIs.|
 
 
+### DuplexUmiMetric
+
+Metrics produced by `CollectDuplexSeqMetrics` describing the set of observed duplex UMI sequences and the
+frequency of their observations.  The UMI sequences reported may have been corrected using information
+within a double-stranded tag family.  For example if a tag family is comprised of three read pairs with
+UMIs `ACGT-TGGT`, `ACGT-TGGT`, and `ACGT-TGGG` then a consensus UMI of `ACGT-TGGT` will be generated.UMI pairs are normalized within a tag family so that observations are always reported as if they came
+from a read pair with read 1 on the positive strand (F1R2). Another way to view this is that for FR or RF
+read pairs, the duplex UMI reported is the UMI from the positive strand read followed by the UMI from the
+negative strand read.  E.g. a read pair with UMI `AAAA-GGGG` and with R1 on the negative strand and R2 on
+the positive strand, will be reported as `GGGG-AAAA`.
+
+
+|Column|Type|Description|
+|------|----|-----------|
+|umi|String|The duplex UMI sequence, possibly-corrected.|
+|raw_observations|Count|The number of read pairs in the input BAM that observe the duplex UMI (after correction).|
+|raw_observations_with_errors|Count|The subset of raw observations that underwent any correction.|
+|unique_observations|Count|The number of double-stranded tag families (i.e unique double-stranded molecules)                            that observed the duplex UMI.|
+|fraction_raw_observations|Proportion|The fraction of all raw observations that the duplex UMI accounts for.|
+|fraction_unique_observations|Proportion|The fraction of all unique observations that the duplex UMI accounts for.|
+|fraction_unique_observations_expected|Proportion|The fraction of all unique observations that are expected to be                                              attributed to the duplex UMI based on the `fraction_unique_observations`                                              of the two individual UMIs.|
+
+
 ### UmiMetric
 
 Metrics produced by `CollectDuplexSeqMetrics` describing the set of observed UMI sequences and the
@@ -193,7 +229,7 @@ and three raw observations counted for each of `ACGT` and `TGGT`, and no observa
 Metrics produced by `CollectDuplexSeqMetrics` that are sampled at various levels of coverage, via random
 downsampling, during the construction of duplex metrics.  The downsampling is done in such a way that the
 `fraction`s are approximate, and not exact, therefore the `fraction` field should only be interpreted as a guide
-and the `read_pairs` field used to quantify how much data was used.
+and the `read_pairs` field used to quantify how much data was used.See `FamilySizeMetric` for detailed definitions of `CS`, `SS` and `DS` as used below.
 
 
 |Column|Type|Description|
@@ -219,39 +255,95 @@ to make interpretation of the metrics simpler we use a definition here that for 
 
 |Column|Type|Description|
 |------|----|-----------|
-|ab_size|Int|The number of reads in the larger single-strand tag family for this double-strand tag family.|
-|ba_size|Int|The number of reads in the smaller single-strand tag family for this double-strand tag family.|
-|count|Count|The number of families with the A and B single-strand families of size `ab_size` and `ba_size`.|
+|ab_size|Int|The number of reads in the `ab` sub-family (the larger sub-family) for this double-strand tag family.|
+|ba_size|Int|The number of reads in the `ba` sub-family (the smaller sub-family) for this double-strand tag family.|
+|count|Count|The number of families with the `ab` and `ba` single-strand families of size `ab_size` and `ba_size`.|
 |fraction|Proportion|The fraction of all double-stranded tag families that have `ab_size` and `ba_size`.|
-|fraction_gt_or_eq_size|Proportion|The fraction of all double-stranded tag families that have                               `AB reads >= ab_size` and `BA reads >= ba_size`.|
+|fraction_gt_or_eq_size|Proportion|The fraction of all double-stranded tag families that have                               `ab reads >= ab_size` and `ba reads >= ba_size`.|
 
 
 ### FamilySizeMetric
 
 Metrics produced by `CollectDuplexSeqMetrics` to quantify the distribution of different kinds of read family
-sizes.  Three kinds of families are described:1. _CS_ or _Coordinate & Strand_: families of reads that are grouped together by their 5' genomic
-   positions and strands just as they are in traditional PCR duplicate marking
+sizes.  Three kinds of families are described:1. _CS_ or _Coordinate & Strand_: families of reads that are grouped together by their unclipped 5'
+   genomic positions and strands just as they are in traditional PCR duplicate marking
 2. _SS_ or _Single Strand_: single-strand families that are each subsets of a CS family create by
    also using the UMIs to partition the larger family, but not linking up families that are
    created from opposing strands of the same source molecule.
 3. _DS_ or _Double Strand_: families that are created by combining single-strand families that are from
    opposite strands of the same source molecule. This does **not** imply that all DS families are composed
    of reads from both strands; where only one strand of a source molecule is observed a DS family is
-   still created.
+   still counted.
 
 
 |Column|Type|Description|
 |------|----|-----------|
 |family_size|Int|The family size, i.e. the number of read pairs grouped together into a family.|
-|cs_count|Count|The count of families, of family size, when grouping just by coordinates and strand information.|
+|cs_count|Count|The count of families with `size == family_size` when grouping just by coordinates and strand information.|
 |cs_fraction|Proportion|The fraction of all _CS_ families where `size == family_size`.|
 |cs_fraction_gt_or_eq_size|Proportion|The fraction of all _CS_ families where `size >= family_size`.|
-|ss_count|Count|The count of families, of family size, when also grouping by UMI to create single-strand families.|
+|ss_count|Count|The count of families with `size == family_size` when also grouping by UMI to create single-strand families.|
 |ss_fraction|Proportion|The fraction of all _SS_ families where `size == family_size`.|
 |ss_fraction_gt_or_eq_size|Proportion|The fraction of all _SS_ families where `size >= family_size`.|
-|ds_count|Count|The count of families, of family size, when also grouping by UMI and merging single-strand                 families from opposite strands of the same source molecule.|
+|ds_count|Count|The count of families with `size == family_size`when also grouping by UMI and merging single-strand                 families from opposite strands of the same source molecule.|
 |ds_fraction|Proportion|The fraction of all _DS_ families where `size == family_size`.|
 |ds_fraction_gt_or_eq_size|Proportion|The fraction of all _DS_ families where `size >= family_size`.|
+
+
+### InsertSizeMetric
+
+Metrics produced by `EstimateRnaSeqInsertSize` to describe the distribution of insert sizes within an
+RNA-seq experiment.  The insert sizes are computed in "transcript space", accounting for spliced
+alignments, in order to get a true estimate of the size of the DNA fragment, not just it's span on
+the genome.
+
+
+|Column|Type|Description|
+|------|----|-----------|
+|pair_orientation|PairOrientation|The orientation of the reads within a read-pair relative to each other.                         Possible values are FR, RF and TANDEM.|
+|read_pairs|Long|The number of read pairs observed with the `pair_orientation`.|
+|mean|Double|The mean insert size of the read pairs.|
+|standard_deviation|Double|The standard deviation of the insert size of the read pairs.|
+|median|Double|The median insert size of the read pairs.|
+|min|Long|The minimum observed insert size of the read pairs.|
+|max|Long|The maximum observed insert size of the read pairs.|
+|median_absolute_deviation|Double|The median absolution deviation of the read pairs.|
+
+
+### ErccSummaryMetrics
+
+Metrics produced by `CollectErccMetrics` describing various summary metrics related to the spike-in of ERCC
+(External RNA Controls Consortium) into an RNA-Seq experiment.The correlation coefficients and linear regression are calculated based on the log2 observed read pair count normalized
+by ERCC transcript length versus the log2 expected concentration.
+
+
+|Column|Type|Description|
+|------|----|-----------|
+|total_reads|Long|The total number of reads considered.|
+|ercc_reads|Long|The total number of reads mapping to an ERCC transcript.|
+|fraction_ercc_reads|Double|The fraction of total reads that map to an ERCC transcript.|
+|ercc_templates|Long|The total number of read pairs (or single end reads) mapping to an ERCC transcript.|
+|total_transcripts|Int|The total number of ERCC transcripts with at least one read observed.|
+|passing_filter_transcripts|Int|The total number of ERCC transcripts with at least the user-set minimum # of reads observed.|
+|pearsons_correlation|Option[Double]|Pearson's correlation coefficient for correlation of concentration and normalized counts.|
+|spearmans_correlation|Option[Double]|Spearman's correlation coefficient for correlation of concentration and normalized counts.|
+|intercept|Option[Double]|The intercept of the linear regression.|
+|slope|Option[Double]|The slope of the linear regression.|
+|r_squared|Option[Double]|The r-squared of the linear regression.|
+
+
+### ErccDetailedMetric
+
+Metrics produced by `CollectErccMetrics` describing various per-transcript metrics related to the spike-in of ERCC
+(External RNA Controls Consortium) into an RNA-Seq experiment.  One metric per ERCC transcript will be present.
+
+
+|Column|Type|Description|
+|------|----|-----------|
+|name|String|The name (or ID) of the ERCC transcript.|
+|concentration|Double|The expected concentration as input to `CollectErccMetrics`.|
+|count|Long|The observed count of the number of read pairs (or single end reads) .|
+|normalized_count|Double|The observed count of the number of read pairs (or single end reads) normalized by the ERCC transcript length.|
 
 
 ### RunInfo
@@ -286,24 +378,6 @@ mixture that is attributable to a specific sample with a known set of genotypes.
 |ci99_high|Proportion|The upper bound of the 99% confidence interval for the estimated fraction.|
 
 
-### InsertSizeMetric
-
-Metrics produced by `EstimateRnaSeqInsertSize` to describe the distribution of insert sizes within an
-RNA-seq experiment.
-
-
-|Column|Type|Description|
-|------|----|-----------|
-|pair_orientation|PairOrientation|The orientation of the reads within a read-pair relative to each other.|
-|read_pairs|Long|The number of read pairs observed with the `pair_orientation`.|
-|mean|Double|The mean insert size of the read pairs.|
-|standard_deviation|Double|The standard deviation of the insert size of the read pairs.|
-|median|Double|The median insert size of the read pairs.|
-|min|Long|The minimum observed insert size of the read pairs.|
-|max|Long|The maximum observed insert size of the read pairs.|
-|median_absolute_deviation|Double|The median absolution deviation of the read pairs.|
-
-
 ### ErrorRateByReadPositionMetric
 
 Metrics produced by `ErrorRateByReadPosition` describing the number of base observations and
@@ -326,3 +400,26 @@ together, e.g. `T>G` substitutions are reported as `A>C`.
 |c_to_a_error_rate|Double|The rate of `C>A` (and `G>T`) errors at the position.|
 |c_to_g_error_rate|Double|The rate of `C>G` (and `G>C`) errors at the position.|
 |c_to_t_error_rate|Double|The rate of `C>T` (and `G>A`) errors at the position.|
+
+
+### ClippingMetrics
+
+Metrics produced by ClipBam that detail how many reads and bases are clipped respectively.
+
+
+|Column|Type|Description|
+|------|----|-----------|
+|read_type|ReadType|The type of read (i.e. Fragment, ReadOne, ReadTwo).|
+|reads|Long|The number of reads examined.|
+|reads_unmapped|Long|The number of reads that became unmapped due to clipping.|
+|reads_clipped_pre|Long|The number of reads with any type of clipping prior to clipping with ClipBam.|
+|reads_clipped_post|Long|The number of reads with any type of clipping after clipping with ClipBam, including reads that became unmapped.|
+|reads_clipped_five_prime|Long|The number of reads with the 5' end clipped.|
+|reads_clipped_three_prime|Long|The number of reads with the 3' end clipped.|
+|reads_clipped_overlapping|Long|The number of reads clipped due to overlapping reads.|
+|bases|Long|The number of aligned bases after clipping.|
+|bases_clipped_pre|Long|The number of bases clipped prior to clipping with ClipBam.|
+|bases_clipped_post|Long|The number of bases clipped after clipping with ClipBam, including bases from reads that became unmapped.|
+|bases_clipped_five_prime|Long|The number of bases clipped on the 5' end of the read.|
+|bases_clipped_three_prime|Long|The number of bases clipped on the 3 end of the read.|
+|bases_clipped_overlapping|Long|The number of bases clipped due to overlapping reads.|
