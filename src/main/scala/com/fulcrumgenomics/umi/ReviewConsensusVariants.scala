@@ -80,7 +80,7 @@ object ReviewConsensusVariants {
   ( // First set is all the same for each variant
     chrom: String, pos: Int, ref: String, genotype: String, filters: String, A: Int, C: Int, G: Int, T: Int, N: Int,
     // Second set is per-consensus reads
-    consensus_read: String, consensus_insert: String, consensus_call: String, consensus_qual: Int, a: Int, c: Int, g: Int, t: Int, n: Int
+    consensus_read: String, consensus_insert: String, consensus_call: Char, consensus_qual: Int, a: Int, c: Int, g: Int, t: Int, n: Int
   ) extends Metric
 
   /** Extracts the molecular identifier minus any trailing /A etc. */
@@ -254,12 +254,12 @@ class ReviewConsensusVariants
           val consensusReadName = c.getRecord.getReadName + readNumberSuffix(rec)
           val rawCounts = BaseCounts(rawByMiAndReadNum(mi + readNumberSuffix(rec)))
 
-          val m =  ConsensusVariantReviewInfo(
+          val m = ConsensusVariantReviewInfo(
             chrom = variant.chrom,
             pos   = variant.start,
             ref   = variant.refBase.toString,
             genotype = variant.genotype.getOrElse("NA"),
-            filters  = variant.filters.getOrElse(""),
+            filters  = variant.filters.getOrElse("PASS"),
             A = consensusCounts.a,
             C = consensusCounts.c,
             G = consensusCounts.g,
@@ -267,7 +267,7 @@ class ReviewConsensusVariants
             N = consensusCounts.n,
             consensus_read = consensusReadName,
             consensus_insert = toInsertString(rec),
-            consensus_call = c.getReadBase.toString.toUpperCase,
+            consensus_call = c.getReadBase.toChar.toUpper,
             consensus_qual = c.getBaseQuality,
             a = rawCounts.a,
             c = rawCounts.c,
@@ -300,7 +300,7 @@ class ReviewConsensusVariants
         start    = v.getStart,
         refBase  = v.getReference.getBases()(0).toChar.toUpper,
         genotype = sample.map(v.getGenotype(_).getGenotypeString),
-        filters  = Some(v.getFilters.toSeq.sorted.mkString(","))
+        filters  = if (v.isFiltered) Some(v.getFilters.toSeq.sorted.mkString(",")) else None
       )}
     }
     else {
