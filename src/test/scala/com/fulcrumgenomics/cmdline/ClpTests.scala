@@ -24,11 +24,11 @@
 
 package com.fulcrumgenomics.cmdline
 
-import java.io.{ByteArrayOutputStream, PrintStream}
+import java.nio.file.Path
 
-import com.fulcrumgenomics.testing.UnitSpec
-import com.fulcrumgenomics.commons.util.Logger
 import com.fulcrumgenomics.sopt.{arg, clp}
+import com.fulcrumgenomics.testing.UnitSpec
+import com.fulcrumgenomics.util.Metric
 
 /* Tis a silly CLP. */
 @clp(group=ClpGroups.Utilities, description="A test class")
@@ -36,7 +36,8 @@ class TestClp
 (
   @arg(flag='e', doc="If set, exit with this code.")    val exitCode: Option[Int],
   @arg(flag='m', doc="If set, fail with this message.") val message: Option[String],
-  @arg(flag='p', doc="Print this message.")             val printMe: Option[String]
+  @arg(flag='p', doc="Print this message.")             val printMe: Option[String],
+  @arg(flag='i', doc="Write the tool information.")     val infoPath: Option[Path] = None
 ) extends FgBioTool {
   override def execute(): Unit = {
     (exitCode, message) match {
@@ -44,6 +45,9 @@ class TestClp
       case (Some(ex), None     ) => fail(ex)
       case (None,     Some(msg)) => fail(msg)
       case (None,     None     ) => printMe.foreach(println)
+    }
+    this.infoPath.foreach { path =>
+      this.toolInfo.foreach { info => Metric.write(path, info) }
     }
   }
 }
@@ -63,5 +67,20 @@ class ClpTests extends UnitSpec {
 
   it should "fail and print usage" in {
     new FgBioMain().makeItSo("SomeProgram --with-args=that-dont-exist".split(' ')) should not be 0
+  }
+
+  it should "provide command line information to the tool" in {
+    val tmpPath = makeTempFile("tool_info.", ".tab")
+    new FgBioMain().makeItSo(s"TestClp -i $tmpPath".split(' ')) shouldBe 0
+    val metrics = Metric.read[FgBioToolInfo](tmpPath)
+    metrics should have length 1
+    val metric = metrics.head
+    metric.name shouldBe "TestClp"
+    metric.commandLine should include ("fgbio --async-io false") // tests arguments _prior_ to the tool name
+    metric.commandLine should include ("TestClp")
+    metric.commandLine should include (s"--info-path $tmpPath")
+    metric.commandLine should include ("--print-me :none:") // tests that values from arguments not specified are given
+    metric.description shouldBe "A test class"
+    //metric.version shouldBe "null" // not set in scalatest
   }
 }
