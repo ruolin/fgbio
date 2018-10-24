@@ -24,6 +24,8 @@
 
 package com.fulcrumgenomics.bam.api
 
+import java.util
+
 import com.fulcrumgenomics.FgBioDef._
 import com.fulcrumgenomics.alignment.Cigar
 import htsjdk.samtools
@@ -226,6 +228,15 @@ trait SamRecord {
       mateMapped &&
       refIndex == mateRefIndex &&
       SamPairUtil.getPairOrientation(this) == PairOrientation.FR
+  }
+
+  /** Clone method that does a "reasonably deep" clone. The bases and quals are cloned as is the attributes map,
+    * though not the values in the attributes map. */
+  override def clone(): SamRecord = {
+    val r = super.clone().asInstanceOf[SamRecord]
+    r.bases = this.bases.clone()
+    r.quals = this.quals.clone()
+    r
   }
 }
 
