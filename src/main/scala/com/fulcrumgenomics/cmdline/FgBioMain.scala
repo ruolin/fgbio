@@ -93,9 +93,10 @@ class FgBioMain extends LazyLogging {
         val name = subcommand.getClass.getSimpleName
         try {
           parser.commandLine.foreach { commandLine =>
+            parser.genericClpNameOnCommandLine
             subcommand.toolInfo = FgBioToolInfo(
               name                    = name,
-              args                    = args,
+              args                    = this.name +: args, // make sure to include the tool set nam
               commandLineWithDefaults = commandLine,
               description             = parser.formatShortDescription(Sopt.inspect(subcommand.getClass).description),
               version                 = subcommand.getClass.getPackage.getImplementationVersion

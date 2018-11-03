@@ -71,23 +71,24 @@ class ClpTests extends UnitSpec {
 
   it should "provide command line information to the tool" in {
     val tmpPath = makeTempFile("tool_info.", ".tab")
-    new FgBioMain().makeItSo(s"TestClp -i $tmpPath".split(' ')) shouldBe 0
+    new FgBioMain().makeItSo(s"--async-io true TestClp -i $tmpPath".split(' ')) shouldBe 0
     val metrics = Metric.read[FgBioToolInfo](tmpPath)
     metrics should have length 1
     val metric = metrics.head
-    metric.name shouldBe "TestClp"
 
     // args/commandLineWithoutDefaults
-    metric.commandLineWithoutDefaults should include ("fgbio --async-io false") // tests arguments _prior_ to the tool name
+    metric.commandLineWithDefaults should include ("fgbio --async-io true") // argument set _prior_ to the tool name
+    metric.commandLineWithDefaults should not include ("fgbio --compression 5") // default argument _prior_ to the tool name
     metric.commandLineWithoutDefaults should include ("TestClp")
-    metric.commandLineWithoutDefaults should include (s"--info-path $tmpPath")
+    metric.commandLineWithoutDefaults should include (s"-i $tmpPath")
     metric.commandLineWithoutDefaults should not include ("--print-me :none:") // a default argument
 
     // commandLineWithDefaults
-    metric.commandLineWithoutDefaults should include ("fgbio --async-io false") // tests arguments _prior_ to the tool name
-    metric.commandLineWithoutDefaults should include ("TestClp")
-    metric.commandLineWithoutDefaults should include (s"--info-path $tmpPath")
-    metric.commandLineWithoutDefaults should include ("--print-me :none:") // a default argument
+    metric.commandLineWithDefaults should include ("fgbio --async-io true") // argument set _prior_ to the tool name
+    metric.commandLineWithDefaults should include (" --compression 5") // default argument _prior_ to the tool namee
+    metric.commandLineWithDefaults should include ("TestClp")
+    metric.commandLineWithDefaults should include (s"--info-path $tmpPath")
+    metric.commandLineWithDefaults should include ("--print-me :none:") // a default argument
 
     // description
     metric.description shouldBe "A test class"
