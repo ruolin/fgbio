@@ -98,7 +98,7 @@ class FgBioMain extends LazyLogging {
               args                    = args,
               commandLineWithDefaults = commandLine,
               description             = parser.formatShortDescription(Sopt.inspect(subcommand.getClass).description),
-              version                 = this.version
+              version                 = subcommand.getClass.getPackage.getImplementationVersion
             )
           }
           printStartupLines(name, args)

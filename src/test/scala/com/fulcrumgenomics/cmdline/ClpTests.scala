@@ -76,11 +76,23 @@ class ClpTests extends UnitSpec {
     metrics should have length 1
     val metric = metrics.head
     metric.name shouldBe "TestClp"
-    metric.commandLine should include ("fgbio --async-io false") // tests arguments _prior_ to the tool name
-    metric.commandLine should include ("TestClp")
-    metric.commandLine should include (s"--info-path $tmpPath")
-    metric.commandLine should include ("--print-me :none:") // tests that values from arguments not specified are given
+
+    // args/commandLineWithoutDefaults
+    metric.commandLineWithoutDefaults should include ("fgbio --async-io false") // tests arguments _prior_ to the tool name
+    metric.commandLineWithoutDefaults should include ("TestClp")
+    metric.commandLineWithoutDefaults should include (s"--info-path $tmpPath")
+    metric.commandLineWithoutDefaults should not include ("--print-me :none:") // a default argument
+
+    // commandLineWithDefaults
+    metric.commandLineWithoutDefaults should include ("fgbio --async-io false") // tests arguments _prior_ to the tool name
+    metric.commandLineWithoutDefaults should include ("TestClp")
+    metric.commandLineWithoutDefaults should include (s"--info-path $tmpPath")
+    metric.commandLineWithoutDefaults should include ("--print-me :none:") // a default argument
+
+    // description
     metric.description shouldBe "A test class"
+
+    // version
     //metric.version shouldBe "null" // not set in scalatest
   }
 }

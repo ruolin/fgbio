@@ -35,29 +35,29 @@ import scala.annotation.tailrec
   * @param name the name of the tool.
   * @param args the list of arguments as given on the command line; this will contain any arguments also given to
   *             [[FgBioMain]] in [[FgBioCommonArgs]].
-  * @param commandLineWithDefaults
-  * @param description
-  * @param version
+  * @param commandLineWithDefaults the command line as given, along with the defaults for all other arguments.
+  * @param description the description of the tool
+  * @param version the version of the tool.
   */
 case class FgBioToolInfo(name: String, args: Seq[String], commandLineWithDefaults: String, description: String, version: String) extends Metric {
 
+  /** The command line as given, without any defaults added. */
   def commandLineWithoutDefaults: String = args.mkString(" ")
 
   /** Adds a program group to the SAMFileHeader returning the ID. */
-  def applyTo(header: SAMFileHeader): String = {
+  def addProgramGroupTo(header: SAMFileHeader, id: Option[String]=None): SAMProgramRecord = {
     // Get the id
-    val id = {
+    val pgId = id.getOrElse {
       @tailrec
       def getPgId(intId: Int): String = if (header.getProgramRecord(intId.toString) == null) intId.toString else getPgId(intId + 1)
       getPgId(1)
     }
-    val pg = new SAMProgramRecord(id)
+    val pg = new SAMProgramRecord(pgId)
     pg.setProgramName(name)
     pg.setCommandLine(commandLineWithDefaults)
-    pg.setAttribute("DS", description)
     pg.setProgramVersion(version)
     header.addProgramRecord(pg)
-    id
+    pg
   }
 }
 
@@ -65,7 +65,7 @@ case class FgBioToolInfo(name: String, args: Seq[String], commandLineWithDefault
 /** All fgbio tools should extend this. */
 // Todo: extend Lazy Logging?
 trait FgBioTool {
-  /** The command line used to invoke this tool, or [[None]] if unset. */
+  /** Meta information about the command line use to invoke this tool, or [[None]] if unset. */
   private var _toolInfo: Option[FgBioToolInfo] = None
 
   /** All tools should implement this method. */
@@ -86,7 +86,7 @@ trait FgBioTool {
   /** Generates a validation exception if the test value is false. */
   def validate(test: Boolean, message: => String) = if (!test) throw new ValidationException(message)
 
-  /** Gets line used to invoke this tool, or [[None]] if unset. */
+  /** Meta information about the command line use to invoke this tool, or [[None]] if unset. */
   def toolInfo: Option[FgBioToolInfo] = _toolInfo
 
   /** Sets the command line used to invoke this tool. */
