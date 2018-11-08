@@ -106,7 +106,7 @@ class DnaFoldPredictor(viennaRnaInstallDir: Path, tm: Double, redirectStderr: Bo
     val seq2 = readLine()
     val result = readLine()
 
-    if (seq2 != result) throw new IllegalStateException(f"Return sequence '$seq2' does not match entered sequence '$sequence'")
+    if (seq2 != sequence) throw new IllegalStateException(f"Return sequence '$seq2' does not match entered sequence '$sequence'")
 
     val structure = result.substring(0, seq2.length)
     val dg = result.substring(seq2.length()).replace("(", "").replace(")", "").toDouble
