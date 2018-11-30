@@ -89,10 +89,12 @@ class SequencesTest extends UnitSpec {
   }
 
   "Sequences.revcomp" should "return the reverse complement of sequences" in {
-    Sequences.revcomp("AAA") shouldBe "TTT"
-    Sequences.revcomp("ACAC") shouldBe "GTGT"
-    Sequences.revcomp("") shouldBe ""
+    Sequences.revcomp("AAA")        shouldBe "TTT"
+    Sequences.revcomp("ACAC")       shouldBe "GTGT"
+    Sequences.revcomp("")           shouldBe ""
     Sequences.revcomp("AACCGGTGTG") shouldBe "CACACCGGTT"
+    Sequences.revcomp("acacNNNN")   shouldBe "NNNNgtgt"
+    Sequences.revcomp("NRG")        shouldBe "CYN"
   }
 
   "Sequences.compatible" should "do the right thing for pairs of bases" in {
