@@ -29,6 +29,8 @@ package com.fulcrumgenomics.util
 import com.fulcrumgenomics.FgBioDef._
 import htsjdk.samtools.util.SequenceUtil
 
+import scala.annotation.switch
+
 
 /**
   * Utility methods for working with DNA or RNA sequences
@@ -150,13 +152,94 @@ object Sequences {
   }
 
   /** Reverse complements a string of bases. */
-  def revcomp(s: String): String = SequenceUtil.reverseComplement(s)
+  def revcomp(s: String): String = {
+    val bs = s.getBytes
+    revcomp(bs)
+    new String(bs)
+  }
 
   /** Returns the sequence that is the complement of the provided sequence. */
   def complement(s: String): String = {
     val bs = s.getBytes
-    forloop(from=0, until=bs.length) { i =>  bs(i) = SequenceUtil.complement(bs(i)) }
+    complement(bs)
     new String(bs)
+  }
+
+  /** Reverse complements an array of bases in place. See [[complement()]] for how bases are complemented. */
+  def revcomp(bs: Array[Byte]): Unit = {
+    var (i, j) = (0, bs.length - 1)
+    while (i < j) {
+      val tmp = bs(i)
+      bs(i) = complement(bs(j))
+      bs(j) = complement(tmp)
+      i += 1
+      j -= 1
+    }
+
+    if (i == j) bs(i) = complement(bs(i))
+  }
+
+  /**
+    * Complements the bases in the array in place. See [[complement()]] for how complementing is performed.
+    *
+    * @param bs an array of bases as bytes to be complemented in place
+    */
+  def complement(bs: Array[Byte]): Unit = forloop (from=0, until=bs.length) { i => bs(i) = complement(bs(i)) }
+
+  /** Complements a single base. `U` and `u` are always complemented to `A` and `a` respectively.
+    * IUPAC ambiguity codes are handled appropriately - they are complemented to the IUPAC code that represents
+    * the set of bases that can pair with the input IUPAC code.
+    *
+    * Any byte that is not a valid upper- or lower-case DNA base, RNA base or IUPAC code will cause
+    * an exception to be thrown.
+    *
+    * @param b the base to be complemented
+    * @return the complement of that base
+    */
+  @inline final def complement(b: Byte): Byte = (b: @switch) match {
+    // Discrete bases
+    case 'A' => 'T'
+    case 'C' => 'G'
+    case 'G' => 'C'
+    case 'T' => 'A'
+    case 'U' => 'A'
+    // IUPAC codes that represent two bases
+    case 'M' => 'K'
+    case 'K' => 'M'
+    case 'R' => 'Y'
+    case 'Y' => 'R'
+    case 'W' => 'S'
+    case 'S' => 'W'
+    // IUPAC codes that represent three bases
+    case 'B' => 'V'
+    case 'V' => 'B'
+    case 'H' => 'D'
+    case 'D' => 'H'
+    // IUPAC universal code
+    case 'N' => 'N'
+
+    // Discrete bases
+    case 'a' => 't'
+    case 'c' => 'g'
+    case 'g' => 'c'
+    case 't' => 'a'
+    case 'u' => 'a'
+    // IUPAC codes that represent two bases
+    case 'm' => 'k'
+    case 'k' => 'm'
+    case 'r' => 'y'
+    case 'y' => 'r'
+    case 'w' => 's'
+    case 's' => 'w'
+    // IUPAC codes that represent three bases
+    case 'b' => 'v'
+    case 'v' => 'b'
+    case 'h' => 'd'
+    case 'd' => 'h'
+    // IUPAC universal code
+    case 'n' => 'n'
+
+    case ch  => throw new IllegalArgumentException(s"Don't know how to complement '$ch'.")
   }
 
   /** Compares if two bases are equal ignoring case.  The bases may be IUPAC codes, but their relationships are not
