@@ -24,6 +24,7 @@
 
 package com.fulcrumgenomics.alignment
 
+import com.fulcrumgenomics.alignment.Aligner.AlignmentScorer
 import com.fulcrumgenomics.alignment.Mode.{Global, Glocal, Local}
 import com.fulcrumgenomics.commons.util.NumericCounter
 import com.fulcrumgenomics.testing.UnitSpec
@@ -305,6 +306,54 @@ class AlignerTest extends UnitSpec {
     result.score shouldBe 54 - (1*19 + 3) - (1*27 + 3)
   }
 
+  it should "work correctly with a custom scoring function" in {
+    val scorer  = new AlignmentScorer {
+      /** Matches case insensitive, but score is doubled if query is lower case! */
+      override def scorePairing(queryBase: Byte, targetBase: Byte): Int = {
+        val q = queryBase.toChar.toUpper
+        val t = targetBase.toChar.toUpper
+        if (queryBase.toChar.isLower) {
+          if (q == t) 10 else -10
+        }
+        else {
+          if (q == t) 5 else -5
+        }
+      }
+
+      /** Gap open and extend are 5-fold higher if within lower case query sequence. */
+      override def scoreGap(query: Array[Byte], target: Array[Byte], qOffset: Int, tOffset: Int, inQuery: Boolean, extend: Boolean): Int = {
+        if (query(qOffset).toChar.isLower) {
+          if (extend) -25 else -60
+        }
+        else {
+          if (extend) -5 else -12
+        }
+      }
+    }
+    val aligner = new Aligner(scorer, mode=Mode.Glocal)
+
+    val q1 = "ACGTTACGcccccc"
+    val t1 = "ACGTTACGCCCAAACCC"
+    aligner.align(q1.toUpperCase, t1.toUpperCase).cigar.toString shouldBe "11=3D3=" // upper case will prefer to insert a gap
+    aligner.align(q1, t1).cigar.toString shouldBe "11=3X"                           // lower case should give mismatches
+  }
+
+  it should "force a gap to before or after a G when gaps at G are penalized" in {
+    val scorer = new AlignmentScorer {
+      override def scorePairing(queryBase: Byte, targetBase: Byte): Int = if (queryBase == targetBase) 5 else -4
+      override def scoreGap(query: Array[Byte], target: Array[Byte], qOffset: Int, tOffset: Int, inQuery: Boolean, extend: Boolean): Int = {
+        if (query(qOffset) == 'G') -100
+        else if (extend) -5
+        else -12
+      }
+    }
+
+    val aligner = new Aligner(scorer, mode=Mode.Glocal)
+    val q = s("ACACGTACTCA")
+    val t = s("ACAC-TACTCA")
+    aligner.align(q, t).cigar.toString shouldBe "3=1I1X6="  // the gap is moved over the C, and a G/C mismatch created
+  }
+
   "Aligner.align(Local)" should "align two identical sequences with all matches" in {
     val result = Aligner(1, -1, -3, -1, mode=Local).align(s("ACGTAACC"), s("ACGTAACC"))
     assertValidLocalAlignment(result)
@@ -396,6 +445,23 @@ class AlignerTest extends UnitSpec {
 
     val Seq(q, aln, t) = result.paddedString()
     aln shouldBe "|||.|||||||||||||||||"
+  }
+
+  "Aligner.align(minScore)" should "return at least the perfect alignment" in {
+    val results = Aligner(5, -4, -5, -3, mode=Glocal).align("ACGTTTGCAT", "ACGTTTGCAT", 20).sortBy(- _.score)
+    results.size should be >= 1
+    results.head.cigar.toString shouldBe "10="
+  }
+
+  it should "produce multiple alignments" in {
+    val query = "TTTTT"
+    val target = "AAAAATTTTTGGGGGTTTTT"
+    val results = Aligner(5, -4, -10, -5, mode=Glocal).align(query, target, 25).sortBy(- _.score)
+    results should have size 2
+    results.foreach { r =>
+      r.score shouldBe 25
+      r.cigar.toString() shouldBe "5="
+    }
   }
 
   /** Timing test - change "ignore" to "it" to enable. */

@@ -33,6 +33,7 @@ import htsjdk.samtools.CigarOperator
 
 import scala.collection.{immutable, mutable}
 import scala.annotation.switch
+import scala.collection.mutable.ArrayBuffer
 
 /** Trait that entries in Mode will extend. */
 sealed trait Mode extends EnumEntry
@@ -51,14 +52,24 @@ object Mode extends FgBioEnum[Mode] {
 
 
 object Aligner {
-  /** Generates a simple scoring function using the match and mismatch scores. */
-  def simpleScoringFunction(matchScore: Int, mismatchScore: Int): (Byte, Byte) => Int = {
-    (lhs: Byte, rhs: Byte) => if (lhs == rhs) matchScore else mismatchScore
-  }
-
   /** Creates a NW aligner with fixed match and mismatch scores. */
   def apply(matchScore: Int, mismatchScore: Int, gapOpen: Int, gapExtend: Int, mode: Mode = Global): Aligner = {
-    new Aligner(scoringFunction=simpleScoringFunction(matchScore, mismatchScore), gapOpen, gapExtend, mode=mode)
+    val scorer = new AlignmentScorer {
+      private val matching      = matchScore
+      private val mismatch      = mismatchScore
+      private val open          = gapOpen
+      private val extend        = gapExtend
+      private val openAndExtend = open + extend
+
+      override final def scorePairing(queryBase: Byte, targetBase: Byte): Int = {
+        if (queryBase == targetBase) this.matching else this.mismatch
+      }
+      override final def scoreGap(query: Array[Byte], target: Array[Byte], qOffset: Int, tOffset: Int, inQuery: Boolean, extend: Boolean): Int = {
+        if (extend) this.extend else this.openAndExtend
+      }
+    }
+
+    new Aligner(scorer, mode=mode)
   }
 
   /** Directions within the trace back matrix. */
@@ -88,8 +99,54 @@ object Aligner {
     val queryLength: Int  = scoring.x - 1
     val targetLength: Int = scoring.y - 1
   }
-}
 
+  /** Represents a cell within the set of matrices used for alignment. */
+  private case class MatrixLocation(queryIndex: Int, targetIndex: Int, direction: Direction)
+
+  /** A trait that specifies how the aligner will ask for scoring information. */
+  trait AlignmentScorer {
+    /**
+      * Provides a score for a pairwise alignment of bases.
+      *
+      * @param queryBase the base from the query sequence
+      * @param targetBase the base from the target sequence
+      * @return an integer score
+      */
+    def scorePairing(queryBase: Byte, targetBase: Byte): Int
+
+    /**
+      * Provides a score for a gap open or extension.
+      *
+      * The position of the gap-base being considered is provided as a single 0-based offset into each of the
+      * query sequence array and target sequence array.  On the non-gapped side the offset represents the base
+      * opposite the site of the gap insertion.  On the gapped side the offset represents the last base
+      * before the gap opening.  For example, in the following alignment:
+      *
+      * qoffset: 01234567
+      * query:   ACGTGCAT
+      * aln:     ||||--||
+      * target:  ACGT--AT
+      * toffset: 0123  45
+      *
+      * We'd see the following invocations:
+      *
+      * scoreGap(query, target, qOffset=4, tOffset=3, inQuery=false, extend=false)
+      * scoreGap(query, target, qOffset=5, tOffset=3, inQuery=false, extend=true)
+      *
+      * Offsets of -1, query.length and target.length may be passed to indicate that the gap is occurring
+      * before the start of one of the sequences, or after the end of the query or target sequence respectively.
+      *
+      * @param query: the query sequence as a byte array
+      * @param target: the target sequence as a byte array
+      * @param qOffset: the offset within the query sequence of the gap-base being scored
+      * @param tOffset: the offset within the target sequence of the gap-base being scored
+      * @param inQuery: true if the gap is on the query side, false if it's on the target side
+      * @param extend: true if this is a gap extension, false if it's a gap open
+      * @return an integer score
+      */
+    def scoreGap(query: Array[Byte], target: Array[Byte], qOffset: Int, tOffset: Int, inQuery: Boolean, extend: Boolean): Int
+  }
+}
 
 /**
   * Implementation of an aligner with generic scoring function and affine gap penalty support.
@@ -105,17 +162,12 @@ object Aligner {
   * as matches any pair of bases (including IUPAC ambiguity codes) that share at least one base
   * in common.  This behaviour can be modified by overriding the [[isMatch()]] method.
   *
-  * @param scoringFunction a function to score the alignment of a pair of bases. Parameters
-  *                        are the query and target bases as bytes, in that order.
-  * @param gapOpen the gap opening penalty, should generally be negative or zero
-  * @param gapExtend the gap extension penalty, should generally be negative or zero
+  * @param scorer the AlignmentScorer to use to score base pairings and gaps
   * @param useEqualsAndX if true use the = and X cigar operators for matches and mismatches,
   *                      else use the M operator for both.
   * @param mode alignment mode to use when generating alignments
   */
-class Aligner(val scoringFunction: (Byte,Byte) => Int,
-              val gapOpen: Int,
-              val gapExtend: Int,
+class Aligner(val scorer: AlignmentScorer,
               useEqualsAndX: Boolean = true,
               val mode: Mode = Global) {
 
@@ -123,6 +175,9 @@ class Aligner(val scoringFunction: (Byte,Byte) => Int,
 
   /** Convenience method that starts from Strings instead of Array[Byte]s. */
   def align(query: String, target: String): Alignment = align(query.getBytes, target.getBytes)
+
+  /** Convenience method that starts from Strings instead of Array[Byte]s. */
+  def align(query: String, target: String, minScore: Int): Seq[Alignment] = align(query.getBytes, target.getBytes, minScore)
 
   /**
     * Align two sequences with the current scoring system and mode.
@@ -133,7 +188,33 @@ class Aligner(val scoringFunction: (Byte,Byte) => Int,
     */
   def align(query: Array[Byte], target: Array[Byte]): Alignment = {
     val matrices = buildMatrices(query, target)
-    generateAlignment(query, target, matrices)
+    val location = findBest(matrices)
+    generateAlignment(query, target, matrices, location)
+  }
+
+  /** Aligns two sequences and returns all alignments that have score >= `minScore`.
+    *
+    * Note that "all alignments" does not include every permutation of an alignment. E.g. in the case
+    * where there is an indel in a repetitive region the results will not include all possible placements
+    * of the indel.  Generally speaking a single alignment is produced from each cell in the alignment
+    * matrix selected as meeting the score threshold.  This in turn means a single alignment per _end_
+    * position.  Specifically by mode:
+    *
+    *   - Global alignment will always return either 0 or 1 alignments of the whole query and target
+    *   - Glocal alignment will return an alignment per end position on the target sequence at which
+    *     the end of the query is aligned and has a score >= minScore
+    *   - Local will an alignment per location in the matrix with score >= minScore (this can produce
+    *     many sub-alignments so be careful!).
+    *
+    * @param query the query sequence
+    * @param target the target sequence
+    * @param minScore the minimum alignment score of alignments to return
+    * @return a sequence of 0 or more alignments
+    */
+  def align(query: Array[Byte], target: Array[Byte], minScore: Int): Seq[Alignment] = {
+    val matrices = buildMatrices(query, target)
+    val locations = findByScore(matrices, minScore)
+    locations.map(l => generateAlignment(query, target, matrices, l))
   }
 
   /**
@@ -158,7 +239,7 @@ class Aligner(val scoringFunction: (Byte,Byte) => Int,
     // While we have `matrices` above, it's useful to unpack all the matrices for direct access
     // in the core loop; when we know the exact matrix we need at compile time, it's faster
     val (leftScoreMatrix, leftTraceMatrix, upScoreMatrix, upTraceMatrix, diagScoreMatrix, diagTraceMatrix) = {
-      val Seq(l, u, d) = Seq(Left, Up, Diagonal).map(_.toInt).map(matrices.apply)
+      val Seq(l, u, d) = Seq(Left, Up, Diagonal).map(matrices.apply)
       (l.scoring, l.trace, u.scoring, u.trace, d.scoring, d.trace)
     }
 
@@ -168,8 +249,8 @@ class Aligner(val scoringFunction: (Byte,Byte) => Int,
       matrices(direction).trace(0, 0)   = Done
     }
 
-    fillLeftmostColumn(query, leftScoreMatrix, leftTraceMatrix, upScoreMatrix, upTraceMatrix, diagScoreMatrix, diagTraceMatrix)
-    fillTopRow(target, leftScoreMatrix, leftTraceMatrix, upScoreMatrix, upTraceMatrix, diagScoreMatrix, diagTraceMatrix)
+    fillLeftmostColumn(query, target, leftScoreMatrix, leftTraceMatrix, upScoreMatrix, upTraceMatrix, diagScoreMatrix, diagTraceMatrix)
+    fillTopRow(query, target, leftScoreMatrix, leftTraceMatrix, upScoreMatrix, upTraceMatrix, diagScoreMatrix, diagTraceMatrix)
     fillInterior(query, target, leftScoreMatrix, leftTraceMatrix, upScoreMatrix, upTraceMatrix, diagScoreMatrix, diagTraceMatrix)
 
     matrices
@@ -177,6 +258,7 @@ class Aligner(val scoringFunction: (Byte,Byte) => Int,
 
   /** Fills in the leftmost column of the matrices. */
   private final def fillLeftmostColumn(query: Array[Byte],
+                                       target: Array[Byte],
                                        leftScoreMatrix: Matrix[Int],
                                        leftTraceMatrix: Matrix[Direction],
                                        upScoreMatrix: Matrix[Int],
@@ -190,15 +272,15 @@ class Aligner(val scoringFunction: (Byte,Byte) => Int,
           leftTraceMatrix(i, 0) = Done
           diagScoreMatrix(i, 0) = MinStartScore
           diagTraceMatrix(i, 0) = Done
-          upScoreMatrix(i, 0) = upScoreMatrix(i-1, 0) + gapExtend + (if (i == 1) gapOpen else 0)
-          upTraceMatrix(i, 0) = if (i == 1) Diagonal else Up
+          upScoreMatrix(i, 0)   = upScoreMatrix(i-1, 0) + scorer.scoreGap(query, target, qOffset=i-1, tOffset= -1, inQuery=true, extend= i != 1)
+          upTraceMatrix(i, 0)   = if (i == 1) Diagonal else Up
         }
       case Local =>
         forloop(from=1, until=query.length+1) { i =>
           leftScoreMatrix(i, 0) = MinStartScore
           leftTraceMatrix(i, 0) = Done
-          upScoreMatrix(i, 0) = MinStartScore
-          upTraceMatrix(i, 0) = Done
+          upScoreMatrix(i, 0)   = MinStartScore
+          upTraceMatrix(i, 0)   = Done
           diagScoreMatrix(i, 0) = 0
           diagTraceMatrix(i, 0) = Done
         }
@@ -206,7 +288,8 @@ class Aligner(val scoringFunction: (Byte,Byte) => Int,
   }
 
   /** Fills in the top row of the matrices. */
-  private final def fillTopRow(target: Array[Byte],
+  private final def fillTopRow(query: Array[Byte],
+                               target: Array[Byte],
                                leftScoreMatrix: Matrix[Int],
                                leftTraceMatrix: Matrix[Direction],
                                upScoreMatrix: Matrix[Int],
@@ -221,7 +304,7 @@ class Aligner(val scoringFunction: (Byte,Byte) => Int,
           upTraceMatrix(0 , j)   = Done
           diagScoreMatrix(0, j)  = MinStartScore
           diagTraceMatrix(0 , j) = Done
-          leftScoreMatrix(0, j) = leftScoreMatrix(0, j-1) + gapExtend + (if (j == 1) gapOpen else 0)
+          leftScoreMatrix(0, j) = leftScoreMatrix(0, j-1) + scorer.scoreGap(query, target, -1, j-1, inQuery=false, extend= j != 1)
           leftTraceMatrix(0, j) = if (j == 1) Diagonal else Left
         }
       case Glocal | Local =>
@@ -257,7 +340,7 @@ class Aligner(val scoringFunction: (Byte,Byte) => Int,
         val jMinusOne = j - 1
 
         { // Diagonal matrix can come from the previous diagonal, up, or left
-          val addend = scoringFunction(queryBase, target(jMinusOne))
+          val addend = scorer.scorePairing(queryBase, target(jMinusOne))
           val dScore = diagScoreMatrix(iMinusOne, jMinusOne) + addend
           val lScore = leftScoreMatrix(iMinusOne, jMinusOne) + addend
           val uScore = upScoreMatrix(iMinusOne, jMinusOne)   + addend
@@ -283,28 +366,28 @@ class Aligner(val scoringFunction: (Byte,Byte) => Int,
 
 
         { // Up matrix can come from diagonal or up
-          val dScore = gapOpen + diagScoreMatrix(iMinusOne, j)
-          val uScore =           upScoreMatrix(iMinusOne, j)
+          val dScore = diagScoreMatrix(iMinusOne, j) + scorer.scoreGap(query, target, i-1, j-1, inQuery=true, extend=false)
+          val uScore = upScoreMatrix(iMinusOne, j)   + scorer.scoreGap(query, target, i-1, j-1, inQuery=true, extend=true)
           if (dScore >= uScore) {
-            upScoreMatrix(i, j) = dScore + gapExtend
+            upScoreMatrix(i, j) = dScore
             upTraceMatrix(i, j) = Diagonal
           }
           else {
-            upScoreMatrix(i, j) = uScore + gapExtend
+            upScoreMatrix(i, j) = uScore
             upTraceMatrix(i, j) = Up
           }
         }
 
 
         { // Left matrix can come from diagonal or left
-          val dScore = gapOpen + diagScoreMatrix(i, jMinusOne)
-          val lScore =           leftScoreMatrix(i, jMinusOne)
+          val dScore = diagScoreMatrix(i, jMinusOne) + scorer.scoreGap(query, target, i-1, j-1, inQuery=false, extend=false)
+          val lScore = leftScoreMatrix(i, jMinusOne) + scorer.scoreGap(query, target, i-1, j-1, inQuery=false, extend=true)
           if (dScore >= lScore) {
-            leftScoreMatrix(i, j) = dScore + gapExtend
+            leftScoreMatrix(i, j) = dScore
             leftTraceMatrix(i, j) = Diagonal
           }
           else {
-            leftScoreMatrix(i, j) = lScore + gapExtend
+            leftScoreMatrix(i, j) = lScore
             leftTraceMatrix(i, j) = Left
           }
         }
@@ -325,44 +408,14 @@ class Aligner(val scoringFunction: (Byte,Byte) => Int,
     * @param matrices the scoring and trace back matrices for the [[Left]], [[Up]], and [[Diagonal]] directions.
     * @return an [[Alignment]] object representing the alignment
     */
-  protected def generateAlignment(query: Array[Byte], target: Array[Byte], matrices: Array[AlignmentMatrix]): Alignment = {
+  protected def generateAlignment(query: Array[Byte],
+                                  target: Array[Byte],
+                                  matrices: Array[AlignmentMatrix],
+                                  location: MatrixLocation): Alignment = {
     var currOperator: CigarOperator = null
-    var currLength: Int = 0
+    var currLength: Direction = 0
     val elems = new mutable.ArrayBuffer[CigarElem]()
-
-    // For the target sequence, start at the end for Global, or the highest scoring cell in the last row for Glocal, or
-    // the highest scoring cell anywhere in the matrix for Local
-    var (curI, curJ, curD) = this.mode match {
-      case Global =>
-        (query.length, target.length, AllDirections.maxBy(d => matrices(d).scoring(query.length, target.length)))
-      case Glocal =>
-        var (maxScore, maxJ, maxD) = (MinStartScore, -1, Done)
-        forloop(from=1, until=target.length+1) { j =>
-          val direction = AllDirections.maxBy(d => matrices(d).scoring(query.length, j))
-          val score     = matrices(direction).scoring(query.length, j)
-          if (score > maxScore) {
-            maxScore = score
-            maxJ = j
-            maxD = direction
-          }
-        }
-        (query.length, maxJ, maxD)
-      case Local =>
-        var (maxScore, maxI, maxJ, maxD) = (MinStartScore, -1, -1, Done)
-        forloop(from=1, until=query.length+1) { i =>
-          forloop(from=1, until=target.length+1) { j =>
-            val direction = AllDirections.maxBy(d => matrices(d).scoring(i, j))
-            val score     = matrices(direction).scoring(i, j)
-            if (score > maxScore) {
-              maxScore = score
-              maxI = i
-              maxJ = j
-              maxD = direction
-            }
-          }
-        }
-        (maxI, maxJ, maxD)
-      }
+    var MatrixLocation(curI, curJ ,curD) = location
 
     // The score is always the score from the starting cell
     val score = matrices(curD).scoring(curI, curJ)
@@ -400,6 +453,87 @@ class Aligner(val scoringFunction: (Byte,Byte) => Int,
     }
 
     Alignment(query=query, target=target, queryStart=curI+1, targetStart=curJ+1, cigar=Cigar(elems.reverse), score=score)
+  }
+
+  /**
+    * Finds the matrix location of the single best alignment from which to backtrack and generate the alignment.
+    * When there are multiple equally best alignments the choice of which one to return is arbitrary.
+    *
+    * @param query the query sequence
+    * @param target the target sequence
+    * @param matrices the alignment matrices to search
+    */
+  private def findBest(matrices: Array[AlignmentMatrix]): MatrixLocation = {
+    // Find location based on alignment mode:
+    //   - start at the end of query and target for Global
+    //   - the highest scoring cell in the last row for Glocal
+    //   - the highest scoring cell anywhere in the matrix for Local
+    val qLen = matrices(0).queryLength
+    val tLen = matrices(0).targetLength
+
+    this.mode match {
+      case Global =>
+        MatrixLocation(qLen, tLen, AllDirections.maxBy { d => matrices(d).scoring(qLen, tLen) })
+      case Glocal =>
+        var (maxScore, maxJ, maxD) = (MinStartScore, -1, Done)
+        forloop(from = 1, until = tLen + 1) { j =>
+          val direction = AllDirections.maxBy(d => matrices(d).scoring(qLen, j))
+          val score = matrices(direction).scoring(qLen, j)
+          if (score > maxScore) {
+            maxScore = score
+            maxJ = j
+            maxD = direction
+          }
+        }
+        MatrixLocation(qLen, maxJ, maxD)
+      case Local =>
+        var (maxScore, maxI, maxJ, maxD) = (MinStartScore, -1, -1, Done)
+        forloop(from = 1, until = qLen + 1) { i =>
+          forloop(from = 1, until = tLen + 1) { j =>
+            val direction = AllDirections.maxBy(d => matrices(d).scoring(i, j))
+            val score = matrices(direction).scoring(i, j)
+            if (score > maxScore) {
+              maxScore = score
+              maxI = i
+              maxJ = j
+              maxD = direction
+            }
+          }
+        }
+        MatrixLocation(maxI, maxJ, maxD)
+    }
+  }
+
+  /**
+    * Finds all cells in the matrix from which a mode-specific backtrace could be generated and
+    * that have a score >= than the minimum score.
+    *
+    * @return a [[Seq]] of [[MatrixLocation]] in no particular order.
+    */
+  private def findByScore(matrices: Array[AlignmentMatrix], minScore: Int): Seq[MatrixLocation] = {
+    val qLen = matrices(0).queryLength
+    val tLen = matrices(0).targetLength
+    val hits = new ArrayBuffer[MatrixLocation]()
+
+    this.mode match {
+      case Global =>
+        hits += findBest(matrices)
+      case Glocal =>
+        forloop(from = 1, until = tLen + 1) { j =>
+          val direction = AllDirections.maxBy(d => matrices(d).scoring(qLen, j))
+          val score = matrices(direction).scoring(qLen, j)
+          if (score >= minScore) hits += MatrixLocation(qLen, j, direction)
+        }
+      case Local =>
+        forloop(from = 1, until = qLen + 1) { i =>
+          forloop(from = 1, until = tLen + 1) { j =>
+            val direction = AllDirections.maxBy(d => matrices(d).scoring(i, j))
+            if (matrices(direction).scoring(i, j) >= minScore) hits += MatrixLocation(i, j, direction)
+          }
+        }
+    }
+
+    hits
   }
 
   /** Returns true if the two bases should be considered a match when generating the alignment from the matrix
