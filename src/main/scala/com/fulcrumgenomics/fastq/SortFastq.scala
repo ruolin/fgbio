@@ -56,7 +56,7 @@ object SortFastq {
   }
 }
 
-@clp(group=ClpGroups.Personal, description=
+@clp(group=ClpGroups.Fastq, description=
   """
     |Sorts a FASTQ file.  Sorts the records in a FASTQ file based on the lexicographic ordering
     |of their read names.  Input and output files can be either uncompressed or gzip-compressed.
