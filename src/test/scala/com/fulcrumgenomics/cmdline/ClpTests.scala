@@ -24,11 +24,8 @@
 
 package com.fulcrumgenomics.cmdline
 
-import java.io.{ByteArrayOutputStream, PrintStream}
-
-import com.fulcrumgenomics.testing.UnitSpec
-import com.fulcrumgenomics.commons.util.Logger
 import com.fulcrumgenomics.sopt.{arg, clp}
+import com.fulcrumgenomics.testing.UnitSpec
 
 /* Tis a silly CLP. */
 @clp(group=ClpGroups.Utilities, description="A test class")
