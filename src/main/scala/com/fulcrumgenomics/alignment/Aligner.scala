@@ -415,7 +415,7 @@ class Aligner(val scorer: AlignmentScorer,
                                   location: MatrixLocation): Alignment = {
     var currOperator: CigarOperator = null
     var currLength: Direction = 0
-    val elems = new mutable.ArrayBuffer[CigarElem]()
+    val elems = IndexedSeq.newBuilder[CigarElem]
     var MatrixLocation(curI, curJ, curD) = location
 
     // The score is always the score from the starting cell
@@ -453,7 +453,7 @@ class Aligner(val scorer: AlignmentScorer,
       if (nextD == Done) elems += CigarElem(currOperator, currLength)
     }
 
-    Alignment(query=query, target=target, queryStart=curI+1, targetStart=curJ+1, cigar=Cigar(elems.reverse), score=score)
+    Alignment(query=query, target=target, queryStart=curI+1, targetStart=curJ+1, cigar=Cigar(elems.result.reverse), score=score)
   }
 
   /**
@@ -512,7 +512,7 @@ class Aligner(val scorer: AlignmentScorer,
   private def findByScore(matrices: Array[AlignmentMatrix], minScore: Int): Seq[MatrixLocation] = {
     val qLen = matrices(0).queryLength
     val tLen = matrices(0).targetLength
-    val hits = new ArrayBuffer[MatrixLocation]()
+    val hits = IndexedSeq.newBuilder[MatrixLocation]
 
     this.mode match {
       case Global =>
@@ -532,7 +532,7 @@ class Aligner(val scorer: AlignmentScorer,
         }
     }
 
-    hits
+    hits.result
   }
 
   /** Returns true if the two bases should be considered a match when generating the alignment from the matrix

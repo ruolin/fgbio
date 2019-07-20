@@ -122,7 +122,7 @@ class DemuxFastqsTest extends UnitSpec with OptionValues with ErrorLogLevel {
     record.quals shouldBe "I"*100
     record.pairedEnd shouldBe false
     demuxRecord.sampleInfo.isUnmatched shouldBe true
-    record.molecularBarcode shouldBe 'empty
+    record.molecularBarcode.isEmpty shouldBe true
   }
 
   private def outputDir(): DirPath = {
@@ -143,7 +143,7 @@ class DemuxFastqsTest extends UnitSpec with OptionValues with ErrorLogLevel {
     record.bases shouldBe "A"*100
     record.quals shouldBe "I"*100
     record.pairedEnd shouldBe false
-    record.molecularBarcode shouldBe 'empty
+    record.molecularBarcode.isEmpty shouldBe true
   }
 
   it should "demux paired reads with in-line sample barcodes" in {
@@ -161,14 +161,14 @@ class DemuxFastqsTest extends UnitSpec with OptionValues with ErrorLogLevel {
     r1.quals shouldBe "I"*100
     r1.pairedEnd shouldBe true
     r1.readNumber shouldBe 1
-    r1.molecularBarcode shouldBe 'empty
+    r1.molecularBarcode.isEmpty shouldBe true
 
     r2.name shouldBe "pair"
     r2.bases shouldBe "T"*100
     r2.quals shouldBe "I"*100
     r2.pairedEnd shouldBe true
     r2.readNumber shouldBe 2
-    r2.molecularBarcode shouldBe 'empty
+    r2.molecularBarcode.isEmpty shouldBe true
   }
 
   it should "demux dual-indexed paired end reads" in {
@@ -189,14 +189,14 @@ class DemuxFastqsTest extends UnitSpec with OptionValues with ErrorLogLevel {
     r1.pairedEnd shouldBe true
     r1.pairedEnd shouldBe true
     r1.readNumber shouldBe 1
-    r1.molecularBarcode shouldBe 'empty
+    r1.molecularBarcode.isEmpty shouldBe true
 
     r2.name shouldBe "pair"
     r2.bases shouldBe "T"*100
     r2.quals shouldBe "I"*100
     r2.pairedEnd shouldBe true
     r2.readNumber shouldBe 2
-    r2.molecularBarcode shouldBe 'empty
+    r2.molecularBarcode.isEmpty shouldBe true
   }
 
   it should "demux a very weird set of reads" in {
@@ -240,7 +240,7 @@ class DemuxFastqsTest extends UnitSpec with OptionValues with ErrorLogLevel {
     record.bases shouldBe "A"*60
     record.quals shouldBe "I"*60
     record.pairedEnd shouldBe false
-    record.molecularBarcode shouldBe 'empty
+    record.molecularBarcode.isEmpty shouldBe true
   }
 
   it should "fail if zero or more than two read structures have template bases" in {
@@ -460,18 +460,18 @@ class DemuxFastqsTest extends UnitSpec with OptionValues with ErrorLogLevel {
                 sampleBarcodes should contain theSameElementsInOrderAs Seq("AAAAAAAAGATTACTTT", "GGGGGGTTGATTACAGA", "AAAAAAAAGANNNNNNN") // NB: raw not assigned
               }
               else {
-                names shouldBe 'empty
+                names.isEmpty shouldBe true
                 sampleBarcodes.isEmpty shouldBe true
               }
             }
 
             if (outputType.producesFastq) {
-              val fastq = PathUtil.pathTo(prefix + ".fastq.gz")
+              val fastq = PathUtil.pathTo(s"${prefix}.fastq.gz")
               val records = FastqSource(fastq).toSeq
               checkOutput(records.map(_.name.replaceAll(":.*", "")), records.map(_.name.replaceAll(".*:", "")))
             }
             if (outputType.producesBam) {
-              val bam = PathUtil.pathTo(prefix + ".bam")
+              val bam = PathUtil.pathTo(s"${prefix}.bam")
               val records = readBamRecs(bam)
               checkOutput(records.map(_.name), records.map(_[String]("BC")))
             }
@@ -555,11 +555,11 @@ class DemuxFastqsTest extends UnitSpec with OptionValues with ErrorLogLevel {
         }
 
         val headersR1 = {
-          val fastq = PathUtil.pathTo(prefix + extensions.head)
+          val fastq = PathUtil.pathTo(s"${prefix}${extensions.head}")
           FastqSource(fastq).toSeq.map(toHeader).toList
         }
         val headersR2 = {
-          val fastq = PathUtil.pathTo(prefix + extensions.last)
+          val fastq = PathUtil.pathTo(s"${prefix}${extensions.last}")
           FastqSource(fastq).toSeq.map(toHeader).toList
         }
 
@@ -576,7 +576,7 @@ class DemuxFastqsTest extends UnitSpec with OptionValues with ErrorLogLevel {
           else headersR1 should contain theSameElementsInOrderAs Seq("AAAAAAAAGATTACTTT", sampleBarcode4, "AAAAAAAAGANNNNNNN")
         }
         else {
-          headersR1 shouldBe 'empty
+          headersR1.isEmpty shouldBe true
         }
       }
     }
@@ -743,13 +743,13 @@ class DemuxFastqsTest extends UnitSpec with OptionValues with ErrorLogLevel {
 
     val extensions = FastqRecordWriter.extensions(pairedEnd=true, illuminaStandards=false)
     def fastqRecord(which: Int): FastqRecord = {
-      val path = PathUtil.pathTo(prefix + extensions(which-1))
+      val path = PathUtil.pathTo(s"${prefix}${extensions(which-1)}")
       FastqSource(path).toSeq.headOption.value
     }
 
     val fastqR1    = fastqRecord(1)
     val fastqR2    = fastqRecord(2)
-    val records    = readBamRecs(output.resolve(prefix + ".bam"))
+    val records    = readBamRecs(output.resolve(s"${prefix}.bam"))
     val recR1      = records.find(_.firstOfPair).value
     val recR2      = records.find(_.secondOfPair).value
 

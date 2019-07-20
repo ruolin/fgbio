@@ -34,10 +34,10 @@ import htsjdk.variant.vcf.{VCFFilterHeaderLine, VCFHeaderLineType, VCFInfoHeader
   */
 trait SomaticVariantFilter {
   /** The collection of VCF INFO header lines that the filter may reference. */
-  val VcfInfoLines: Traversable[VCFInfoHeaderLine]
+  val VcfInfoLines: Iterable[VCFInfoHeaderLine]
 
   /** The collection of VCF Filter header lines that the filter may reference. */
-  val VcfFilterLines: Traversable[VCFFilterHeaderLine]
+  val VcfFilterLines: Iterable[VCFFilterHeaderLine]
 
   /** Helper method to construct an INFO header line. */
   protected def vcfInfoLine(name: String, description: String, count: Int = 1, vcfType: VCFHeaderLineType = VCFHeaderLineType.Float) = {
@@ -56,5 +56,5 @@ trait SomaticVariantFilter {
   /** Given the set of annotations calculated by [[annotations]] determine the set of filters
     * to be applied to the VCF record.
     */
-  def filters(annotations: Map[String, Any]): Traversable[String]
+  def filters(annotations: Map[String, Any]): Iterable[String]
 }

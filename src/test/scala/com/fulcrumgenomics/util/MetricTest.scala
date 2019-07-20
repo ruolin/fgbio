@@ -144,7 +144,7 @@ class MetricTest extends UnitSpec with OptionValues with TimeLimits {
   // Various write methods to test with a writer
   private val writeWithWriters = Seq(
     ((writer: StringWriter, metrics: Seq[TestMetric]) => Metric.write[TestMetric](writer, metrics:_*), "write[T <: Metric](writer: Writer, metric: T*)"),
-    ((writer: StringWriter, metrics: Seq[TestMetric]) => Metric.write[TestMetric](writer, metrics), "write[T <: Metric](writer: Writer, metrics: TraversableOnce[T])")
+    ((writer: StringWriter, metrics: Seq[TestMetric]) => Metric.write[TestMetric](writer, metrics), "write[T <: Metric](writer: Writer, metrics: IterableOnce[T])")
   )
 
   writeWithWriters.foreach { case (writeMethod, desc) =>
@@ -160,7 +160,7 @@ class MetricTest extends UnitSpec with OptionValues with TimeLimits {
   // Various write methods to test with a path
   private val writeWithPaths = Seq(
     ((path: Path, metrics: Seq[TestMetric]) => Metric.write[TestMetric](path, metrics:_*), "write[T <: Metric](path: Path, metric: T*)"),
-    ((path: Path, metrics: Seq[TestMetric]) => Metric.write[TestMetric](path, metrics), "write[T <: Metric](path: Path, metric: TraversableOnce[T])")
+    ((path: Path, metrics: Seq[TestMetric]) => Metric.write[TestMetric](path, metrics), "write[T <: Metric](path: Path, metric: IterableOnce[T])")
   )
 
   writeWithPaths.foreach { case (writeMethod, desc) =>
@@ -240,7 +240,7 @@ class MetricTest extends UnitSpec with OptionValues with TimeLimits {
     testMetric.get("foo").value shouldBe "fooValue"
     testMetric.get("bar").value shouldBe "1"
     testMetric.get("car").value shouldBe "default"
-    testMetric.get("dar") shouldBe 'empty
+    testMetric.get("dar").isEmpty shouldBe true
   }
 
   it should "be iterable over tuples of names and values" in {

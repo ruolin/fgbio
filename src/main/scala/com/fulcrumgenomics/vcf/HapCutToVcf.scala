@@ -302,7 +302,7 @@ private class HapCutAndVcfMergingIterator(hapCutPath: FilePath,
   extends Iterator[VariantContext] with Closeable {
   import HapCutType.HapCutType
 
-  private val sourceIterator = vcfReader.toStream.zipWithIndex.iterator.buffered
+  private val sourceIterator = vcfReader.iterator.zipWithIndex.buffered
   private val hapCutReader   = HapCutReader(path=hapCutPath)
   private val sampleName     = vcfReader.getFileHeader.getSampleNamesInOrder.iterator().next()
 

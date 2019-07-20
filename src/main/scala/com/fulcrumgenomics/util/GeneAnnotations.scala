@@ -33,7 +33,7 @@ object GeneAnnotations {
   /** A gene with zero or more transcripts, that all are on the same transcription strand. */
   case class Gene(contig: String, start: Int, end: Int, negativeStrand: Boolean, name: String, transcripts: Seq[Transcript])
     extends Interval(contig, start, end, negativeStrand, name) with Iterable[Transcript] {
-    def iterator: Iterator[Transcript] = transcripts.toIterator
+    def iterator: Iterator[Transcript] = transcripts.iterator
   }
 
   /** A transcript associated with a given gene (which stores the transcription strand).  Contains zero or more exons.
@@ -44,9 +44,9 @@ object GeneAnnotations {
       require(!exonsOverlap, s"exons overlap for transcript: $name")
     }
     /** The order in which exons appear in the transcripts */
-    def transcriptOrder: Iterator[Exon] = exons.toIterator
+    def transcriptOrder: Iterator[Exon] = exons.iterator
     /** The order in which exons appear in the genome */
-    def genomicOrder: Iterator[Exon] = exons.sortBy { exon => (exon.start, exon.end) }.toIterator
+    def genomicOrder: Iterator[Exon] = exons.sortBy { exon => (exon.start, exon.end) }.iterator
   }
 
   /** Defines an exonic sequence within a transcript. */

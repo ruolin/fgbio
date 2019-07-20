@@ -153,7 +153,7 @@ class FilterSomaticVcf
             s"""
               |Ignoring read ${e.rec.name} mapped over variant site ${pileup.refName}:${pileup.pos} that has
               |incompatible insert size yielding insert coordinates of ${pileup.refName}:$start-$end which do not overlap the variant.
-            """.stripMargin.trim.lines.mkString(" "))
+            """.stripMargin.trim.linesIterator.mkString(" "))
           false
         }
         else {

@@ -112,7 +112,7 @@ class EstimatePoolingFractions
     val metrics = sampleNames.toSeq.zipWithIndex.map { case (sample, index) =>
       val sites      = coveredLoci.count(l => l.expectedSampleFractions(index) > 0)
       val singletons = coveredLoci.count(l => l.expectedSampleFractions(index) > 0 && l.expectedSampleFractions.sum == l.expectedSampleFractions(index))
-      new PoolingFractionMetric(
+      PoolingFractionMetric(
         sample             = sample,
         variant_sites      = sites,
         singletons         = singletons,
@@ -136,13 +136,13 @@ class EstimatePoolingFractions
   /** Verify a provided sample list, or if none provided retrieve the set of samples from the VCF. */
   private def pickSamplesToUse(vcfReader: VCFFileReader): Array[String] = {
     if (samples.nonEmpty) {
-      val samplesInVcf = vcfReader.getFileHeader.getSampleNamesInOrder.toIterator.toSet
+      val samplesInVcf = vcfReader.getFileHeader.getSampleNamesInOrder.iterator.toSet
       val missingSamples = samples.filterNot(samplesInVcf.contains)
       if (missingSamples.nonEmpty) fail(s"Samples not present in VCF: ${missingSamples.mkString(", ")}")
       else samples.toArray.sorted
     }
     else {
-      vcfReader.getFileHeader.getSampleNamesInOrder.toIterator.toSeq.toArray.sorted // toSeq.toArray is necessary cos util.ArrayList.toArray() exists
+      vcfReader.getFileHeader.getSampleNamesInOrder.iterator.toSeq.toArray.sorted // toSeq.toArray is necessary cos util.ArrayList.toArray() exists
     }
   }
 
@@ -165,7 +165,7 @@ class EstimatePoolingFractions
   /** Generates an iterator over non-filtered bi-allelic SNPs where all the required samples are genotyped. */
   def constructVcfIterator(in: VCFFileReader, intervals: Option[IntervalList], samples: Array[String]): Iterator[VariantContext] = {
     val vcfIterator: Iterator[VariantContext] = intervals match {
-      case None     => in.toIterator
+      case None     => in.iterator
       case Some(is) => ByIntervalListVariantContextIterator(in, is)
     }
 
@@ -176,11 +176,11 @@ class EstimatePoolingFractions
       .map(_.subContextFromSamples(samplesAsUtilSet, true))
       .filter(v => v.isSNP && v.isBiallelic && !v.isMonomorphicInSamples)
       .filter(_.getNoCallCount == 0)
-      .filter(v => v.getGenotypesOrderedByName.toIterator.forall(gt => gt.getGQ >= this.minGenotypeQuality))
+      .filter(v => v.getGenotypesOrderedByName.iterator.forall(gt => gt.getGQ >= this.minGenotypeQuality))
   }
 
   /** Constructs a SamLocusIterator that will visit every locus in the input. */
-  def constructBamIterator(loci: Traversable[Locus]): Iterator[LocusInfo] = {
+  def constructBamIterator(loci: Iterable[Locus]): Iterator[LocusInfo] = {
     val in = SamSource(this.bam)
     val intervals = new IntervalList(in.header)
     loci.foreach(l => intervals.add(new Interval(l.chrom, l.pos, l.pos)))

@@ -193,7 +193,7 @@ trait UmiConsensusCaller[ConsensusRead <: SimpleRead] {
   def consensusReadsConstructed: Long = _consensusReadsConstructed
 
   /** Records that the supplied records were rejected, and not used to build a consensus read. */
-  protected def rejectRecords(recs: Traversable[SamRecord], reason: String) : Unit = this._filteredReads.count(reason, recs.size)
+  protected def rejectRecords(recs: Iterable[SamRecord], reason: String) : Unit = this._filteredReads.count(reason, recs.size)
 
   /** Records that the supplied records were rejected, and not used to build a consensus read. */
   protected def rejectRecords(reason: String, rec: SamRecord*) : Unit = rejectRecords(rec, reason)
@@ -257,7 +257,7 @@ trait UmiConsensusCaller[ConsensusRead <: SimpleRead] {
 
     len match {
       case 0 =>
-        rejectRecords(Traversable(rec), FilterLowQuality)
+        rejectRecords(Iterable(rec), FilterLowQuality)
         None
       case n if n == bases.length =>
         Some(SourceRead(sourceMoleculeId(rec), bases, quals, cigar, Some(rec)))
@@ -354,7 +354,8 @@ trait UmiConsensusCaller[ConsensusRead <: SimpleRead] {
         if (bestGroup.contains(i)) keepers += sorted(i)
         else sorted(i).sam.foreach(rejectRecords(FilterMinorityAlignment, _))
       }
-      keepers
+
+      keepers.toIndexedSeq
     }
   }
 

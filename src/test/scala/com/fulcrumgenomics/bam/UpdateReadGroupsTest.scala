@@ -44,7 +44,7 @@ class UpdateReadGroupsTest extends UnitSpec {
   private val builderOne   = new SamBuilder(sort=Some(SamOrder.Coordinate), readGroupId=Some("IDA"))
   private val builderTwo   = new SamBuilder(sort=Some(SamOrder.Coordinate), readGroupId=Some("IDB"))
 
-  Stream(builderOne, builderTwo).foreach { builder =>
+  Iterator(builderOne, builderTwo).foreach { builder =>
     builder.addPair("ok_1" + builder.readGroupId.get, contig=0, start1=100, start2=300)
     builder.addPair("ok_2" + builder.readGroupId.get, contig=0, start1=200, start2=400)
     builder.header.getReadGroups.foreach { rg => rg.setDescription("Description") }
@@ -86,7 +86,7 @@ class UpdateReadGroupsTest extends UnitSpec {
   def mergeToTempFile(builder: SamBuilder*): PathToBam = {
     val path = Files.createTempFile("SamRecordSet.", ".bam")
     path.toFile.deleteOnExit()
-    val merger = new SamFileHeaderMerger(SortOrder.coordinate, builder.map(_.header).asJava, false)
+    val merger = new SamFileHeaderMerger(SortOrder.coordinate, builder.iterator.map(_.header).toJavaList, false)
     val header = merger.getMergedHeader
     merger.hasReadGroupCollisions shouldBe false
     val writer = SamWriter(path, header, sort=Some(SamOrder.Coordinate))

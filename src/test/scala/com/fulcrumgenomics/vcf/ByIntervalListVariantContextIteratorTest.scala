@@ -56,61 +56,61 @@ class ByIntervalListVariantContextIteratorTest extends UnitSpec {
   }
 
   "ByIntervalListVariantContextIterator" should "return no variants if the interval list is empty" in {
-    Stream(true, false).foreach { useIndex =>
+    Iterator(true, false).foreach { useIndex =>
       val builder = new VariantContextSetBuilder().addVariant(refIdx=0, start=1, variantAlleles=List("A"), genotypeAlleles=List("A"))
       val iterator = toIterator(reader=builder.toVcfFileReader(), intervalList=emtpyIntervalList(), useIndex=useIndex)
-      iterator shouldBe 'empty
+      iterator.isEmpty shouldBe true
     }
   }
 
   it should "return no variants if the variants are empty" in {
-    Stream(true, false).foreach { useIndex =>
+    Iterator(true, false).foreach { useIndex =>
       val builder = new VariantContextSetBuilder()
       val intervalList = emtpyIntervalList()
       intervalList.add(new Interval(dict.getSequence(0).getSequenceName, 1, 1000, false, "foo"))
       val iterator = toIterator(reader=builder.toVcfFileReader(), intervalList=emtpyIntervalList(), useIndex=useIndex)
-      iterator shouldBe 'empty
+      iterator.isEmpty shouldBe true
     }
   }
 
   it should "return a variant context if it overlaps an interval" in {
-    Stream(true, false).foreach { useIndex =>
+    Iterator(true, false).foreach { useIndex =>
       val builder = new VariantContextSetBuilder().addVariant(refIdx=0, start=500, variantAlleles=List("A"), genotypeAlleles=List("A"))
       val intervalList = emtpyIntervalList()
       intervalList.add(new Interval(dict.getSequence(0).getSequenceName, 1, 1000, false, "foo"))
       val iterator = toIterator(reader=builder.toVcfFileReader(), intervalList=intervalList, useIndex=useIndex)
-      iterator shouldBe 'nonEmpty
+      iterator.isEmpty shouldBe false
       val actual = iterator.next()
       val expected = builder.head
       actual.getContig shouldBe expected.getContig
       actual.getStart shouldBe expected.getStart
       actual.getEnd shouldBe expected.getEnd
-      iterator shouldBe 'empty
+      iterator.isEmpty shouldBe true
     }
   }
 
   it should "not return a variant context if it doesn't overlap an interval (same chromosome)" in {
-    Stream(true, false).foreach { useIndex =>
+    Iterator(true, false).foreach { useIndex =>
       val builder = new VariantContextSetBuilder().addVariant(refIdx=0, start=500, variantAlleles=List("A"), genotypeAlleles=List("A"))
       val intervalList = emtpyIntervalList()
       intervalList.add(new Interval(dict.getSequence(0).getSequenceName, 750, 1000, false, "foo"))
       val iterator = toIterator(reader=builder.toVcfFileReader(), intervalList=intervalList, useIndex=useIndex)
-      iterator shouldBe 'empty
+      iterator.isEmpty shouldBe true
     }
   }
 
   it should "not return a variant context if it doesn't overlap an interval (different chromosome)" in {
-    Stream(true, false).foreach { useIndex =>
+    Iterator(true, false).foreach { useIndex =>
       val builder = new VariantContextSetBuilder().addVariant(refIdx=0, start=500, variantAlleles=List("A"), genotypeAlleles=List("A"))
       val intervalList = emtpyIntervalList()
       intervalList.add(new Interval(dict.getSequence(1).getSequenceName, 1, 1000, false, "foo"))
       val iterator = toIterator(reader=builder.toVcfFileReader(), intervalList=intervalList, useIndex=useIndex)
-      iterator shouldBe 'empty
+      iterator.isEmpty shouldBe true
     }
   }
 
   it should "throw an exception when next() is call but hasNext() is false" in {
-    Stream(true, false).foreach { useIndex =>
+    Iterator(true, false).foreach { useIndex =>
       val builder = new VariantContextSetBuilder().addVariant(refIdx=0, start=1, variantAlleles=List("A"), genotypeAlleles=List("A"))
       val iterator = toIterator(reader=builder.toVcfFileReader(), intervalList=emtpyIntervalList(), useIndex=useIndex)
       iterator.hasNext shouldBe false
@@ -119,35 +119,35 @@ class ByIntervalListVariantContextIteratorTest extends UnitSpec {
   }
 
   it should "return a variant context if it encloses an interval" in {
-    Stream(true, false).foreach { useIndex =>
+    Iterator(true, false).foreach { useIndex =>
       val builder = new VariantContextSetBuilder().addVariant(refIdx=0, start=495, variantAlleles=List("AAAAA", "A"), genotypeAlleles=List("A"))
       val intervalList = emtpyIntervalList()
       intervalList.add(new Interval(dict.getSequence(0).getSequenceName, 496, 496, false, "foo"))
       val iterator = toIterator(reader=builder.toVcfFileReader(), intervalList=intervalList, useIndex=useIndex)
-      iterator shouldBe 'nonEmpty
+      iterator.isEmpty shouldBe false
       val actual = iterator.next()
       val expected = builder.head
       actual.getContig shouldBe expected.getContig
       actual.getStart shouldBe expected.getStart
       actual.getEnd shouldBe expected.getEnd
-      iterator shouldBe 'empty
+      iterator.isEmpty shouldBe true
     }
   }
 
   it should "return a variant context only once if it overlaps multiple intervals" in {
-    Stream(true, false).foreach { useIndex =>
+    Iterator(true, false).foreach { useIndex =>
       val builder = new VariantContextSetBuilder().addVariant(refIdx=0, start=495, variantAlleles=List("AAAAA", "A"), genotypeAlleles=List("A"))
       val intervalList = emtpyIntervalList()
       intervalList.add(new Interval(dict.getSequence(0).getSequenceName, 496, 496, false, "foo"))
       intervalList.add(new Interval(dict.getSequence(0).getSequenceName, 500, 500, false, "foo"))
       val iterator = toIterator(reader=builder.toVcfFileReader(), intervalList=intervalList, useIndex=useIndex)
-      iterator shouldBe 'nonEmpty
+      iterator.isEmpty shouldBe false
       val actual = iterator.next()
       val expected = builder.head
       actual.getContig shouldBe expected.getContig
       actual.getStart shouldBe expected.getStart
       actual.getEnd shouldBe expected.getEnd
-      iterator shouldBe 'empty
+      iterator.isEmpty shouldBe true
     }
   }
 
@@ -160,18 +160,18 @@ class ByIntervalListVariantContextIteratorTest extends UnitSpec {
     intervalList.add(new Interval(dict.getSequence(0).getSequenceName, 500, 500, false, "foo"))
     val iterator = toIterator(reader=builder.toVcfFileReader(), intervalList=intervalList, useIndex=true)
     // OK, since we are overlapping the first interval
-    iterator shouldBe 'nonEmpty
+    iterator.isEmpty shouldBe false
     // NOK, since the intervals were overlapping when we pre-fetch the second variant context
     an[Exception] should be thrownBy iterator.next()
   }
 
   it should "ignore a variant context if does not overlap an interval" in {
-    Stream(true, false).foreach { useIndex =>
+    Iterator(true, false).foreach { useIndex =>
       val builder = new VariantContextSetBuilder().addVariant(refIdx=0, start=495, variantAlleles=List("A", "C"), genotypeAlleles=List("C"))
       val intervalList = emtpyIntervalList()
       intervalList.add(new Interval(dict.getSequence(0).getSequenceName, 500, 500, false, "foo"))
       val iterator = toIterator(reader=builder.toVcfFileReader(), intervalList=intervalList, useIndex=useIndex)
-      iterator shouldBe 'empty
+      iterator.isEmpty shouldBe true
     }
   }
 }

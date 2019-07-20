@@ -36,8 +36,6 @@ import htsjdk.samtools.util.CloserUtil
 import org.scalatest.OptionValues
 import org.apache.commons.math3.util.FastMath._
 
-import scala.collection.mutable.ArrayBuffer
-
 /**
   * Tests for ConsensusCaller.
   */
@@ -51,10 +49,10 @@ class VanillaUmiConsensusCallerTest extends UnitSpec with OptionValues {
   }
 
   /** Helper function to make a SourceRead. */
-  def src(bases: String, quals: TraversableOnce[Int]) = SourceRead(id="x", bases.getBytes(), quals.toArray.map(_.toByte), Cigar(bases.length + "M"))
+  def src(bases: String, quals: Iterable[Int]) = SourceRead(id="x", bases.getBytes(), quals.toArray.map(_.toByte), Cigar(s"${bases.length}M"))
 
   /** Helper function to make a SourceRead from bases and Phred-33 ascii quals. */
-  def src(bases: String, quals: String) = SourceRead(id="x", bases.getBytes(), SAMUtils.fastqToPhred(quals), Cigar(bases.length + "M"))
+  def src(bases: String, quals: String) = SourceRead(id="x", bases.getBytes(), SAMUtils.fastqToPhred(quals), Cigar(s"${bases.length}M"))
 
   /** Helper function to make a SourceRead from bases and Phred-33 ascii quals. */
   def src(cigar: String) = {
@@ -87,7 +85,7 @@ class VanillaUmiConsensusCallerTest extends UnitSpec with OptionValues {
     val source = src("GATTACA", Seq(10, 10, 10, 10, 10, 10, 10))
     val caller = cc(cco(errorRatePreUmi=PhredScore.MaxValue, minReads=1, minConsensusBaseQuality=0.toByte))
     val consensus = caller.consensusCall(Seq(source))
-    consensus shouldBe 'defined
+    consensus.isDefined shouldBe true
     consensus.value.bases shouldBe source.bases
     consensus.value.quals shouldBe source.quals
   }
@@ -100,7 +98,7 @@ class VanillaUmiConsensusCallerTest extends UnitSpec with OptionValues {
     val expectedQuals = source.quals.map(q => expectedQual)
 
     val consensus = cc(cco(minReads=1, minConsensusBaseQuality=0.toByte)).consensusCall(sources)
-    consensus shouldBe 'defined
+    consensus.isDefined shouldBe true
     consensus.value.bases shouldBe source.bases
     consensus.value.quals should contain theSameElementsInOrderAs expectedQuals
   }
@@ -131,7 +129,7 @@ class VanillaUmiConsensusCallerTest extends UnitSpec with OptionValues {
 
     val caller = cc(cco(errorRatePreUmi=PhredScore.MaxValue, minReads=1, minConsensusBaseQuality=0.toByte))
     val consensus = caller.consensusCall(Seq(source1, source1, source2))
-    consensus shouldBe 'defined
+    consensus.isDefined shouldBe true
     consensus.value.bases shouldBe source1.bases
     consensus.value.quals should contain theSameElementsInOrderAs expectedQuals
   }
@@ -144,7 +142,7 @@ class VanillaUmiConsensusCallerTest extends UnitSpec with OptionValues {
     val newQual = expectedConsensusQuality(10, 2)
     val newQuals = Array(newQual, newQual, newQual, newQual, newQual, newQual)
 
-    consensus shouldBe 'defined
+    consensus.isDefined shouldBe true
     consensus.value.baseString shouldBe "GATTAC"
     consensus.value.quals shouldBe newQuals
   }
@@ -159,7 +157,7 @@ class VanillaUmiConsensusCallerTest extends UnitSpec with OptionValues {
     val caller = cc(cco(minReads=2, minConsensusBaseQuality=10.toByte))
     val consensus = caller.consensusCall(Seq(src1, src2))
 
-    consensus shouldBe 'defined
+    consensus.isDefined shouldBe true
     consensus.value.baseString shouldBe "AAAAAAAAAA"
   }
 
@@ -185,7 +183,7 @@ class VanillaUmiConsensusCallerTest extends UnitSpec with OptionValues {
     val expectedQuals = Array(10, 10, 10, 10, 10, 10, 2).map(_.toByte)
     val caller    = cc(cco(errorRatePreUmi=PhredScore.MaxValue, minReads=1, minInputBaseQuality=2.toByte, minConsensusBaseQuality=10.toByte))
     val consensus = caller.consensusCall(Seq(src(bases, quals)))
-    consensus shouldBe 'defined
+    consensus.isDefined shouldBe true
     consensus.value.baseString shouldBe "GATTACN"
     consensus.value.quals shouldBe expectedQuals
   }
@@ -417,18 +415,18 @@ class VanillaUmiConsensusCallerTest extends UnitSpec with OptionValues {
   }
 
   it should "return only the 50M reads (i.e. the most common alignment)" in {
-    val buffer = new ArrayBuffer[SourceRead]
+    val buffer = Seq.newBuilder[SourceRead]
     (1 to  3).foreach { i => buffer += src(cigar="25M1D25M") }
     (1 to 10).foreach { i => buffer += src(cigar="50M") }
     (1 to  3).foreach { i => buffer += src(cigar="25M2I23M") }
 
-    val recs = cc().filterToMostCommonAlignment(buffer)
+    val recs = cc().filterToMostCommonAlignment(buffer.result)
     recs should have size 10
     recs.map(_.cigar.toString()).distinct shouldBe Seq("50M")
   }
 
   it should "return only the reads with a single base deletion at base 25" in {
-    val buffer = new ArrayBuffer[SourceRead]
+    val buffer = Seq.newBuilder[SourceRead]
     // These should all be returned
     (1 to  5).foreach { i => buffer += src(cigar="25M1D25M") }
     (1 to  2).foreach { i => buffer += src(cigar="5S20M1D25M") }
@@ -440,7 +438,7 @@ class VanillaUmiConsensusCallerTest extends UnitSpec with OptionValues {
     (1 to  2).foreach { i => buffer += src(cigar="25M1I24M") }
     (1 to  2).foreach { i => buffer += src(cigar="20M1D5M1D25M") }
 
-    val recs = cc().filterToMostCommonAlignment(buffer)
+    val recs = cc().filterToMostCommonAlignment(buffer.result)
     recs should have size 11
     recs.map(_.cigar.toString).distinct.sorted shouldBe Seq("25M1D25M", "5S20M1D25M", "5S20M1D20M5H", "25M1D20M5S").sorted
   }

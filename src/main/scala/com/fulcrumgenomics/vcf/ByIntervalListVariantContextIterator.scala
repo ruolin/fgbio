@@ -62,7 +62,7 @@ object ByIntervalListVariantContextIterator {
   }
 }
 
-private class OverlapDetectionVariantContextIterator(val iterator: Iterator[VariantContext],
+private class OverlapDetectionVariantContextIterator(val iter: Iterator[VariantContext],
                                                      val intervalList: IntervalList,
                                                      val dict: SAMSequenceDictionary)
   extends Iterator[VariantContext] {
@@ -98,47 +98,39 @@ private class OverlapDetectionVariantContextIterator(val iterator: Iterator[Vari
 
   @tailrec
   private def advance(): Unit = {
-    if (this.iterator.isEmpty) return
+    if (this.iter.isEmpty) return
 
-    val ctx = iterator.next()
+    val ctx = iter.next()
 
     // Move to the interval that overlaps or is past this context...
     while (intervals.hasNext && coordLessThan(intervals.head, ctx)) {
       intervals.next()
     }
 
-    if (intervals.isEmpty) { // no more intervals
-      Unit
-    }
-    else if (overlaps(ctx, intervals.head)) { // overlaps!!!
-      nextVariantContext = Some(ctx)
-    }
-    else if (iterator.isEmpty) { // no more variants
-      Unit
-    }
-    else { // move to the next context
-      this.advance()
-    }
+    if (intervals.isEmpty) { } // no more intervals
+    else if (overlaps(ctx, intervals.head)) { nextVariantContext = Some(ctx) } // overlaps!!!
+    else if (iter.isEmpty) { } // no more variants
+    else { this.advance() } // move to the next context
   }
 }
 
 /** NB: if a variant overlaps multiple intervals, only returns it once. */
 private class IndexQueryVariantContextIterator(private val reader: VCFFileReader, intervalList: IntervalList)
   extends Iterator[VariantContext] {
-  private var iterator: Option[Iterator[VariantContext]] = None
+  private var iter: Option[Iterator[VariantContext]] = None
   private val intervals = intervalList.iterator()
   private var previousInterval: Option[Interval] = None
 
   this.advance()
 
   def hasNext(): Boolean = {
-    this.iterator.exists(_.hasNext)
+    this.iter.exists(_.hasNext)
   }
 
   def next(): VariantContext = {
-    this.iterator match {
+    this.iter match {
       case None => throw new NoSuchElementException("Called next when hasNext is false")
-      case Some(iter) => yieldAndThen(iter.next()) { advance() }
+      case Some(i) => yieldAndThen(i.next()) { advance() }
     }
   }
 
@@ -152,7 +144,7 @@ private class IndexQueryVariantContextIterator(private val reader: VCFFileReader
   }
 
   private def advance(): Unit = {
-    while (!this.iterator.exists(_.hasNext) && this.intervals.hasNext) {
+    while (!this.iter.exists(_.hasNext) && this.intervals.hasNext) {
       val interval = this.intervals.next()
 
       // Validate sort order of the intervals
@@ -172,7 +164,7 @@ private class IndexQueryVariantContextIterator(private val reader: VCFFileReader
         .filter { ctx => overlapsInterval(ctx, interval) }
         .filter { ctx => lastInterval.forall { interval => !overlapsInterval(ctx, interval) } }
 
-      this.iterator = Some(iter)
+      this.iter = Some(iter)
     }
   }
 }

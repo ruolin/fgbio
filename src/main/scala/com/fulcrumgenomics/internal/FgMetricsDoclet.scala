@@ -29,9 +29,11 @@ import java.nio.file.Paths
 
 import com.fulcrumgenomics.util.Metric
 
+import scala.tools.nsc.Settings
 import scala.tools.nsc.doc.base.comment._
 import scala.tools.nsc.doc.html.Doclet
 import scala.tools.nsc.doc.model.DocTemplateEntity
+import scala.tools.nsc.reporters.ConsoleReporter
 
 /** Case class to capture information about a field/column in a metrics class/file. */
 case class ColumnDescription(name: String, typ: String, description: String)
@@ -45,7 +47,7 @@ case class MetricDescription(name: String, description: String, columns: Seq[Col
   * Custom scaladoc Doclet for rendering the documentation for [[com.fulcrumgenomics.util.Metric]] classes into
   * MarkDown for display on the fgbio website.
   */
-class FgMetricsDoclet extends Doclet {
+class FgMetricsDoclet extends Doclet(reporter = new ConsoleReporter(new Settings())) {
   /**
     * Main entry point for the doclet.  Scans for documentation for the metrics classes and
     * renders it into MarkDown.
@@ -131,11 +133,11 @@ class FgMetricsDoclet extends Doclet {
     def renderBlock(block: Block, indent: String): Unit = {
       block match {
         case para:  Paragraph      => render(para.text)
-        case dlist: DefinitionList => Unit // TODO
-        case hr:    HorizontalRule => Unit // TODO
-        case olist: OrderedList    => Unit // TODO
+        case dlist: DefinitionList => () // TODO
+        case hr:    HorizontalRule => () // TODO
+        case olist: OrderedList    => () // TODO
         case title: Title          => buffer.append("#" * title.level).append(" "); render(title.text); buffer.append("\n\n")
-        case ulist: UnorderedList  => Unit // TODO
+        case ulist: UnorderedList  => () // TODO
       }
     }
 

@@ -36,6 +36,7 @@ import com.fulcrumgenomics.commons.util.DelimitedDataParser
 import htsjdk.samtools.util.{FormatUtil, Iso8601Date}
 import com.fulcrumgenomics.commons.io.{Writer => CommonsWriter}
 
+import scala.collection.compat._
 import scala.reflect.runtime.{universe => ru}
 import scala.util.{Failure, Success}
 
@@ -150,16 +151,16 @@ object Metric {
   /** Writes a metric to the given writer.  The first line will be a header with the field names.  Each subsequent
     * line is a single metric.
     */
-  def write[T <: Metric](writer: Writer, metrics: TraversableOnce[T])(implicit tt: ru.TypeTag[T]): Unit = {
+  def write[T <: Metric](writer: Writer, metrics: IterableOnce[T])(implicit tt: ru.TypeTag[T]): Unit = {
     val out = new MetricWriter[T](writer)
-    metrics.foreach(out.write(_))
+    out ++= metrics
     out.close()
   }
 
   /** Writes metrics to the given path.  The first line will be a header with the field names.  Each subsequent
     * line is a single metric.
     */
-  def write[T <: Metric](path: Path, metrics: TraversableOnce[T])(implicit tt: ru.TypeTag[T]): Unit = {
+  def write[T <: Metric](path: Path, metrics: IterableOnce[T])(implicit tt: ru.TypeTag[T]): Unit = {
     val writer = Io.toWriter(path)
     write(writer, metrics)
     writer.close()
@@ -203,7 +204,7 @@ trait Metric extends Product with Iterable[(String,String)] {
   }
 
   /** Gets an iterator over the fields of this metric in the order they were defined.  Returns tuples of names and values */
-  override def iterator: Iterator[(String,String)] = this.names.zip(this.values).toIterator
+  override def iterator: Iterator[(String,String)] = this.names.zip(this.values).iterator
 
   /** @deprecated use [[formatValue]] instead. */
   @deprecated("Use formatValue instead.", since="0.5.0")

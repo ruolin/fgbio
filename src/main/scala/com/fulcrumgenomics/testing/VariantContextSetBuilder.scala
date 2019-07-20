@@ -35,6 +35,7 @@ import htsjdk.variant.variantcontext.writer.{Options, VariantContextWriterBuilde
 import htsjdk.variant.vcf.{VCFFileReader, VCFHeader, VCFHeaderLine}
 
 import scala.collection.mutable.ListBuffer
+import scala.collection.compat._
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
@@ -87,7 +88,7 @@ class VariantContextSetBuilder(sampleNames: Seq[String] = List("Sample")) extend
     *
     * Genotype attributes may be given with the `genotypeAttributes` parameter.  The value for the `GQ` and `DP`
     * attributes must have type [[Int]].  The value for the `AD` and `PL` attributes must have either type
-    * [[TraversableOnce]] or [[Array]], with each item having type [[Int]].  For example:
+    * [[IterableOnce]] or [[Array]], with each item having type [[Int]].  For example:
     * {{{
     *   val builder = new VariantContextSetBuilder()
     *   builder.addVariant(
@@ -177,10 +178,10 @@ class VariantContextSetBuilder(sampleNames: Seq[String] = List("Sample")) extend
     * or if any element in `v` is not of type `T` .*/
   private def anyToArray[T : ClassTag](k: String, v: Any, typeName: String): Array[T] = {
     val values = v match {
-      case _v: TraversableOnce[_] => _v.toArray[Any]
+      case _v: IterableOnce[_] => _v.iterator.toArray[Any]
       case _v: Array[_]           => _v
       case _                      =>
-        throw new IllegalArgumentException(s"$k attribute value must be an TraversableOnce[$typeName], found ${v.getClass.getSimpleName}")
+        throw new IllegalArgumentException(s"$k attribute value must be an IterableOnce[$typeName], found ${v.getClass.getSimpleName}")
     }
     values.map(anyToType[T](k, _, typeName))
   }

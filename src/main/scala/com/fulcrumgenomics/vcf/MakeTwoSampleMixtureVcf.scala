@@ -154,7 +154,7 @@ class MakeTwoSampleMixtureVcf
         if (isMultiAllelic) filters += MultiAllelicFilter
         if (!tumorOnly && !oldNormalGt.isHomRef) filters += GermlineFilter
         if (newTumorGt.isNoCall) filters += UnknownGtFilter
-        if (filters.nonEmpty) builder.filters(filters: _*) else builder.passFilters()
+        if (filters.nonEmpty) builder.filters(filters.iterator.toJavaSet) else builder.passFilters()
         out.add(builder.make())
       }
     }

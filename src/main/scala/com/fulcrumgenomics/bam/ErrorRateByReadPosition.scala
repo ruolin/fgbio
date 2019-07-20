@@ -102,8 +102,8 @@ class ErrorRateByReadPosition
     val in          = SamSource(input, ref=Some(ref))
     val metrics     = computeMetrics(in)
     val prefix      = output.getOrElse(PathUtil.removeExtension(input))
-    val metricsPath = PathUtil.pathTo(prefix + ErrorRateByReadPositionMetric.FileExtension)
-    val plotPath    = PathUtil.pathTo(prefix + ErrorRateByReadPositionMetric.PlotExtension)
+    val metricsPath = PathUtil.pathTo(s"${prefix}${ErrorRateByReadPositionMetric.FileExtension}")
+    val plotPath    = PathUtil.pathTo(s"${prefix}${ErrorRateByReadPositionMetric.PlotExtension}")
     Metric.write(metricsPath, metrics=metrics)
 
     // And try plotting
@@ -114,7 +114,7 @@ class ErrorRateByReadPosition
       val description = plotDescription(in, input)
       Rscript.execIfAvailable(ScriptPath, metricsPath.toString, plotPath.toString, description) match {
         case Failure(e) => logger.warning(s"Generation of PDF plots failed: ${e.getMessage}")
-        case _ => Unit
+        case _ => ()
       }
     }
   }

@@ -129,16 +129,16 @@ class EstimateRnaSeqInsertSizeTest extends UnitSpec with OptionValues {
     ///////////////////////////////////////////////////////
 
     // too far left
-    builder.addPair(start1=9, start2=16, strand1=Plus, strand2=Minus)  foreach { rec => testInsertSizeFromGene(rec, gene, 0.0) shouldBe 'empty }
-    builder.addPair(start1=16, start2=9, strand1=Minus, strand2=Plus)  foreach { rec => testInsertSizeFromGene(rec, gene, 0.0) shouldBe 'empty }
-    builder.addPair(start1=9, start2=16, strand1=Plus, strand2=Plus)   foreach { rec => testInsertSizeFromGene(rec, gene, 0.0) shouldBe 'empty }
-    builder.addPair(start1=16, start2=9, strand1=Minus, strand2=Minus) foreach { rec => testInsertSizeFromGene(rec, gene, 0.0) shouldBe 'empty }
+    builder.addPair(start1=9, start2=16, strand1=Plus, strand2=Minus)  foreach { rec => testInsertSizeFromGene(rec, gene, 0.0).isEmpty shouldBe true }
+    builder.addPair(start1=16, start2=9, strand1=Minus, strand2=Plus)  foreach { rec => testInsertSizeFromGene(rec, gene, 0.0).isEmpty shouldBe true }
+    builder.addPair(start1=9, start2=16, strand1=Plus, strand2=Plus)   foreach { rec => testInsertSizeFromGene(rec, gene, 0.0).isEmpty shouldBe true }
+    builder.addPair(start1=16, start2=9, strand1=Minus, strand2=Minus) foreach { rec => testInsertSizeFromGene(rec, gene, 0.0).isEmpty shouldBe true }
 
     // too far right
-    builder.addPair(start1=10, start2=17, strand1=Plus, strand2=Minus)  foreach { rec => testInsertSizeFromGene(rec, gene, 0.0) shouldBe 'empty }
-    builder.addPair(start1=17, start2=10, strand1=Minus, strand2=Plus)  foreach { rec => testInsertSizeFromGene(rec, gene, 0.0) shouldBe 'empty }
-    builder.addPair(start1=10, start2=17, strand1=Plus, strand2=Plus)   foreach { rec => testInsertSizeFromGene(rec, gene, 0.0) shouldBe 'empty }
-    builder.addPair(start1=17, start2=10, strand1=Minus, strand2=Minus) foreach { rec => testInsertSizeFromGene(rec, gene, 0.0) shouldBe 'empty }
+    builder.addPair(start1=10, start2=17, strand1=Plus, strand2=Minus)  foreach { rec => testInsertSizeFromGene(rec, gene, 0.0).isEmpty shouldBe true }
+    builder.addPair(start1=17, start2=10, strand1=Minus, strand2=Plus)  foreach { rec => testInsertSizeFromGene(rec, gene, 0.0).isEmpty shouldBe true }
+    builder.addPair(start1=10, start2=17, strand1=Plus, strand2=Plus)   foreach { rec => testInsertSizeFromGene(rec, gene, 0.0).isEmpty shouldBe true }
+    builder.addPair(start1=17, start2=10, strand1=Minus, strand2=Minus) foreach { rec => testInsertSizeFromGene(rec, gene, 0.0).isEmpty shouldBe true }
     
     ///////////////////////////////////////////////////////
     // enclosed
@@ -158,9 +158,9 @@ class EstimateRnaSeqInsertSizeTest extends UnitSpec with OptionValues {
 
     builder.addPair(start1=10, start2=16, strand1=Plus, strand2=Minus)  foreach { rec => testInsertSizeFromGene(rec, gene, 0.0).value shouldBe 2 }
     builder.addPair(start1=10, start2=16, strand1=Plus, strand2=Minus)  foreach { rec => testInsertSizeFromGene(rec, gene, 0.2).value shouldBe 2 }
-    builder.addPair(start1=10, start2=16, strand1=Plus, strand2=Minus)  foreach { rec => testInsertSizeFromGene(rec, gene, 0.2001) shouldBe 'empty }
-    builder.addPair(start1=10, start2=16, strand1=Plus, strand2=Minus)  foreach { rec => testInsertSizeFromGene(rec, gene, 0.3) shouldBe 'empty }
-    builder.addPair(start1=10, start2=16, strand1=Plus, strand2=Minus)  foreach { rec => testInsertSizeFromGene(rec, gene, 1.0) shouldBe 'empty }
+    builder.addPair(start1=10, start2=16, strand1=Plus, strand2=Minus)  foreach { rec => testInsertSizeFromGene(rec, gene, 0.2001).isEmpty shouldBe true }
+    builder.addPair(start1=10, start2=16, strand1=Plus, strand2=Minus)  foreach { rec => testInsertSizeFromGene(rec, gene, 0.3).isEmpty shouldBe true }
+    builder.addPair(start1=10, start2=16, strand1=Plus, strand2=Minus)  foreach { rec => testInsertSizeFromGene(rec, gene, 1.0).isEmpty shouldBe true }
   }
 
   it should "not return a value if the insert size disagrees across two transcripts" in {
@@ -169,7 +169,7 @@ class EstimateRnaSeqInsertSizeTest extends UnitSpec with OptionValues {
     val gene        = Gene(contig="chr1", start=10, end=20, negativeStrand=false, name="", transcripts=Seq(transcriptA, transcriptB))
     val builder     = new SamBuilder(readLength=5)
 
-    builder.addPair(start1=10, start2=16, strand1=Plus, strand2=Minus)  foreach { rec => testInsertSizeFromGene(rec, gene, 0.0) shouldBe 'empty }
+    builder.addPair(start1=10, start2=16, strand1=Plus, strand2=Minus)  foreach { rec => testInsertSizeFromGene(rec, gene, 0.0).isEmpty shouldBe true }
   }
 
   private val RefFlatFile = {
@@ -208,7 +208,7 @@ class EstimateRnaSeqInsertSizeTest extends UnitSpec with OptionValues {
     builder.addPair(contig=2, start1=133801672, start2=133804074, strand1=Plus, strand2=Plus) // overlaps ACKR4 by 100%
 
     val bam = builder.toTempFile()
-    val out = PathUtil.pathTo(PathUtil.removeExtension(bam) + EstimateRnaSeqInsertSize.RnaSeqInsertSizeMetricExtension)
+    val out = PathUtil.pathTo(PathUtil.removeExtension(bam).toString + EstimateRnaSeqInsertSize.RnaSeqInsertSizeMetricExtension)
     new EstimateRnaSeqInsertSize(input=bam, refFlat=RefFlatFile).execute()
     val metrics = Metric.read[InsertSizeMetric](path=out)
     metrics.length shouldBe PairOrientation.values().length
@@ -250,7 +250,7 @@ class EstimateRnaSeqInsertSizeTest extends UnitSpec with OptionValues {
       actual shouldBe expected
     }
 
-    val histogramPath = PathUtil.pathTo(PathUtil.removeExtension(bam) + EstimateRnaSeqInsertSize.RnaSeqInsertSizeMetricHistogramExtension)
+    val histogramPath = PathUtil.pathTo(PathUtil.removeExtension(bam).toString + EstimateRnaSeqInsertSize.RnaSeqInsertSizeMetricHistogramExtension)
     Io.readLines(path=histogramPath).mkString("\n") shouldBe
       """
         |insert_size	fr	rf	tandem
@@ -273,7 +273,7 @@ class EstimateRnaSeqInsertSizeTest extends UnitSpec with OptionValues {
     val builder = new SamBuilder()
     builder.addPair(contig=3, start1=133801671, start2=133801671) // overlaps ACKR4-4-1 and ACKR4-4-2
     val bam = builder.toTempFile()
-    val out = PathUtil.pathTo(PathUtil.removeExtension(bam) + EstimateRnaSeqInsertSize.RnaSeqInsertSizeMetricExtension)
+    val out = PathUtil.pathTo(PathUtil.removeExtension(bam).toString + EstimateRnaSeqInsertSize.RnaSeqInsertSizeMetricExtension)
     new EstimateRnaSeqInsertSize(input=bam, refFlat=RefFlatFile, minimumOverlap=0.0).execute()
     val metrics = Metric.read[InsertSizeMetric](path=out)
     metrics.length shouldBe PairOrientation.values().length
@@ -287,7 +287,7 @@ class EstimateRnaSeqInsertSizeTest extends UnitSpec with OptionValues {
     builder.addPair(contig=2, start1=1, start2=133801671) // before ACKR4-3
     builder.addPair(contig=2, start1=133801671, start2=133814175) // after ACKR4-3
     val bam = builder.toTempFile()
-    val out = PathUtil.pathTo(PathUtil.removeExtension(bam) + EstimateRnaSeqInsertSize.RnaSeqInsertSizeMetricExtension)
+    val out = PathUtil.pathTo(PathUtil.removeExtension(bam).toString + EstimateRnaSeqInsertSize.RnaSeqInsertSizeMetricExtension)
     new EstimateRnaSeqInsertSize(input=bam, refFlat=RefFlatFile, minimumOverlap=0.0).execute()
     val metrics = Metric.read[InsertSizeMetric](path=out)
     metrics.length shouldBe PairOrientation.values().length
@@ -300,7 +300,7 @@ class EstimateRnaSeqInsertSizeTest extends UnitSpec with OptionValues {
     val builder = new SamBuilder()
     builder.addPair(contig=4, start1=133801671, start2=133804077) // overlaps ACKR4-5 (multiple transcripts)
     val bam = builder.toTempFile()
-    val out = PathUtil.pathTo(PathUtil.removeExtension(bam) + EstimateRnaSeqInsertSize.RnaSeqInsertSizeMetricExtension)
+    val out = PathUtil.pathTo(PathUtil.removeExtension(bam).toString + EstimateRnaSeqInsertSize.RnaSeqInsertSizeMetricExtension)
     new EstimateRnaSeqInsertSize(input=bam, refFlat=RefFlatFile, minimumOverlap=0.0).execute()
     val metrics = Metric.read[InsertSizeMetric](path=out)
     metrics.length shouldBe PairOrientation.values().length
@@ -313,7 +313,7 @@ class EstimateRnaSeqInsertSizeTest extends UnitSpec with OptionValues {
     val builder = new SamBuilder()
     builder.addPair(contig=5, start1=133801671, start2=133804077, strand1=Plus, strand2=Plus) // overlaps ACKR4-6 by 2 bases!
     val bam = builder.toTempFile()
-    val out = PathUtil.pathTo(PathUtil.removeExtension(bam) + EstimateRnaSeqInsertSize.RnaSeqInsertSizeMetricExtension)
+    val out = PathUtil.pathTo(PathUtil.removeExtension(bam).toString + EstimateRnaSeqInsertSize.RnaSeqInsertSizeMetricExtension)
 
     // OK
     {

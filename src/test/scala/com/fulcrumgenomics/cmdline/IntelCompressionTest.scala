@@ -110,7 +110,7 @@ class IntelCompressionTest extends UnitSpec {
           val is    = new BlockCompressedInputStream(output.toFile, factory)
           val codec = new BAMRecordCodec(header)
           codec.setInputStream(is, testBam.toFile.toString)
-          while (null != codec.decode()) { Unit }
+          while (null != codec.decode()) { () }
           is.close()
         }
         val endTime = System.currentTimeMillis()

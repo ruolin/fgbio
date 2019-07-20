@@ -46,7 +46,7 @@ class CallMolecularConsensusReadsTest extends UnitSpec {
     val rejects = newBam
 
     // Create 2000 paired end reads, where there are two pairs with the same coordinates and have the same group tag.
-    Stream.range(0, 1000).foreach { idx =>
+    Range(0, 1000).foreach { idx =>
       val attrs = Map(DefaultTag -> ("GATTACA:" + idx), ConsensusTags.UmiBases -> "ACGT-TGCA")
       builder.addPair(name=s"READ:" + 2*idx,   start1=1+idx, start2=1000000+idx, bases1="A"*rlen, bases2="T"*rlen, attrs=attrs)
       builder.addPair(name=s"READ:" + 2*idx+1, start1=1+idx, start2=1000000+idx, bases1="A"*rlen, bases2="T"*rlen, attrs=attrs)
@@ -56,7 +56,7 @@ class CallMolecularConsensusReadsTest extends UnitSpec {
     new CallMolecularConsensusReads(input=builder.toTempFile(), output=output, minReads=1, rejects=Some(rejects), readGroupId="ABC").execute()
 
     // check we have no rejected records
-    readBamRecs(rejects) shouldBe 'empty
+    readBamRecs(rejects).isEmpty shouldBe true
 
     // we should have 1000 consensus paired end reads
     val records = readBamRecs(output)

@@ -113,7 +113,7 @@ class BuildToolDocs
         a.name,
         a.flag.getOrElse(""),
         a.kind,
-        a.description.lines.mkString(" "),
+        a.description.linesIterator.mkString(" "),
         if (a.minValues == 0) "Optional" else "Required",
         if (a.maxValues == Int.MaxValue) "Unlimited" else a.maxValues,
         a.defaultValues.mkString(", ")

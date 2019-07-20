@@ -88,7 +88,7 @@ class CollectErccMetricsTest extends UnitSpec with OptionValues {
 
   object Outputs {
     def apply(prefix: PathPrefix): Outputs = {
-      def f(ext: String): FilePath = PathUtil.pathTo(prefix + ext)
+      def f(ext: String): FilePath = PathUtil.pathTo(s"${prefix}${ext}")
       Outputs(
         summaryPath  = f(".ercc_summary_metrics.txt"),
         detailedPath = f(".ercc_detailed_metrics.txt"),
@@ -191,8 +191,8 @@ class CollectErccMetricsTest extends UnitSpec with OptionValues {
       metrics.head.total_reads shouldBe 2
       metrics.head.ercc_reads shouldBe 2
       metrics.head.ercc_templates shouldBe 1
-      metrics.head.pearsons_correlation shouldBe 'empty
-      metrics.head.slope shouldBe 'empty
+      metrics.head.pearsons_correlation.isEmpty shouldBe true
+      metrics.head.slope.isEmpty shouldBe true
       Files.exists(outputs.plotPath) shouldBe false
     }
 

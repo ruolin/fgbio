@@ -132,7 +132,7 @@ class CallDuplexConsensusReads
       maxReadsPerStrand   = maxReadsPerStrand.getOrElse(VanillaUmiConsensusCallerOptions.DefaultMaxReads)
     )
     val progress = ProgressLogger(logger, unit=1000000)
-    val iterator = new ConsensusCallingIterator(in.toIterator, caller, Some(progress), threads)
+    val iterator = new ConsensusCallingIterator(in.iterator, caller, Some(progress), threads)
     out ++= iterator
     progress.logLast()
 

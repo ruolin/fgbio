@@ -92,7 +92,7 @@ case class Template(r1: Option[SamRecord],
 
     (x1, x2) match {
       case (Some(a), Some(b)) => SamPairUtil.setMateInfo(a.asSam, b.asSam)
-      case _ => Unit
+      case _ => ()
     }
 
     Template(x1, x2)

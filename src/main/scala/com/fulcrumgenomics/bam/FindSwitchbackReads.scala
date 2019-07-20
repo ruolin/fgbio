@@ -401,7 +401,7 @@ class FindSwitchbackReads
         mean_gap                 = switchbackGaps.mean()
       )
 
-      Metric.write(PathUtil.pathTo(prefix + ".summary.txt"), m)
+      Metric.write(PathUtil.pathTo(s"${prefix}.summary.txt"), m)
 
       Seq(
         ("lengths", switchbackLengths, "length"),

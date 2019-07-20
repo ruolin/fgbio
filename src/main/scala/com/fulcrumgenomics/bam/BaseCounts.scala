@@ -39,7 +39,7 @@ object BaseCounts {
     * Generates a BaseCounts object from a collection of RecordAndOffest objects
     * representing a pileup.  Ensures that each template is only counted once.
     */
-  def apply(recs: Traversable[SamLocusIterator.RecordAndOffset]): BaseCounts = {
+  def apply(recs: Iterable[SamLocusIterator.RecordAndOffset]): BaseCounts = {
     val countsByBase = recs.groupBy(r => Character.toUpperCase(r.getReadBase.toChar))
       .map { case (ch, rs) => (ch, rs.map(_.getRecord.getReadName).toSeq.distinct.size) }
 

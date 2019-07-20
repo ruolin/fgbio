@@ -117,7 +117,7 @@ class ExtractBasecallingParamsForPicardTest extends UnitSpec with ErrorLogLevel 
 
 
   "BasecallingParams.from" should "extract params from a single-index sequencing run" in {
-    val sampleSheet = SampleSheet(singleIndexSampleSheet.toIterator, lane=None)
+    val sampleSheet = SampleSheet(singleIndexSampleSheet.iterator, lane=None)
     val params = BasecallingParams.from(sampleSheet=sampleSheet, lanes=Seq(1), output=outputDir)
     params should have size 1
     val param = params.head
@@ -140,7 +140,7 @@ class ExtractBasecallingParamsForPicardTest extends UnitSpec with ErrorLogLevel 
   }
 
   it should "extract params for multiple lanes from a sequencing run" in {
-    val sampleSheet = SampleSheet(singleIndexSampleSheet.toIterator, lane=None)
+    val sampleSheet = SampleSheet(singleIndexSampleSheet.iterator, lane=None)
     val params = BasecallingParams.from(sampleSheet=sampleSheet, lanes=Seq(1, 2, 4), output=outputDir)
     params should have size 3
     val param = params.last
@@ -163,7 +163,7 @@ class ExtractBasecallingParamsForPicardTest extends UnitSpec with ErrorLogLevel 
   }
 
   it should "extract params from a dual-indexed sequencing run" in {
-    val sampleSheet = SampleSheet(dualIndexedSampleSheet.toIterator, lane=None)
+    val sampleSheet = SampleSheet(dualIndexedSampleSheet.iterator, lane=None)
     val params = BasecallingParams.from(sampleSheet=sampleSheet, lanes=Seq(1), output=outputDir)
     params should have size 1
     val param = params.head
@@ -186,7 +186,7 @@ class ExtractBasecallingParamsForPicardTest extends UnitSpec with ErrorLogLevel 
   }
 
   it should "exclude the description if the project and description are not defined on all samples" in {
-    val sampleSheet = SampleSheet(dualIndexedSampleSheetNoProjectOrDescription.toIterator, lane=None)
+    val sampleSheet = SampleSheet(dualIndexedSampleSheetNoProjectOrDescription.iterator, lane=None)
     val params = BasecallingParams.from(sampleSheet=sampleSheet, lanes=Seq(1), output=outputDir)
     params should have size 1
     val param = params.head

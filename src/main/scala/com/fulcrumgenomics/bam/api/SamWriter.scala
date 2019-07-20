@@ -27,7 +27,7 @@ package com.fulcrumgenomics.bam.api
 import java.io.Closeable
 
 import com.fulcrumgenomics.FgBioDef._
-import com.fulcrumgenomics.Writer
+import com.fulcrumgenomics.commons.io.Writer
 import com.fulcrumgenomics.commons.util.LazyLogging
 import com.fulcrumgenomics.util.{ProgressLogger, Sorter}
 import htsjdk.samtools.SAMFileHeader.SortOrder

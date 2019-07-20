@@ -39,10 +39,10 @@ import com.fulcrumgenomics.util.Metric.{Count, Proportion}
 import com.fulcrumgenomics.util.Sequences.countMismatches
 import com.fulcrumgenomics.util._
 import enumeratum.EnumEntry
-import htsjdk.samtools.SAMFileHeader.{GroupOrder, SortOrder}
 import htsjdk.samtools._
 import htsjdk.samtools.util.SequenceUtil
 
+import scala.collection.BufferedIterator
 import scala.collection.immutable.IndexedSeq
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -205,19 +205,19 @@ object GroupReadsByUmi {
 
     /** Assigns IDs to each UMI based on the root to which is it mapped. */
     protected def assignIdsToNodes(roots: Seq[Node]): Map[Umi, MoleculeId] = {
-      val mappings = mutable.Buffer[(Umi,MoleculeId)]()
+      val mappings = Map.newBuilder[Umi,MoleculeId]
       roots.foreach(root => {
         val id = nextId
-        mappings.append((root.umi, id))
-        root.descendants.foreach(child => mappings.append((child.umi, id)))
+        mappings += ((root.umi, id))
+        root.descendants.foreach(child => mappings += ((child.umi, id)))
       })
 
-      mappings.toMap
+      mappings.result
     }
 
     override def assign(rawUmis: Seq[Umi]): Map[Umi, MoleculeId] = {
       // A list of all the root UMIs/Nodes that we find
-      val roots = mutable.Buffer[Node]()
+      val roots = IndexedSeq.newBuilder[Node]
 
       // Make a list of counts of all UMIs in order from most to least abundant; we'll consume from this buffer
       var remaining = count(rawUmis).map{ case(umi,count) => new Node(umi, count) }.toBuffer.sortBy((n:Node) => -n.count)
@@ -237,7 +237,7 @@ object GroupReadsByUmi {
         }
       }
 
-      assignIdsToNodes(roots)
+      assignIdsToNodes(roots.result)
     }
   }
 
@@ -504,7 +504,7 @@ class GroupReadsByUmi
 
     // Write out the family size histogram
     this.familySizeHistogram match {
-      case None    => Unit
+      case None    => ()
       case Some(p) =>
         val ms = tagFamilySizeCounter.toSeq.map { case (size, count) => TagFamilySizeMetric(size, count)}
         val total = ms.map(_.count.toDouble).sum

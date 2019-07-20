@@ -74,7 +74,7 @@ object ReadStructure {
   /** Creates a sequence of read segments from a string. */
   private def segments(rs: String): Seq[ReadSegment] = {
     var i = 0
-    val segs = ArrayBuffer[ReadSegment]()
+    val segs = IndexedSeq.newBuilder[ReadSegment]
     while (i < rs.length) {
       // Stash the beginning position of our parsing so we can highlight what we're having trouble with
       val parsePosition = i
@@ -104,7 +104,7 @@ object ReadStructure {
       }
     }
 
-    segs
+    segs.result
   }
 
   /**

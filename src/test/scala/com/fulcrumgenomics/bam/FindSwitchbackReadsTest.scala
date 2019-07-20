@@ -84,7 +84,7 @@ class FindSwitchbackReadsTest extends UnitSpec with OptionValues {
       |TTCTCAGCTCAAGATTCGTCTGGTCTTTCCCTACAGCTTTGTGTGTGCCATGGCCACATCTCCTGGGTAC
       |AGTTCAAGGAGACATCTTTTCTAAAAGGGTCTGCGTGATCATTAAAATATAATCAAATGTAAAAAAAAAA
       |AAAAAAAA
-    """.stripMargin.lines.foreach(seq.add(_))
+    """.stripMargin.linesIterator.foreach(seq.add(_))
 
     builder.add("chr2").add("ACGTACGT", 100)
 
@@ -313,7 +313,7 @@ class FindSwitchbackReadsTest extends UnitSpec with OptionValues {
       }
     }
 
-    val ms = Metric.read[SwitchMetric](PathUtil.pathTo(metricBase + ".summary.txt")).head
+    val ms = Metric.read[SwitchMetric](PathUtil.pathTo(s"${metricBase}.summary.txt")).head
     ms.sample                   shouldBe "switchback_sample"
     ms.library                  shouldBe "switchback_library"
     ms.templates                shouldBe 20+1+6+5+2

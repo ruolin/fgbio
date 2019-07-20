@@ -114,7 +114,7 @@ class ClipBam
           template.r2Supplementals.foreach(s => SamPairUtil.setMateInformationOnSupplementalAlignment(s.asSam, r1.asSam, true))
         case (Some(frag), None) =>
           clipFragment(frag=frag, metric=metricsMap.get(ReadType.Fragment))
-        case _ => Unit
+        case _ => ()
       }
 
       template.allReads.foreach { r =>
@@ -143,7 +143,7 @@ class ClipBam
       metricsMap.foreach {
         case (Fragment, metric)          => metricsMap(All).add(metric)
         case (ReadOne | ReadTwo, metric) => Seq(Pair, All).foreach { r => metricsMap(r).add(metric) }
-        case _                           => Unit
+        case _                           => ()
       }
       // Write it!
       Metric.write(path, ReadType.values.map { readType => metricsMap(readType)})

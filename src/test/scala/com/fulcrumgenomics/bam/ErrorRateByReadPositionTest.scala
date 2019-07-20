@@ -187,7 +187,7 @@ class ErrorRateByReadPositionTest extends UnitSpec {
     }
 
     if (Rscript.Available) {
-      val plot = PathUtil.pathTo(pre + ErrorRateByReadPositionMetric.PlotExtension)
+      val plot = PathUtil.pathTo(s"${pre}${ErrorRateByReadPositionMetric.PlotExtension}")
       Files.exists(plot) shouldBe true
     }
   }

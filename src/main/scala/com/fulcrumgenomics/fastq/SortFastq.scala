@@ -37,7 +37,7 @@ object SortFastq {
 
     /** Decodes the record from the fastq string. */
     override def decode(bs: Array[Byte], start: Int, length: Int): FastqRecord = {
-      val lines = new String(bs, start, length).lines
+      val lines = new String(bs, start, length).linesIterator
       val name       = lines.next().substring(1)
       val bases      = lines.next()
       val qualHeader = lines.next()

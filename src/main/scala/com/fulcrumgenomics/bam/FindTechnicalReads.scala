@@ -93,7 +93,7 @@ class FindTechnicalReads
       val recs = Seq(Some(r1), r2).flatten
 
       val isTechnical = if (isUnmappedTemplate(r1)) {
-        recs.toStream.flatMap(r => matcher.findMatch(r.bases)).headOption match {
+        recs.view.flatMap(r => matcher.findMatch(r.bases)).headOption match {
           case None =>
             false
           case Some(hit) =>

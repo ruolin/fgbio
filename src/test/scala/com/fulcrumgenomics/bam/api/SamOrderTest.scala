@@ -132,7 +132,7 @@ class SamOrderTest extends UnitSpec {
     val iter = recs.iterator.bufferBetter
     while (iter.hasNext) {
       val name = iter.head.name
-      val remaining = iter.takeWhile(_.name == name).foreach { r => Unit }
+      val remaining = iter.takeWhile(_.name == name).foreach { r => () }
       counts.count(name)
     }
 
@@ -151,7 +151,7 @@ class SamOrderTest extends UnitSpec {
       b => b.addPair(name="ba3", start1=100, start2=100, strand1=Minus, strand2=Plus, attrs=Map("MI" -> "2/B"), bases1="AAAAAAAAAA", bases2="AAAAAAAAAA")
     )
 
-    def seq(n: Int, str: String): Seq[String] = Array.fill[String](n)(str)
+    def seq(n: Int, str: String): Seq[String] = IndexedSeq.fill[String](n)(str)
 
     Range.inclusive(start=1, end=10).foreach { _ =>
       val builder = new SamBuilder(readLength=10)

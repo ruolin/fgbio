@@ -267,8 +267,8 @@ class CollectDuplexSeqMetricsTest extends UnitSpec {
       val start2 = start1 + isize.sample().toInt - 75
       val abs = sampleNatural(abDist)
       val bas = sampleNatural(baDist)
-      (1 to abs) foreach { _ => builder.addPair(start1=start1, start2=start2, attrs=Map(RX -> "AAA-TTT", MI -> (i + "/A"))) }
-      (1 to bas) foreach { _ => builder.addPair(start1=start1, start2=start2, attrs=Map(RX -> "TTT-AAA", MI -> (i + "/B"))) }
+      (1 to abs) foreach { _ => builder.addPair(start1=start1, start2=start2, attrs=Map(RX -> "AAA-TTT", MI -> (s"$i/A"))) }
+      (1 to bas) foreach { _ => builder.addPair(start1=start1, start2=start2, attrs=Map(RX -> "TTT-AAA", MI -> (s"$i/B"))) }
       counter.count((max(abs, bas), min(abs, bas)))
     }
 

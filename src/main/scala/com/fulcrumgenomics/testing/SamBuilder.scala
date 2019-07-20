@@ -63,7 +63,7 @@ class SamBuilder(val readLength: Int=100,
   { // Build the default dictionary
     val dict: SAMSequenceDictionary = sd.getOrElse {
       val seqs = (Range.inclusive(1, 22) ++ Seq("X", "Y", "M")).map { chr => new SAMSequenceRecord("chr" + chr, 200e6.toInt) }
-      new SAMSequenceDictionary(seqs.toIterator.toJavaList)
+      new SAMSequenceDictionary(seqs.iterator.toJavaList)
     }
     header.setSequenceDictionary(dict)
   }
@@ -111,8 +111,8 @@ class SamBuilder(val readLength: Int=100,
               start2: Int = SAMRecord.NO_ALIGNMENT_START,
               unmapped1: Boolean = false,
               unmapped2: Boolean = false,
-              cigar1: String = readLength + "M",
-              cigar2: String = readLength + "M",
+              cigar1: String = s"${readLength}M",
+              cigar2: String = s"${readLength}M",
               mapq1: Int = 60,
               mapq2: Int = 60,
               strand1: Strand = Plus,
@@ -180,7 +180,7 @@ class SamBuilder(val readLength: Int=100,
               contig: Int = 0,
               start: Int  = SAMRecord.NO_ALIGNMENT_START,
               unmapped: Boolean = false,
-              cigar: String = readLength + "M",
+              cigar: String = s"${readLength}M",
               mapq: Int = 60,
               strand: Strand = Plus,
               attrs: Map[String,Any] = Map.empty) : Option[SamRecord] = {

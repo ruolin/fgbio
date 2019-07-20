@@ -157,7 +157,7 @@ class HapCutToVcfTest extends UnitSpec with ParallelTestExecution {
     reader.close()  }
 
   "HapCutToVcf" should "convert a HAPCUT1 file to VCF in both GATK and VCF-spec phasing format" in {
-    Stream(true, false).foreach { gatkPhasingFormat =>
+    Iterator(true, false).foreach { gatkPhasingFormat =>
       val expectedOutput = if (gatkPhasingFormat) hapCut1GatkVcf else hapCut1Vcf
       val out = makeTempFile("hap_cut_to_vcf.hapcut", ".vcf")
 
@@ -192,7 +192,7 @@ class HapCutToVcfTest extends UnitSpec with ParallelTestExecution {
   }
 
   it should "convert a HAPCUT2 file to VCF in both GATK and VCF-spec phasing format" in {
-    Stream(true, false).foreach { gatkPhasingFormat =>
+    Iterator(true, false).foreach { gatkPhasingFormat =>
       val expectedOutput = if (gatkPhasingFormat) hapCut2GatkVcf else hapCut2Vcf
       val out = makeTempFile("hap_cut_to_vcf.hapcut2", ".vcf")
 
@@ -259,7 +259,7 @@ class HapCutToVcfTest extends UnitSpec with ParallelTestExecution {
   }
 
   it should "convert an empty HAPCUT1/HAPCUT2 file to VCF in both GATK and VCF-spec phasing format" in {
-    Stream(true, false).foreach { gatkPhasingFormat =>
+    Iterator(true, false).foreach { gatkPhasingFormat =>
       val out       = makeTempFile("hap_cut_to_vcf.hapcut", ".vcf")
       val hapCutOut = makeTempFile("hap_cut_to_vcf.hapcut", ".hapcut")
 
