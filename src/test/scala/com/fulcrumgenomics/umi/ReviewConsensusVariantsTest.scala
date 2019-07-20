@@ -44,20 +44,20 @@ object ReviewConsensusVariantsTest {
       |>chr2
       |CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
       |CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
-    """.stripMargin.lines.toSeq
+    """.stripMargin.linesIterator.toSeq
 
   val Fai : Seq[String] =
     """
       |chr1    100     6       50      51
       |chr2    100     114     50      51
-    """.stripMargin.lines.map(_.trim.replaceAll("\\s+", "\t")).filter(_.nonEmpty).toSeq
+    """.stripMargin.linesIterator.map(_.trim.replaceAll("\\s+", "\t")).filter(_.nonEmpty).toSeq
 
   val Dict : Seq[String] =
     """
       |@HD    	VN:1.5 	SO:unsorted
       |@SQ    	SN:chr1	LN:100 	M5:8adc5937e635f6c9af646f0b23560fae    	AS:n/a 	UR:n/a 	SP:n/a
       |@SQ    	SN:chr2	LN:100 	M5:48ecc9d349522f836cadf615e370bc51    	AS:n/a 	UR:n/a 	SP:n/a
-    """.stripMargin.lines.map(_.trim.replaceAll("\\s+", "\t")).filter(_.nonEmpty).toSeq
+    """.stripMargin.linesIterator.map(_.trim.replaceAll("\\s+", "\t")).filter(_.nonEmpty).toSeq
 }
 
 
@@ -67,7 +67,7 @@ class ReviewConsensusVariantsTest extends UnitSpec {
   /** Sets up a trivial reference for testing against. */
   lazy val refFasta: PathToFasta = {
     val ref  = makeTempFile("ref.", ".fa")
-    val fai  = ref.getParent.resolve(ref.getFileName + ".fai")
+    val fai  = ref.getParent.resolve(s"${ref.getFileName}.fai")
     val dict = PathUtil.replaceExtension(ref, ".dict")
     Seq(fai, dict).foreach(_.toFile.deleteOnExit())
 
@@ -176,9 +176,9 @@ class ReviewConsensusVariantsTest extends UnitSpec {
 
   "ReviewConsensusVariants" should "create empty BAMs when given an empty interval list as input" in {
     val outBase = makeTempFile("review_consensus.", ".out")
-    val conOut  = outBase.getParent.resolve(outBase.getFileName + ".consensus.bam")
-    val rawOut  = outBase.getParent.resolve(outBase.getFileName + ".grouped.bam")
-    val txtOut  = outBase.getParent.resolve(outBase.getFileName + ".txt")
+    val conOut  = outBase.getParent.resolve(s"${outBase.getFileName}.consensus.bam")
+    val rawOut  = outBase.getParent.resolve(s"${outBase.getFileName}.grouped.bam")
+    val txtOut  = outBase.getParent.resolve(s"${outBase.getFileName}.txt")
     val intervals = makeTempFile("empty.", ".interval_list")
     new IntervalList(header).write(intervals.toFile)
     new ReviewConsensusVariants(input=intervals, consensusBam=consensusBam, groupedBam=rawBam, ref=refFasta, output=outBase).execute()
@@ -194,9 +194,9 @@ class ReviewConsensusVariantsTest extends UnitSpec {
 
   it should "create empty BAMs when given an empty VCF as input" in {
     val outBase = makeTempFile("review_consensus.", ".out")
-    val conOut  = outBase.getParent.resolve(outBase.getFileName + ".consensus.bam")
-    val rawOut  = outBase.getParent.resolve(outBase.getFileName + ".grouped.bam")
-    val txtOut  = outBase.getParent.resolve(outBase.getFileName + ".txt")
+    val conOut  = outBase.getParent.resolve(s"${outBase.getFileName}.consensus.bam")
+    val rawOut  = outBase.getParent.resolve(s"${outBase.getFileName}.grouped.bam")
+    val txtOut  = outBase.getParent.resolve(s"${outBase.getFileName}.txt")
     val intervals = makeTempFile("empty.", ".vcf")
 
     val vcfBuilder = VariantContextSetBuilder("s1")
@@ -215,9 +215,9 @@ class ReviewConsensusVariantsTest extends UnitSpec {
 
   it should "extract the right reads given a set of loci" in {
     val outBase = makeTempFile("review_consensus.", ".out")
-    val conOut  = outBase.getParent.resolve(outBase.getFileName + ".consensus.bam")
-    val rawOut  = outBase.getParent.resolve(outBase.getFileName + ".grouped.bam")
-    val txtOut  = outBase.getParent.resolve(outBase.getFileName + ".txt")
+    val conOut  = outBase.getParent.resolve(s"${outBase.getFileName}.consensus.bam")
+    val rawOut  = outBase.getParent.resolve(s"${outBase.getFileName}.grouped.bam")
+    val txtOut  = outBase.getParent.resolve(s"${outBase.getFileName}.txt")
 
     val vcfBuilder = new VariantContextSetBuilder(sampleNames=List("tumor"))
     vcfBuilder.header.setSequenceDictionary(this.header.getSequenceDictionary)

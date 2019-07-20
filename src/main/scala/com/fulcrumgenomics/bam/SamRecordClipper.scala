@@ -360,7 +360,7 @@ class SamRecordClipper(val mode: ClippingMode, val autoClipAttributes: Boolean) 
       val addedHardClip = existingSoftClip + readBasesClipped
       val totalHardClip = existingHardClip + addedHardClip
       newElems.prepend(CigarElem(Op.HARD_CLIP, totalHardClip))
-      (newElems, readBasesClipped, refBasesClipped, bases.drop(addedHardClip), quals.drop(addedHardClip))
+      (newElems.toIndexedSeq, readBasesClipped, refBasesClipped, bases.drop(addedHardClip), quals.drop(addedHardClip))
     }
     else {
       val addedSoftClip = readBasesClipped
@@ -368,7 +368,7 @@ class SamRecordClipper(val mode: ClippingMode, val autoClipAttributes: Boolean) 
       newElems.prepend(CigarElem(Op.SOFT_CLIP, totalSoftClip))
       if (existingHardClip > 0) newElems.prepend(CigarElem(Op.HARD_CLIP, existingHardClip))
       if (mode == ClippingMode.SoftWithMask) hardMaskStartOfRead(bases, quals, totalSoftClip)
-      (newElems, readBasesClipped, refBasesClipped, bases, quals)
+      (newElems.toIndexedSeq, readBasesClipped, refBasesClipped, bases, quals)
     }
   }
 
@@ -388,7 +388,7 @@ class SamRecordClipper(val mode: ClippingMode, val autoClipAttributes: Boolean) 
       rec.attributes.foreach {
         case (tag, s: String)   if s.length == oldLength => rec(tag) = if (fromStart) s.drop(remove) else s.take(newLength)
         case (tag, a: Array[_]) if a.length == oldLength => rec(tag) = if (fromStart) a.drop(remove) else a.take(newLength)
-        case _  => Unit
+        case _  => ()
       }
     }
   }
@@ -425,7 +425,7 @@ class SamRecordClipper(val mode: ClippingMode, val autoClipAttributes: Boolean) 
         case ClippingMode.Hard =>
           bases = bases.drop(lengthToUpgrade)
           quals = quals.drop(lengthToUpgrade)
-          val newElems = ArrayBuffer[CigarElem]()
+          val newElems = IndexedSeq.newBuilder[CigarElem]
 
           elems match {
             case CigarElem(Op.H, h) +: CigarElem(Op.S, s) +: remaining =>
@@ -440,7 +440,7 @@ class SamRecordClipper(val mode: ClippingMode, val autoClipAttributes: Boolean) 
               unreachable(s"Cigar $es doesn't contain soft clipping at the start")
           }
 
-          elems = newElems
+          elems = newElems.result
       }
 
       if (fromStart) {

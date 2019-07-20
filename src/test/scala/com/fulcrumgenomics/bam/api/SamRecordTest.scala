@@ -114,11 +114,11 @@ class SamRecordTest extends UnitSpec with OptionValues {
 
     // apply
     rec[Int]("ax") shouldBe 10
-    Option(rec[Int]("bx")) shouldBe 'empty
+    Option(rec[Int]("bx")).isEmpty shouldBe true
 
     // get
     rec.get[Int]("ax").value shouldBe 10
-    rec.get[Int]("bx") shouldBe 'empty
+    rec.get[Int]("bx").isEmpty shouldBe true
 
     // attributes
     rec.attributes.toList should contain theSameElementsAs Seq(("RG", "A"), ("ax", 10))

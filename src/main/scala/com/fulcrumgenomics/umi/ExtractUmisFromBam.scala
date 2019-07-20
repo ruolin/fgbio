@@ -263,8 +263,8 @@ object ExtractUmisFromBam {
                                              clippingAttribute: Option[String],
                                              readStructure: ReadStructure): Unit = {
     clippingAttribute.map(tag => (tag, record.get[Int](tag))) match {
-      case None => Unit
-      case Some((tag, None)) => Unit
+      case None => ()
+      case Some((tag, None)) => ()
       case Some((tag, Some(clippingPosition))) =>
         val newClippingPosition = readStructure.takeWhile(_.offset < clippingPosition).filter(_.kind == SegmentType.Template).map { t =>
           if (t.length.exists(l => t.offset + l < clippingPosition)) t.length.get

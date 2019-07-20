@@ -29,7 +29,7 @@ import java.nio.file.{Files, Path}
 import java.util
 
 import com.fulcrumgenomics.FgBioDef._
-import com.fulcrumgenomics.Writer
+import com.fulcrumgenomics.commons.io.Writer
 import com.fulcrumgenomics.commons.collection.SelfClosingIterator
 import com.fulcrumgenomics.util.Sorter.{Codec, SortEntry}
 import htsjdk.samtools.util.TempStreamFactory
@@ -216,7 +216,7 @@ class Sorter[A,B <: Ordered[B]](val maxObjectsInRam: Int,
      */
   def iterator: SelfClosingIterator[A] = {
     spill()
-    val streams = files.map(f => _tmpStreamFactory.wrapTempInputStream(Io.toInputStream(f), Io.bufferSize))
+    val streams = files.iterator.map(f => _tmpStreamFactory.wrapTempInputStream(Io.toInputStream(f), Io.bufferSize)).toSeq
     val mergingIterator = new MergingIterator(streams)
     new SelfClosingIterator(mergingIterator, () => mergingIterator.close())
   }

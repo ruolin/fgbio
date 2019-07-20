@@ -41,7 +41,7 @@ object FastqIoTest {
       |CCCCCCCTCCTTGGGGGGGAGAGGG
       |+Foo:279:000000000-ABCDE:1:1101:9471:1291/1 1:N:0:18
       |AAA,,++78,66AAA,,++78,666
-    """.stripMargin.trim().lines.toSeq.dropWhile(_.isEmpty)
+    """.stripMargin.trim().linesIterator.toSeq.dropWhile(_.isEmpty)
 
   val someFastqRecords = Seq(
     FastqRecord("Foo:279:000000000-ABCDE:1:1101:15033:1749", "ATGACTGCGTATATATGACGTCGTGCTA", "-,86,,;:C,<;-,86,,;:C,<;-,86", Some("1:N:0:18"), None),

@@ -102,7 +102,7 @@ class EstimateRnaSeqInsertSize
 
     recordIterator.foreach { rec =>
       calculateInsertSize(rec=rec) match {
-        case None             => Unit // ignore
+        case None             => () // ignore
         case Some(insertSize) => counters(rec.pairOrientation).count(insertSize)
       }
     }
@@ -138,11 +138,12 @@ class EstimateRnaSeqInsertSize
     }
 
     // Write the metrics
-    val metricPath = PathUtil.pathTo(prefix.getOrElse(PathUtil.removeExtension(input)) + RnaSeqInsertSizeMetricExtension)
+    val actualPrefix = prefix.getOrElse(PathUtil.removeExtension(input))
+    val metricPath = PathUtil.pathTo(s"${actualPrefix}${RnaSeqInsertSizeMetricExtension}")
     Metric.write(metricPath, metrics)
 
     // Write the histogram
-    val histogramPath   = PathUtil.pathTo(prefix.getOrElse(PathUtil.removeExtension(input)) + RnaSeqInsertSizeMetricHistogramExtension)
+    val histogramPath   = PathUtil.pathTo(s"${actualPrefix}${RnaSeqInsertSizeMetricHistogramExtension}")
     val histogramKeys   = pairOrientations.flatMap(counters(_).iterator.map(_._1)).distinct.sorted.toList
     val histogramHeader = ("insert_size" +: pairOrientations.map(_.name().toLowerCase)).mkString("\t")
     val histogramLines  = histogramHeader +: histogramKeys.map { insertSize =>

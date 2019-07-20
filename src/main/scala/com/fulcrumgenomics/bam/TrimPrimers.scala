@@ -38,6 +38,8 @@ import htsjdk.samtools._
 import htsjdk.samtools.reference.ReferenceSequenceFileWalker
 import htsjdk.samtools.util._
 
+import scala.collection.BufferedIterator
+
 object TrimPrimers {
   val Headers: Seq[String] = Seq("chrom", "left_start", "left_end", "right_start", "right_end")
   val Seq(hdChrom, hdleftStart, hdLeftEnd, hdRightStart, hdRightEnd) = Headers
@@ -145,7 +147,7 @@ class TrimPrimers
         }
 
         sorter.safelyClose()
-      case _ => Unit
+      case _ => ()
     }
 
     out.close()

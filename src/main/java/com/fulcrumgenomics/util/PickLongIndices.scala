@@ -179,7 +179,7 @@ class PickLongIndices
   private val dnaFoldPredictor = viennaRnaDir.map(dir => new DnaFoldPredictor(dir.toFile, temperature))
   private[util] val adapterRegex = Pattern.compile("^[ACGT]*N+[ACGT]*$")
   adapters.map(_.toUpperCase).filterNot(adapterRegex.matcher(_).matches()) match {
-    case Seq() => Unit
+    case Seq() => ()
     case xs    => invalid(s"Adapters must be all [ACGT] with a single contiguous block of Ns where the index goes: ${xs}")
   }
 
@@ -332,7 +332,7 @@ class PickLongIndices
         x.distances.count(n)
         y.distances.count(n)
       }
-      case _ => Unit
+      case _ => ()
     }
 
     val metrics = annotated.map { ann =>

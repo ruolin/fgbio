@@ -159,7 +159,7 @@ object BasecallingParams {
     Io.writeLines(path=barcodeFile, lines=barcodeLines)
     Io.writeLines(path=libraryParamsFile, lines=libraryParamLines)
 
-    BasecallingParams(lane=lane, barcodeFile=barcodeFile, libraryParamsFile=libraryParamsFile, bams=bams)
+    BasecallingParams(lane=lane, barcodeFile=barcodeFile, libraryParamsFile=libraryParamsFile, bams=bams.toSeq)
   }
 
   /** The lane-specific file containing information necessary to run Picard's ExtractIlluminaBarcodes and

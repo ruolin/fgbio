@@ -163,8 +163,8 @@ class AssessPhasingTest extends ErrorLogLevel {
 
     // output files
     val output                 = makeTempFile("AssessPhasingTest.", "prefix")
-    val phasingMetricsPath     = PathUtil.pathTo(output + AssessPhasingMetric.MetricExtension)
-    val blockLengthMetricsPath = PathUtil.pathTo(output + PhaseBlockLengthMetric.MetricExtension)
+    val phasingMetricsPath     = PathUtil.pathTo(s"${output}${AssessPhasingMetric.MetricExtension}")
+    val blockLengthMetricsPath = PathUtil.pathTo(s"${output}${PhaseBlockLengthMetric.MetricExtension}")
     Seq(phasingMetricsPath, blockLengthMetricsPath).foreach(_.toFile.deleteOnExit)
 
     // run it
@@ -175,8 +175,8 @@ class AssessPhasingTest extends ErrorLogLevel {
     val blockLengthMetrics = Metric.read[PhaseBlockLengthMetric](path=blockLengthMetricsPath)
 
     // get the expected metrics paths
-    val expectedPhasingMetricsPath     = PathUtil.pathTo(expectedPrefix + AssessPhasingMetric.MetricExtension)
-    val expectedBlockLengthMetricsPath = PathUtil.pathTo(expectedPrefix + PhaseBlockLengthMetric.MetricExtension)
+    val expectedPhasingMetricsPath     = PathUtil.pathTo(s"${expectedPrefix}${AssessPhasingMetric.MetricExtension}")
+    val expectedBlockLengthMetricsPath = PathUtil.pathTo(s"${expectedPrefix}${PhaseBlockLengthMetric.MetricExtension}")
 
     // read the expected metrics
     val expectedPhasingMetrics     = Metric.read[AssessPhasingMetric](path=expectedPhasingMetricsPath)
@@ -188,9 +188,9 @@ class AssessPhasingTest extends ErrorLogLevel {
 
     if (debugVcf) {
       val annotatedVcf         = Paths.get(output.toString + AssessPhasing.AnnotatedVcfExtension)
-      val expectedAnnotatedVcf = PathUtil.pathTo(expectedPrefix + AssessPhasing.AnnotatedVcfExtension)
-      val actualContexts = new VCFFileReader(annotatedVcf.toFile, false).iterator().toIterator.toList
-      val expectedContexts = new VCFFileReader(expectedAnnotatedVcf.toFile, false).iterator().toIterator.toList
+      val expectedAnnotatedVcf = PathUtil.pathTo(s"${expectedPrefix}${AssessPhasing.AnnotatedVcfExtension}")
+      val actualContexts = new VCFFileReader(annotatedVcf.toFile, false).iterator().toList
+      val expectedContexts = new VCFFileReader(expectedAnnotatedVcf.toFile, false).iterator().toList
       actualContexts.length shouldBe expectedContexts.length
       actualContexts.zip(expectedContexts).foreach { case (actualCtx, expectedCtx) =>
           actualCtx.toStringDecodeGenotypes shouldBe expectedCtx.toStringDecodeGenotypes
@@ -298,12 +298,12 @@ class PhaseBlockTest extends ErrorLogLevel {
 
   "PhaseBlock.toOverlapDetector" should "create an empty detector if no variants are given" in {
     val builder = new VariantContextSetBuilder()
-    PhaseBlock.buildOverlapDetector(iterator=builder.iterator, dict=builder.header.getSequenceDictionary).getAll shouldBe 'empty
+    PhaseBlock.buildOverlapDetector(iterator=builder.iterator, dict=builder.header.getSequenceDictionary).getAll.isEmpty shouldBe true
   }
 
   it should "create an empty detector when variants do not have the phase set tag" in {
     val builder  = new VariantContextSetBuilder().addVariant(start=1, variantAlleles=List("A", "C"), genotypeAlleles=List("A", "C"), phased=true)
-    PhaseBlock.buildOverlapDetector(iterator=builder.iterator, dict=builder.header.getSequenceDictionary).getAll shouldBe 'empty
+    PhaseBlock.buildOverlapDetector(iterator=builder.iterator, dict=builder.header.getSequenceDictionary).getAll.isEmpty shouldBe true
   }
 
   it should "create a detector for a single variant" in {
@@ -767,7 +767,7 @@ class PhaseCigarTest extends ErrorLogLevel {
   }
 
   "Cigar.toShortSwitchErrorIndices" should "find no indices for an empty cigar" in {
-    PhaseCigar(cigar=Seq.empty).toShortSwitchErrorIndices()shouldBe 'empty
+    PhaseCigar(cigar=Seq.empty).toShortSwitchErrorIndices().isEmpty shouldBe true
   }
 
   it should "find an error at the first or last cigar element if the mismatch is isolated" in {
@@ -790,12 +790,12 @@ class PhaseCigarTest extends ErrorLogLevel {
   }
 
   it should "ignore variant sites only in the truth or call set" in {
-    PhaseCigar(cigar=Seq(CallOnly, Match)).toShortSwitchErrorIndices()shouldBe 'empty
-    PhaseCigar(cigar=Seq(TruthOnly, Match)).toShortSwitchErrorIndices()shouldBe 'empty
+    PhaseCigar(cigar=Seq(CallOnly, Match)).toShortSwitchErrorIndices().isEmpty shouldBe true
+    PhaseCigar(cigar=Seq(TruthOnly, Match)).toShortSwitchErrorIndices().isEmpty shouldBe true
   }
 
   it should "not count adjacent mismatches" in {
-    PhaseCigar(cigar=Seq(Mismatch, Mismatch)).toShortSwitchErrorIndices()shouldBe 'empty
+    PhaseCigar(cigar=Seq(Mismatch, Mismatch)).toShortSwitchErrorIndices().isEmpty shouldBe true
   }
 
   "Cigar.toLongSwitchErrorsAndSites" should "find no errors and no sites for an empty cigar" in {
@@ -946,7 +946,7 @@ class PhaseCigarTest extends ErrorLogLevel {
     PhaseCigar.contextsToMatchingOperator(truth=None, call=Some(ctxStart)) shouldBe Some(CallOnly)
 
     // No truth, call is not the start of a phase block
-    PhaseCigar.contextsToBlockEndOperator(truth=None, call=Some(ctxNoStart)) shouldBe 'empty
+    PhaseCigar.contextsToBlockEndOperator(truth=None, call=Some(ctxNoStart)).isEmpty shouldBe true
     PhaseCigar.contextsToMatchingOperator(truth=None, call=Some(ctxNoStart)) shouldBe Some(CallOnly)
 
     // Truth is the start of a phase block, no call
@@ -954,7 +954,7 @@ class PhaseCigarTest extends ErrorLogLevel {
     PhaseCigar.contextsToMatchingOperator(truth=Some(ctxStart), call=None) shouldBe Some(TruthOnly)
 
     // Truth is the start of a phase block, no call
-    PhaseCigar.contextsToBlockEndOperator(truth=Some(ctxNoStart), call=None) shouldBe 'empty
+    PhaseCigar.contextsToBlockEndOperator(truth=Some(ctxNoStart), call=None).isEmpty shouldBe true
     PhaseCigar.contextsToMatchingOperator(truth=Some(ctxNoStart), call=None) shouldBe Some(TruthOnly)
 
     // Truth and call, both start of a phase block
@@ -970,7 +970,7 @@ class PhaseCigarTest extends ErrorLogLevel {
     PhaseCigar.contextsToMatchingOperator(truth=Some(ctxStart), call=Some(ctxNoStart)) shouldBe Some(Match)
 
     // Truth and call, neither are the start of a phase block
-    PhaseCigar.contextsToBlockEndOperator(truth=Some(ctxNoStart), call=Some(ctxNoStart)) shouldBe 'empty
+    PhaseCigar.contextsToBlockEndOperator(truth=Some(ctxNoStart), call=Some(ctxNoStart)).isEmpty shouldBe true
     PhaseCigar.contextsToMatchingOperator(truth=Some(ctxNoStart), call=Some(ctxNoStart)) shouldBe Some(Match)
   }
 

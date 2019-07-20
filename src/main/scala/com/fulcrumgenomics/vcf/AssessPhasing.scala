@@ -180,8 +180,8 @@ class AssessPhasing
     /////////////////////////////////////////////////////////////////////////////////////////////////////////
     logger.info("Outputting")
 
-    Metric.write(path=PathUtil.pathTo(output + AssessPhasingMetric.MetricExtension), metric=metric)
-    Metric.write(PathUtil.pathTo(output + PhaseBlockLengthMetric.MetricExtension), blockLengthMetrics)
+    Metric.write(path=PathUtil.pathTo(s"${output}${AssessPhasingMetric.MetricExtension}"), metric=metric)
+    Metric.write(PathUtil.pathTo(s"${output}${PhaseBlockLengthMetric.MetricExtension}"), blockLengthMetrics)
 
     writer.foreach(_.close())
   }
@@ -272,8 +272,8 @@ class AssessPhasing
     /////////////////////////////////////////////////////////////////////////////////////////////////////////
     logger.info("Computing block metrics")
 
-    calledPhaseBlockDetector.getAll.toIterator.foreach { block => calledBlockLengthCounter.count(block.length) }
-    truthPhaseBlockDetector.getAll.toIterator.foreach { block => truthBlockLengthCounter.count(block.length) }
+    calledPhaseBlockDetector.getAll.iterator.foreach { block => calledBlockLengthCounter.count(block.length) }
+    truthPhaseBlockDetector.getAll.iterator.foreach { block => truthBlockLengthCounter.count(block.length) }
 
     calledReader.safelyClose()
     truthReader.safelyClose()
@@ -286,14 +286,14 @@ class AssessPhasing
                                        contigLength: Int,
                                        intervalList: Option[IntervalList] = None): Iterator[VariantContext] = {
     val sampleName = reader.getFileHeader.getSampleNamesInOrder.iterator().next()
-    (intervalList match {
-      case Some(intv) =>
-        ByIntervalListVariantContextIterator(reader.iterator().toIterator, intv, dict=reader.getFileHeader.getSequenceDictionary)
-      case None =>
-        reader.query(contig, 1, contigLength).toIterator
-    })
-    .map(_.subContextFromSample(sampleName))
-    .filter(v => v.isSNP && v.isBiallelic && v.getGenotype(sampleName).isHet)
+    val baseIter: Iterator[VariantContext] = intervalList match {
+      case Some(intv) => ByIntervalListVariantContextIterator(reader.iterator(), intv, dict=reader.getFileHeader.getSequenceDictionary)
+      case None       => reader.query(contig, 1, contigLength)
+    }
+
+    baseIter
+      .map(_.subContextFromSample(sampleName))
+      .filter(v => v.isSNP && v.isBiallelic && v.getGenotype(sampleName).isHet)
   }
 }
 
@@ -744,7 +744,7 @@ private[vcf] object PhaseCigar {
           val ctxBuilder = new VariantContextBuilder(calledCtx)
           ctxBuilder.genotypes(calledGenotype, truthGenotype)
           w.add(ctxBuilder.make())
-        case _ => Unit
+        case _ => ()
       }
     }
 
@@ -826,7 +826,7 @@ private[vcf] class PhaseCigar private(val cigar: Seq[PhaseCigarOp]) {
         }
     }
     // Make sure to ge the last one
-    if (lastCigar.nonEmpty) cigarsToReturn.append(lastCigar)
+    if (lastCigar.nonEmpty) cigarsToReturn.append(lastCigar.toList)
 
     cigarsToReturn.map(PhaseCigar(_)).toIndexedSeq
   }

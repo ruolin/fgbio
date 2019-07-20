@@ -189,7 +189,7 @@ class CollectErccMetrics
 
     // Write the output
     {
-      def f(ext: String): FilePath = PathUtil.pathTo(output + ext)
+      def f(ext: String): FilePath = PathUtil.pathTo(s"${output}${ext}")
 
       val summaryPath  = f(".ercc_summary_metrics.txt")
       val detailedPath = f(".ercc_detailed_metrics.txt")
@@ -218,7 +218,7 @@ class CollectErccMetrics
       else {
         Rscript.execIfAvailable(ScriptPath, detailedPath.toString, plotPath.toString, plotDescription(in, input), minTranscriptCount.toString) match {
           case Failure(e) => logger.warning(s"Generation of PDF plots failed: ${e.getMessage}")
-          case _ => Unit
+          case _ => ()
         }
       }
     }

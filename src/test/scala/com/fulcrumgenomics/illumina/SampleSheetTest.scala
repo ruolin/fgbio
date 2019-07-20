@@ -72,7 +72,7 @@ class SampleSheetTest extends FlatSpec with Matchers with OptionValues {
       sampleSheet.foreach { sample => sample.lane.value shouldBe lane }
       sampleSheet.size shouldBe 4
     }
-    SampleSheet(testDir.resolve("SampleSheet.lanes.csv"), lane=Some(4)) shouldBe 'empty
+    SampleSheet(testDir.resolve("SampleSheet.lanes.csv"), lane=Some(4)).isEmpty shouldBe true
     SampleSheet(testDir.resolve("SampleSheet.lanes.csv"), lane=None).size shouldBe 12
   }
 

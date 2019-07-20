@@ -39,7 +39,7 @@ case class CigarElem(operator: CigarOperator, length: Int) {
   require(length > 0, s"Cigar element must have length >= 0. Operator: $operator, Length: $length")
 
   /** Returns how this element should be represented in a cigar string. */
-  override def toString: String = length + operator.toString
+  override def toString: String = s"${length}${operator}"
 
   /** Returns the length of the element on the query sequence. */
   def lengthOnQuery: Int = if (operator.consumesReadBases()) length else 0
@@ -134,20 +134,20 @@ case class Cigar(elems: IndexedSeq[CigarElem]) extends Iterable[CigarElem] {
   private def truncate(len: Int, shouldCount: CigarElem => Boolean): Cigar = {
     var pos = 1
     val iter = iterator
-    val buffer = new ArrayBuffer[CigarElem]()
+    val builder = IndexedSeq.newBuilder[CigarElem]
     while (pos <= len && iter.hasNext) {
       val elem = iter.next()
       if (shouldCount(elem)) {
         val maxElemLength = len - pos + 1
-        buffer += (if (elem.length <= maxElemLength) elem else elem.copy(length=maxElemLength))
+        builder += (if (elem.length <= maxElemLength) elem else elem.copy(length=maxElemLength))
         pos += elem.length
       }
       else {
-        buffer += elem
+        builder += elem
       }
     }
 
-    Cigar(buffer)
+    Cigar(builder.result)
   }
 
   /**
@@ -186,16 +186,16 @@ case class Cigar(elems: IndexedSeq[CigarElem]) extends Iterable[CigarElem] {
       this
     }
     else {
-      val buffer = new ArrayBuffer[CigarElem]
+      val builder = IndexedSeq.newBuilder[CigarElem]
       val iter   = iterator.bufferBetter
 
       while (iter.hasNext) {
         val elem = iter.next()
         val same = iter.takeWhile(_.operator == elem.operator).foldLeft(elem)((a,b) => CigarElem(a.operator, a.length + b.length))
-        buffer += same
+        builder += same
       }
 
-      Cigar(buffer)
+      Cigar(builder.result)
     }
   }
 
@@ -340,7 +340,7 @@ case class Alignment(query: Array[Byte],
     * @return a new [[Alignment]] with adjusted start, end and cigar, and with score=0
     */
   private def sub(start: Int, end: Int, initialStart: Int, consumes: CigarElem => Boolean): Alignment = {
-    val elems = new ArrayBuffer[CigarElem](cigar.size)
+    val elems = IndexedSeq.newBuilder[CigarElem]
     var (qStart, tStart, currStart) = (queryStart, targetStart, initialStart) // currStart = start of current element
 
     this.cigar.foreach { elem =>
@@ -389,6 +389,6 @@ case class Alignment(query: Array[Byte],
       }
     }
 
-    copy(queryStart=qStart, targetStart=tStart, cigar=Cigar(elems), score=0)
+    copy(queryStart=qStart, targetStart=tStart, cigar=Cigar(elems.result), score=0)
   }
 }

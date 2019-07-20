@@ -118,9 +118,9 @@ class DuplexConsensusCallerTest extends UnitSpec {
           { // Check a few per-base tags
             import ConsensusTags.PerBase._
             r1[Array[Short]](AbRawReadCount)  shouldBe Array[Byte](3,3,3,3,3,3,3,3,3,3)
-            r1.get[Array[Short]](BaRawReadCount) shouldBe 'empty
+            r1.get[Array[Short]](BaRawReadCount).isEmpty shouldBe true
             r2[Array[Short]](AbRawReadCount)  shouldBe Array[Byte](3,3,3,3,3,3,3,3,3,3)
-            r2.get[Array[Short]](BaRawReadCount) shouldBe 'empty
+            r2.get[Array[Short]](BaRawReadCount).isEmpty shouldBe true
           }
         }
         else {
@@ -402,14 +402,14 @@ class DuplexConsensusCallerTest extends UnitSpec {
         r2[Array[Short]](AbRawReadErrors) shouldBe Array[Byte](0,0,0,0,1,0,0,0,0,0)
         r2[String](AbConsensusBases)      shouldBe r2.basesString
         r2[String](AbConsensusQuals)      shouldBe "MMMM9MMMMM"
-        r1.get[Array[Short]](BaRawReadCount)  shouldBe 'empty
-        r1.get[Array[Short]](BaRawReadErrors) shouldBe 'empty
-        r1.get[String](BaConsensusBases)      shouldBe 'empty
-        r1.get[String](BaConsensusQuals)      shouldBe 'empty
-        r2.get[Array[Short]](BaRawReadCount)  shouldBe 'empty
-        r2.get[Array[Short]](BaRawReadErrors) shouldBe 'empty
-        r2.get[String](BaConsensusBases)      shouldBe 'empty
-        r2.get[String](BaConsensusQuals)      shouldBe 'empty
+        r1.get[Array[Short]](BaRawReadCount).isEmpty shouldBe true
+        r1.get[Array[Short]](BaRawReadErrors).isEmpty shouldBe true
+        r1.get[String](BaConsensusBases).isEmpty shouldBe true
+        r1.get[String](BaConsensusQuals).isEmpty shouldBe true
+        r2.get[Array[Short]](BaRawReadCount).isEmpty shouldBe true
+        r2.get[Array[Short]](BaRawReadErrors).isEmpty shouldBe true
+        r2.get[String](BaConsensusBases).isEmpty shouldBe true
+        r2.get[String](BaConsensusQuals).isEmpty shouldBe true
       }
     }
 
@@ -462,14 +462,14 @@ class DuplexConsensusCallerTest extends UnitSpec {
         r2[Array[Short]](AbRawReadErrors) shouldBe Array[Byte](0,0,0,0,0,1,0,0,0,0)
         r2[String](AbConsensusBases)      shouldBe r2.basesString
         r2[String](AbConsensusQuals)      shouldBe "MMMMM9MMMM"
-        r1.get[Array[Short]](BaRawReadCount)  shouldBe 'empty
-        r1.get[Array[Short]](BaRawReadErrors) shouldBe 'empty
-        r1.get[String](BaConsensusBases)      shouldBe 'empty
-        r1.get[String](BaConsensusQuals)      shouldBe 'empty
-        r2.get[Array[Short]](BaRawReadCount)  shouldBe 'empty
-        r2.get[Array[Short]](BaRawReadErrors) shouldBe 'empty
-        r2.get[String](BaConsensusBases)      shouldBe 'empty
-        r2.get[String](BaConsensusQuals)      shouldBe 'empty
+        r1.get[Array[Short]](BaRawReadCount).isEmpty shouldBe true
+        r1.get[Array[Short]](BaRawReadErrors).isEmpty shouldBe true
+        r1.get[String](BaConsensusBases).isEmpty shouldBe true
+        r1.get[String](BaConsensusQuals).isEmpty shouldBe true
+        r2.get[Array[Short]](BaRawReadCount).isEmpty shouldBe true
+        r2.get[Array[Short]](BaRawReadErrors).isEmpty shouldBe true
+        r2.get[String](BaConsensusBases).isEmpty shouldBe true
+        r2.get[String](BaConsensusQuals).isEmpty shouldBe true
       }
     }
   }

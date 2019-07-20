@@ -53,10 +53,10 @@ case class Pileup[A <: PileupEntry](refName: String, refIndex: Int, pos: Int, pi
 
   /** Returns a copy of this pileup with only a single observation from any template. */
   def withoutOverlaps: Pileup[A] = {
-    val buffer = new ListBuffer[A]()
-    val names  = new mutable.HashSet[String]()
-    this.pile.foreach { p => if (names.add(p.rec.name)) buffer += p }
-    copy(pile=buffer)
+    val builder = IndexedSeq.newBuilder[A]
+    val names   = new mutable.HashSet[String]()
+    this.pile.foreach { p => if (names.add(p.rec.name)) builder += p }
+    copy(pile=builder.result)
   }
 
   /** Returns a copy of this pileup object without any indels. */
@@ -170,7 +170,7 @@ class PileupBuilder(dict: SAMSequenceDictionary,
     val refIndex = dict.getSequenceIndex(refName)
     require(refIndex >= 0, s"Unknown reference sequence: ${refName}")
 
-    val buffer = new ListBuffer[PileupEntry]()
+    val builder = IndexedSeq.newBuilder[PileupEntry]
     iterator.bufferBetter
       .dropWhile(r => r.refIndex < refIndex)
       .takeWhile(r => r.refIndex == refIndex && r.start <= pos + 1)
@@ -182,7 +182,7 @@ class PileupBuilder(dict: SAMSequenceDictionary,
         if (rec.start == pos + 1) {
           // Must be an insertion at the start of the read
           val entry = new InsertionEntry(rec, 0)
-          if (accepts(entry)) buffer += entry
+          if (accepts(entry)) builder += entry
         }
         else {
           rec.readPosAtRefPos(pos, returnLastBaseIfDeleted=false) match {
@@ -190,21 +190,21 @@ class PileupBuilder(dict: SAMSequenceDictionary,
               // Must be deleted in the read
               val delPos = rec.readPosAtRefPos(pos, returnLastBaseIfDeleted=true)
               val entry = DeletionEntry(rec, delPos-1)
-              if (accepts(entry)) buffer += entry
+              if (accepts(entry)) builder += entry
             case p =>
               val entry = BaseEntry(rec, p-1)
-              if (accepts(entry)) buffer += entry
+              if (accepts(entry)) builder += entry
 
               // Also check to see if the subsequent base represents an insertion
               if (p < rec.length - 1 && rec.refPosAtReadPos(p+1) == 0) {
                 val entry = InsertionEntry(rec, p)
-                if (accepts(entry)) buffer += entry
+                if (accepts(entry)) builder += entry
               }
           }
         }
       }
 
-    Pileup(refName=refName, refIndex=refIndex, pos=pos, pile=buffer)
+    Pileup(refName=refName, refIndex=refIndex, pos=pos, pile=builder.result)
   }
 
   /** Returns true if the read is mapped and the first non-clipping operator is an insertion. */

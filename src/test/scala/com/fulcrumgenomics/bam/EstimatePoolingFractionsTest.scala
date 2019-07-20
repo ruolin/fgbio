@@ -51,7 +51,7 @@ class EstimatePoolingFractionsTest extends UnitSpec with ParallelTestExecution {
     readers.zipWithIndex.foreach { case (reader, index) =>
         reader.header.getReadGroups.foreach(rg => rg.setLibrary(rg.getLibrary + ":" + index))
     }
-    val headerMerger = new SamFileHeaderMerger(SortOrder.coordinate, readers.map(_.header).asJava, false)
+    val headerMerger = new SamFileHeaderMerger(SortOrder.coordinate, readers.iterator.map(_.header).toJavaList, false)
     val iterator     = new MergingSamRecordIterator(headerMerger, readers.iterator.map(_.toSamReader).toJavaList, true)
 
     val output = makeTempFile("merged.", ".bam")

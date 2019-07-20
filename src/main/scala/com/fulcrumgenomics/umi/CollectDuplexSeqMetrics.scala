@@ -38,7 +38,6 @@ import htsjdk.samtools.util.{Interval, IntervalList, Murmur3, OverlapDetector}
 import org.apache.commons.math3.distribution.BinomialDistribution
 
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
 import scala.util.Failure
 
 /**
@@ -386,13 +385,13 @@ class CollectDuplexSeqMetrics
       case _         => unreachable(s"Found ${ssGroups.size} single strand families in a double strand family!")
     }
 
-    val umi1s = new ArrayBuffer[String] // ab UMI 1 (and ba UMI 2) sequences
-    val umi2s = new ArrayBuffer[String] // ab UMI 2 (and ba UMI 1) sequences
+    val umi1s = IndexedSeq.newBuilder[String] // ab UMI 1 (and ba UMI 2) sequences
+    val umi2s = IndexedSeq.newBuilder[String] // ab UMI 2 (and ba UMI 1) sequences
 
     ab.iterator.map(r => r[String](RX).split('-')).foreach { case Array(u1, u2) => umi1s += u1; umi2s += u2 }
     ba.iterator.map(r => r[String](RX).split('-')).foreach { case Array(u1, u2) => umi1s += u2; umi2s += u1 }
 
-    val Seq(abConsensusUmi, baConsensusUmi) = Seq(umi1s, umi2s).map{ umis =>
+    val Seq(abConsensusUmi, baConsensusUmi) = Seq(umi1s, umi2s).map(_.result).map{ umis =>
       val consensus = this.consensusBuilder.callConsensus(umis)
       val metric    = this.umiMetricsMap.getOrElseUpdate(consensus, UmiMetric(umi=consensus))
       metric.raw_observations    += umis.size
@@ -505,7 +504,7 @@ class CollectDuplexSeqMetrics
         ds_fraction_duplexes       = countOfDuplexes / dsFamilies.toDouble,
         ds_fraction_duplexes_ideal = countOfDuplexesIdeal / dsFamilies.toDouble
       )
-    }
+    }.toIndexedSeq
   }
 
   /** Generates the UMI metrics from the current observations. */
@@ -577,7 +576,7 @@ class CollectDuplexSeqMetrics
   private[umi] def write(description: String): Unit = {
     val Seq(fsPath, dfsPath, umiPath, duplexUmiPath, yieldPath, pdfPath) =
       Seq(FamilySizeMetricsExt, DuplexFamilySizeMetricsExt, UmiMetricsExt, DuplexUmiMetricsExt, YieldMetricsExt, PlotsExt).map { ext =>
-        output.getParent.resolve(output.getFileName + ext)
+        output.getParent.resolve(s"${output.getFileName}${ext}")
       }
 
     Metric.write(fsPath, familySizeMetrics)
@@ -591,7 +590,7 @@ class CollectDuplexSeqMetrics
     if (generatePlots) {
       Rscript.execIfAvailable(PlottingScript, fsPath.toString, dfsPath.toString, yieldPath.toString, umiPath.toString, pdfPath.toString, description) match {
         case Failure(e) => logger.warning(s"Generation of PDF plots failed: ${e.getMessage}")
-        case _ => Unit
+        case _ => ()
       }
     }
   }

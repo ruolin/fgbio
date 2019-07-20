@@ -56,7 +56,7 @@ class PickIlluminaIndicesTest extends UnitSpec {
   }
 
   "PickIlluminaIndices" should "pick indices with length four and edit distance one" in {
-    Stream.range(1, 5, 1).foreach { numIndices =>
+    Range(1, 5, 1).foreach { numIndices =>
       val output = newOutput
       new PickIlluminaIndices(
         length = 4,

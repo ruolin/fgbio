@@ -171,7 +171,7 @@ class ReviewConsensusVariants
   }
 
   override def execute(): Unit = {
-    def f(ext: String): Path = output.getParent.resolve(output.getFileName + ext)
+    def f(ext: String): Path = output.getParent.resolve(s"${output.getFileName}${ext}")
 
     val consensusIn  = SamSource(consensusBam)
     val groupedIn    = SamSource(groupedBam)

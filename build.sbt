@@ -83,8 +83,8 @@ lazy val commonSettings = Seq(
   organizationName     := "Fulcrum Genomics LLC",
   homepage             := Some(url("http://github.com/fulcrumgenomics/fgbio")),
   startYear            := Some(2015),
-  scalaVersion         := "2.12.8",
-  crossScalaVersions   :=  Seq("2.11.12", "2.12.8"),
+  scalaVersion         := "2.13.0",
+  crossScalaVersions   :=  Seq("2.12.8", "2.13.0"),
   scalacOptions        ++= Seq("-target:jvm-1.8", "-deprecation", "-unchecked"),
   scalacOptions in (Compile, doc) ++= docScalacOptions,
   scalacOptions in (Test, doc) ++= docScalacOptions,
@@ -122,17 +122,19 @@ lazy val root = Project(id="fgbio", base=file("."))
     libraryDependencies ++= Seq(
       "org.scala-lang"            %  "scala-reflect"  % scalaVersion.value,
       "org.scala-lang"            %  "scala-compiler" % scalaVersion.value,
-      "org.scala-lang.modules"    %% "scala-xml"      % "1.0.6",
-      "com.fulcrumgenomics"       %% "commons"        % "0.7.0",
-      "com.fulcrumgenomics"       %% "sopt"           % "0.7.0",
+      "org.scala-lang.modules"    %% "scala-xml"      % "1.2.0",
+      "org.scala-lang.modules"    %% "scala-collection-compat" % "2.1.1",
+      "com.fulcrumgenomics"       %% "commons"        % "0.8.0-87f4b88-SNAPSHOT",
+      "com.fulcrumgenomics"       %% "sopt"           % "0.8.0-6330673-SNAPSHOT",
       "com.github.samtools"       %  "htsjdk"         % "2.16.1" excludeAll(htsjdkExcludes: _*),
       "org.apache.commons"        %  "commons-math3"  % "3.6.1",
-      "com.beachape"              %% "enumeratum"     % "1.5.12",
+      "com.beachape"              %% "enumeratum"     % "1.5.13",
       "com.intel.gkl"             %  "gkl"            % "0.8.6",
 
       //---------- Test libraries -------------------//
-      "org.scalatest"             %% "scalatest"     % "3.0.4"  % "test->*" excludeAll ExclusionRule(organization="org.junit", name="junit")
+      "org.scalatest"             %% "scalatest"     % "3.0.8"  % "test->*" excludeAll ExclusionRule(organization="org.junit", name="junit")
     ))
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 // Merge strategy for assembly

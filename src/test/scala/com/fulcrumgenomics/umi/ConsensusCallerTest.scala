@@ -24,6 +24,7 @@
 
 package com.fulcrumgenomics.umi
 
+import com.fulcrumgenomics.FgBioDef._
 import com.fulcrumgenomics.testing.UnitSpec
 import com.fulcrumgenomics.util.NumericTypes.PhredScore
 

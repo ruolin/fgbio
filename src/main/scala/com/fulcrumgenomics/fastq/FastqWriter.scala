@@ -26,7 +26,7 @@ package com.fulcrumgenomics.fastq
 import java.io.{BufferedWriter, Closeable}
 import java.nio.file.Path
 
-import com.fulcrumgenomics.Writer
+import com.fulcrumgenomics.commons.io.Writer
 import com.fulcrumgenomics.util.Io
 
 /**
@@ -37,9 +37,9 @@ object FastqWriter {
   def apply(path: Path): FastqWriter = apply(Io.toWriter(path))
 
   /** Constructs a FastqWriter from a Writer. */
-  def apply(writer: java.io.Writer): FastqWriter = {
-    if (writer.isInstanceOf[BufferedWriter]) new FastqWriter(writer.asInstanceOf[BufferedWriter])
-    else new FastqWriter(new BufferedWriter(writer))
+  def apply(writer: java.io.Writer): FastqWriter = writer match {
+    case bw: BufferedWriter => new FastqWriter(bw)
+    case w                  => new FastqWriter(new BufferedWriter(w))
   }
 }
 

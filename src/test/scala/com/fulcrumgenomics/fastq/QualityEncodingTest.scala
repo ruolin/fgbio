@@ -97,7 +97,7 @@ class QualityEncodingTest extends UnitSpec {
       |ACC9<D@;8@FEEF>FEG@,8E8,,,,,,;,CEFF88,,CF8,C,,+CF89,88E9,C9FF,,CE8,,CEEGG9C
       |-<BCCGGGFCAC<<<,CE<FF8@E<<,,,B88E@F<9;9E<FFFDEC8E8FFFGG8E,,,@@@88CE8E,,,C9<
       |-A<9@F@EGGFGF<FF9EC,++F7:+CFFFGGFFGCFFFCFGGGA8F<7F,6C++@F7F89C@@BFG9=C+=FE,
-    """.stripMargin.trim.lines
+    """.stripMargin.trim.linesIterator
 
     val detector = new QualityEncodingDetector
     detector.sample(qualStrings)

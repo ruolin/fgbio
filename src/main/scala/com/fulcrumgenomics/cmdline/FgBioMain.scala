@@ -128,7 +128,7 @@ class FgBioMain extends LazyLogging {
     }
 
     val startTime = System.currentTimeMillis()
-    val exit      = Sopt.parseCommandAndSubCommand[FgBioCommonArgs,FgBioTool](name, args, Sopt.find[FgBioTool](packageList)) match {
+    val exit      = Sopt.parseCommandAndSubCommand[FgBioCommonArgs,FgBioTool](name, args.toIndexedSeq, Sopt.find[FgBioTool](packageList)) match {
       case Sopt.Failure(usage) =>
         System.err.print(usage())
         1
@@ -147,7 +147,7 @@ class FgBioMain extends LazyLogging {
             val banner = "#" * ex.message.map(_.length).getOrElse(80)
             logger.fatal(banner)
             logger.fatal("Execution failed!")
-            ex.message.foreach(msg => msg.lines.foreach(logger.fatal))
+            ex.message.foreach(msg => msg.linesIterator.foreach(logger.fatal))
             logger.fatal(banner)
             printEndingLines(startTime, name, false)
             ex.exit

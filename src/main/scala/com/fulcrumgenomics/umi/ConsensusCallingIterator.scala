@@ -24,6 +24,8 @@
 
 package com.fulcrumgenomics.umi
 
+import java.util.concurrent.ForkJoinPool
+
 import com.fulcrumgenomics.FgBioDef._
 import com.fulcrumgenomics.bam.api.SamRecord
 import com.fulcrumgenomics.commons.async.AsyncIterator
@@ -31,7 +33,7 @@ import com.fulcrumgenomics.commons.util.LazyLogging
 import com.fulcrumgenomics.umi.UmiConsensusCaller.SimpleRead
 import com.fulcrumgenomics.util.ProgressLogger
 
-import scala.concurrent.forkjoin.ForkJoinPool
+import java.util.concurrent.ForkJoinPool
 
 /**
   * An iterator that consumes from an incoming iterator of [[SamRecord]]s and generates consensus
@@ -55,7 +57,7 @@ class ConsensusCallingIterator[ConsensusRead <: SimpleRead](sourceIterator: Iter
     case None    => sourceIterator
   }
 
-  protected val iterator: Iterator[SamRecord] = {
+  protected val iter: Iterator[SamRecord] = {
     if (threads <= 1) {
       val groupingIterator = new SamRecordGroupedIterator(progressIterator, caller.sourceMoleculeId)
       groupingIterator.flatMap(caller.consensusReadsFromSamRecords)
@@ -99,8 +101,8 @@ class ConsensusCallingIterator[ConsensusRead <: SimpleRead](sourceIterator: Iter
 
     }
   }
-  override def hasNext: Boolean = this.iterator.hasNext
-  override def next(): SamRecord = this.iterator.next
+  override def hasNext: Boolean = this.iter.hasNext
+  override def next(): SamRecord = this.iter.next
 }
 
 // TODO: migrate to the commons version of this class after the next commons release
@@ -115,7 +117,7 @@ private class IterableThreadLocal[A](factory: () => A) extends ThreadLocal[A] wi
   }
 
   /** Care should be taken accessing the iterator since objects may be in use by other threads. */
-  def iterator: Iterator[A] = all.toIterator
+  def iterator: Iterator[A] = all.iterator
 }
 
 

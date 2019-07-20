@@ -49,7 +49,7 @@ class ExtractUmisFromBamTest extends UnitSpec with OptionValues {
 
   "ExtractUmisFromBam.annotateRecord" should "should not annotate with no molecular indices" in {
     val frag = annotateRecordFragment
-    ExtractUmisFromBam.annotateRecord(record=frag, ReadStructure("100T"), Seq.empty) shouldBe 'empty
+    ExtractUmisFromBam.annotateRecord(record=frag, ReadStructure("100T"), Seq.empty).isEmpty shouldBe true
     frag.length shouldBe 100
   }
 

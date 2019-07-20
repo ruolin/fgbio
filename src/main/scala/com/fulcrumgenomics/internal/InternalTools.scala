@@ -38,7 +38,7 @@ trait InternalTool extends LazyLogging {
 object InternalTools {
   def main(args: Array[String]): Unit = {
     val tools = Sopt.find[InternalTool](packages=Seq("com.fulcrumgenomics.internal"))
-    Sopt.parseCommand[InternalTool]("fgbio-internal", args, tools) match {
+    Sopt.parseCommand[InternalTool]("fgbio-internal", args.toIndexedSeq, tools) match {
       case Failure(usage) => {
         System.err.println(usage())
         System.exit(1)

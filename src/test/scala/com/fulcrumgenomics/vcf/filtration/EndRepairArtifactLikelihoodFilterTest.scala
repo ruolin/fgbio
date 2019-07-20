@@ -24,6 +24,7 @@
 
 package com.fulcrumgenomics.vcf.filtration
 
+import com.fulcrumgenomics.FgBioDef._
 import com.fulcrumgenomics.bam.{BaseEntry, Pileup, PileupBuilder, PileupEntry}
 import com.fulcrumgenomics.testing.SamBuilder.{Minus, Plus}
 import com.fulcrumgenomics.testing.{SamBuilder, UnitSpec, VariantContextSetBuilder}

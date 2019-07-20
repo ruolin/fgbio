@@ -144,7 +144,7 @@ class RefFlatSource private(lines: Iterator[String],
           end      = row[Int]("txEnd"),
           cdsStart = row[Int]("cdsStart") + 1,
           cdsEnd   = row[Int]("cdsEnd"),
-          exons    = exonStarts.zip(exonEnds).map { case (s, e) => Exon(start=s + 1, end=e) }
+          exons    = exonStarts.iterator.zip(exonEnds.iterator).map { case (s, e) => Exon(start=s + 1, end=e) }.toIndexedSeq
         )
 
         val gene = Gene(
@@ -203,7 +203,7 @@ class RefFlatSource private(lines: Iterator[String],
     _genes
   }
 
-  def iterator: Iterator[Gene] = this.genes.toIterator
+  def iterator: Iterator[Gene] = this.genes.iterator
 
   /** Closes the underlying reader; only necessary if EOF hasn't been reached. */
   override def close(): Unit = this.source.foreach(_.close())

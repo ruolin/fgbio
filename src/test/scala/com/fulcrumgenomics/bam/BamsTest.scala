@@ -26,6 +26,7 @@ package com.fulcrumgenomics.bam
 
 import java.util
 
+import com.fulcrumgenomics.FgBioDef._
 import com.fulcrumgenomics.alignment.Cigar
 import com.fulcrumgenomics.bam.api.{SamOrder, SamRecord}
 import com.fulcrumgenomics.testing.SamBuilder.{Minus, Plus}
@@ -96,10 +97,10 @@ class BamsTest extends UnitSpec {
     templates.map(_.name) shouldBe Seq("f1", "p0", "p1", "p2")
 
     templates.foreach {t =>
-      (t.r1Supplementals ++ t.r1Secondaries ++ t.r2Supplementals ++ t.r2Secondaries) shouldBe 'empty
+      (t.r1Supplementals ++ t.r1Secondaries ++ t.r2Supplementals ++ t.r2Secondaries).isEmpty shouldBe true
       if (t.name startsWith "f") {
         t.r1.exists(r => !r.paired) shouldBe true
-        t.r2 shouldBe 'empty
+        t.r2.isEmpty shouldBe true
       }
       else {
         t.r1.exists(r => r.firstOfPair) shouldBe true

@@ -31,7 +31,7 @@ import com.fulcrumgenomics.bam.api.QueryType.QueryType
 import htsjdk.samtools._
 import htsjdk.samtools.util.{Interval, Locatable}
 
-import scala.collection.IterableView
+import scala.collection.compat._
 
 /** Companion to the [[SamSource]] class that provides factory methods for sources. */
 object SamSource {
@@ -78,12 +78,12 @@ object QueryType extends Enumeration {
   * A source class for reading SAM/BAM/CRAM files and for querying them.
   * @param reader the underlying [[SamReader]]
   */
-class SamSource private(private val reader: SamReader) extends IterableView[SamRecord, SamSource] with HeaderHelper with Closeable {
+class SamSource private(private val reader: SamReader) extends View[SamRecord] with HeaderHelper with Closeable {
   /** The [[htsjdk.samtools.SAMFileHeader]] associated with the source. */
   override val header: SAMFileHeader = reader.getFileHeader
 
-  /** Required method for [[scala.collection.IterableView]]. */
-  override protected def underlying: SamSource = this
+  /** Required for 2.12 compatibility. */
+  def underlying: Iterable[SamRecord] = this
 
   /** True if an index exists and query() calls can be made, false otherwise. */
   def indexed: Boolean = reader.hasIndex
@@ -92,8 +92,8 @@ class SamSource private(private val reader: SamReader) extends IterableView[SamR
   override def iterator: SamIterator = new SamIterator(reader.getFileHeader, reader.iterator())
 
   /** Returns an iterator over the records in the regions provided. */
-  def query(regions: TraversableOnce[Locatable], queryType: QueryType = QueryType.Overlapping): SamIterator = {
-    val queries = QueryInterval.optimizeIntervals(regions.map(l => new QueryInterval(dict.getSequenceIndex(l.getContig), l.getStart, l.getEnd)).toArray)
+  def query(regions: IterableOnce[Locatable], queryType: QueryType = QueryType.Overlapping): SamIterator = {
+    val queries = QueryInterval.optimizeIntervals(regions.iterator.map(l => new QueryInterval(dict.getSequenceIndex(l.getContig), l.getStart, l.getEnd)).toArray)
     val contained = queryType == QueryType.Contained
     new SamIterator(header, reader.query(queries, contained))
   }

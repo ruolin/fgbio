@@ -26,8 +26,9 @@
 package com.fulcrumgenomics.fastq
 
 import java.io.Closeable
+import java.util.concurrent.ForkJoinPool
 
-import com.fulcrumgenomics.FgBioDef.{FgBioEnum, unreachable}
+import com.fulcrumgenomics.FgBioDef._
 import com.fulcrumgenomics.bam.api.{SamOrder, SamRecord, SamWriter}
 import com.fulcrumgenomics.cmdline.{ClpGroups, FgBioTool}
 import com.fulcrumgenomics.commons.CommonsDef.{DirPath, FilePath, PathPrefix, PathToFastq}
@@ -44,9 +45,7 @@ import htsjdk.samtools._
 import htsjdk.samtools.util.{Iso8601Date, SequenceUtil}
 import enumeratum.EnumEntry
 
-import scala.collection.immutable.IndexedSeq
 import scala.collection.mutable.ListBuffer
-import scala.concurrent.forkjoin.ForkJoinPool
 
 object DemuxFastqs {
 
@@ -152,7 +151,6 @@ object DemuxFastqs {
     if (threads > 1) {
       // Developer Note: Iterator does not support parallel operations, so we need to group together records into a
       // [[List]] or [[Seq]].  A fixed number of records are grouped to reduce memory overhead.
-      import com.fulcrumgenomics.FgBioDef.ParSupport
       val pool = new ForkJoinPool(threads)
       zippedIterator
         .grouped(batchSize)
@@ -160,7 +158,8 @@ object DemuxFastqs {
           batch
             .parWith(pool=pool)
             .map { readRecords => demultiplexer.demultiplex(readRecords: _*) }
-        }.seq // Developer Note: toStream ensures that the only parallelism is within the flatMap
+            .seq
+        }
     }
     else {
       zippedIterator.map { readRecords => demultiplexer.demultiplex(readRecords: _*) }
@@ -345,7 +344,7 @@ class DemuxFastqs
     val lines = Io.readLines(metadata).toSeq
     if (lines.exists(_.contains("[Data]"))) {
       logger.info("Assuming input metadata file is an Illumina Experiment Manager Sample Sheet.")
-      SampleSheet(lines.toIterator, lane=None)
+      SampleSheet(lines.iterator, lane=None)
     }
     else {
       logger.info("Assuming input metadata file is simple CSV file.")
@@ -468,7 +467,7 @@ private class SamRecordWriter(prefix: PathPrefix,
                               val umiTag: String,
                               val numSamples: Int) extends DemuxWriter {
   val order: Option[SamOrder] = if (header.getSortOrder == SortOrder.unsorted) None else SamOrder(header)
-  private val writer = SamWriter(PathUtil.pathTo(prefix + ".bam"), header, sort=order,
+  private val writer = SamWriter(PathUtil.pathTo(s"${prefix}.bam"), header, sort=order,
     async = DemuxFastqs.UseAsyncIo,
     maxRecordsInRam = Math.max(10000,  DemuxFastqs.MaxRecordsInRam / numSamples))
 
@@ -506,7 +505,7 @@ private[fastq] object FastqRecordWriter {
 /** A writer that writes [[DemuxRecord]]s as [[FastqRecord]]s. */
 private[fastq] class FastqRecordWriter(prefix: PathPrefix, val pairedEnd: Boolean, val illuminaStandards: Boolean = false) extends DemuxWriter {
   private val writers: IndexedSeq[FastqWriter] = FastqRecordWriter.extensions(pairedEnd=pairedEnd, illuminaStandards=illuminaStandards).map { ext =>
-    FastqWriter(Io.toWriter(PathUtil.pathTo(prefix + ext)))
+    FastqWriter(Io.toWriter(PathUtil.pathTo(s"${prefix}${ext}")))
   }.toIndexedSeq
 
   private[fastq] def readName(rec: DemuxRecord): String = {
@@ -726,7 +725,7 @@ sealed trait OutputType extends EnumEntry {
   def producesFastq: Boolean
 }
 object OutputType extends FgBioEnum[OutputType] {
-  def values: IndexedSeq[OutputType] = findValues
+  override def values: scala.collection.immutable.IndexedSeq[OutputType] = findValues
   case object Fastq extends OutputType { val producesBam: Boolean = false; val producesFastq: Boolean = true; }
   case object Bam extends OutputType { val producesBam: Boolean = true; val producesFastq: Boolean = false; }
   case object BamAndFastq extends OutputType { val producesBam: Boolean = true; val producesFastq: Boolean = true; }

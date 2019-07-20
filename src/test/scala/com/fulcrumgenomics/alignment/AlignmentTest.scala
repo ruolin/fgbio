@@ -130,7 +130,7 @@ class AlignmentTest extends UnitSpec {
       +AACCGGTT
       +||||||||
       +AACCGGTT
-       """.stripMargin('+').trim.lines.toSeq
+       """.stripMargin('+').trim.linesIterator.toSeq
 
     val alignment = Alignment(expected.head.replace("-", ""), expected.last.replace("-", ""), 1, 1, Cigar("8M"), 1)
     alignment.paddedString() shouldBe expected
@@ -142,7 +142,7 @@ class AlignmentTest extends UnitSpec {
       +AACCGGTT
       +||||||.|
       +AACCGGGT
-       """.stripMargin('+').trim.lines.toSeq
+       """.stripMargin('+').trim.linesIterator.toSeq
 
     Seq("8M", "6=1X2=").foreach { cigar =>
       val alignment = Alignment(expected.head.replace("-", ""), expected.last.replace("-", ""), 1, 1, Cigar("8M"), 1)
@@ -156,7 +156,7 @@ class AlignmentTest extends UnitSpec {
       +AA--GGGTAAACC-GGGTTT
       +||  ||||||||| || |||
       +AACCGGGTAAACCCGG-TTT
-       """.stripMargin('+').trim.lines.toSeq
+       """.stripMargin('+').trim.linesIterator.toSeq
 
     val alignment = Alignment(expected.head.replace("-", ""), expected.last.replace("-", ""), 1, 1, Cigar("2=2D9=1D2=1I3="), 1)
     alignment.paddedString() shouldBe expected
@@ -168,7 +168,7 @@ class AlignmentTest extends UnitSpec {
       +AA--GGGGGAACC-GGGTTT
       +||  |||..|||| || |||
       +AACCGGGTAAACCCGG-TTT
-       """.stripMargin('+').trim.lines.toSeq
+       """.stripMargin('+').trim.linesIterator.toSeq
 
     val alignment = Alignment(expected.head.replace("-", ""), expected.last.replace("-", ""), 1, 1, Cigar("2M2D9M1D2M1I3M"), 1)
     alignment.paddedString() shouldBe expected
@@ -188,7 +188,7 @@ class AlignmentTest extends UnitSpec {
       |AA..GGGGGAACC.GGGTTT
       |++--+++##++++-++-+++
       |AACCGGGTAAACCCGG.TTT
-       """.stripMargin.trim.lines.toSeq
+       """.stripMargin.trim.linesIterator.toSeq
 
     val alignment = Alignment(expected.head.replace(".", ""), expected.last.replace(".", ""), 1, 1, Cigar("2M2D9M1D2M1I3M"), 1)
     alignment.paddedString(matchChar='+', mismatchChar='#', gapChar='-', padChar='.') shouldBe expected

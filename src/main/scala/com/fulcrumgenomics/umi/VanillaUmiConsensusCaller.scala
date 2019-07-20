@@ -130,11 +130,11 @@ class VanillaUmiConsensusCaller(override val readNamePrefix: String,
   override protected def consensusSamRecordsFromSamRecords(recs: Seq[SamRecord]): Seq[SamRecord] = {
     // partition the records to which end of a pair it belongs, or if it is a fragment read.
     val (fragments, firstOfPair, secondOfPair) = subGroupRecords(recs)
-    val buffer = new ListBuffer[SamRecord]()
+    val builder = IndexedSeq.newBuilder[SamRecord]
 
     // fragment
     consensusFromSamRecords(records=fragments).map { frag =>
-      buffer += createSamRecord(read=frag, readType=Fragment, fragments.flatMap(_.get[String](ConsensusTags.UmiBases)))
+      builder += createSamRecord(read=frag, readType=Fragment, fragments.flatMap(_.get[String](ConsensusTags.UmiBases)))
     }
 
     // pairs
@@ -143,11 +143,11 @@ class VanillaUmiConsensusCaller(override val readNamePrefix: String,
       case (Some(_), None)     => rejectRecords(firstOfPair,  UmiConsensusCaller.FilterOrphan)
       case (None, None)         => rejectRecords(firstOfPair ++ secondOfPair, UmiConsensusCaller.FilterOrphan)
       case (Some(r1), Some(r2)) =>
-        buffer += createSamRecord(r1, FirstOfPair, firstOfPair.flatMap(_.get[String](ConsensusTags.UmiBases)))
-        buffer += createSamRecord(r2, SecondOfPair, secondOfPair.flatMap(_.get[String](ConsensusTags.UmiBases)))
+        builder += createSamRecord(r1, FirstOfPair, firstOfPair.flatMap(_.get[String](ConsensusTags.UmiBases)))
+        builder += createSamRecord(r2, SecondOfPair, secondOfPair.flatMap(_.get[String](ConsensusTags.UmiBases)))
     }
 
-    buffer
+    builder.result
   }
 
   /** Creates a consensus read from the given records.  If no consensus read was created, None is returned. */
@@ -249,7 +249,7 @@ class VanillaUmiConsensusCaller(override val readNamePrefix: String,
   }
 
   /** If a reject writer was provided, emit the reads to that writer. */
-  override protected def rejectRecords(recs: Traversable[SamRecord], reason: String): Unit = {
+  override protected def rejectRecords(recs: Iterable[SamRecord], reason: String): Unit = {
     super.rejectRecords(recs, reason)
     this.rejects.foreach(rej => rej ++= recs)
   }

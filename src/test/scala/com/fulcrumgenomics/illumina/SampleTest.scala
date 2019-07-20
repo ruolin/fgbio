@@ -34,7 +34,7 @@ import org.scalatest.OptionValues
 class SampleTest extends UnitSpec with OptionValues{
 
   "Sample.sampleBarcodeBases" should "return the sample barcodes if present" in {
-    new Sample(0, "ID", "NAME", "LIBRARY").sampleBarcodeBases.flatten shouldBe 'empty
+    new Sample(0, "ID", "NAME", "LIBRARY").sampleBarcodeBases.flatten.isEmpty shouldBe true
     new Sample(0, "ID", "NAME", "LIBRARY", i7IndexBases=Some("GATTACA")).sampleBarcodeBases.flatten should contain theSameElementsInOrderAs Seq("GATTACA")
     new Sample(0, "ID", "NAME", "LIBRARY", i5IndexBases=Some("GATTACA")).sampleBarcodeBases.flatten should contain theSameElementsInOrderAs Seq("GATTACA")
     new Sample(0, "ID", "NAME", "LIBRARY", i7IndexBases=Some("GATTACA"), i5IndexBases=Some("TGTAATC")).sampleBarcodeBases.flatten should contain theSameElementsInOrderAs Seq("GATTACA", "TGTAATC")
@@ -48,12 +48,12 @@ class SampleTest extends UnitSpec with OptionValues{
     sample.extendedAttribute("bar").value shouldBe "2"
     sample.extendedAttribute("Bar").value shouldBe "2"
     sample.extendedAttribute("BAR").value shouldBe "2"
-    sample.extendedAttribute("baz") shouldBe 'empty
-    sample.extendedAttribute("Baz") shouldBe 'empty
-    sample.extendedAttribute("BAZ") shouldBe 'empty
-    sample.extendedAttribute("car") shouldBe 'empty
-    sample.extendedAttribute("Car") shouldBe 'empty
-    sample.extendedAttribute("CAR") shouldBe 'empty
+    sample.extendedAttribute("baz").isEmpty shouldBe true
+    sample.extendedAttribute("Baz").isEmpty shouldBe true
+    sample.extendedAttribute("BAZ").isEmpty shouldBe true
+    sample.extendedAttribute("car").isEmpty shouldBe true
+    sample.extendedAttribute("Car").isEmpty shouldBe true
+    sample.extendedAttribute("CAR").isEmpty shouldBe true
   }
 
   it should "support throw an exception if extended attribute keys are not all uppercase" in {

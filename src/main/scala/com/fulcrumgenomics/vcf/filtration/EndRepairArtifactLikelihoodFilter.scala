@@ -55,8 +55,8 @@ class EndRepairArtifactLikelihoodFilter(val distance: Int = 2,
   val FilterKey         = "EndRepairArtifact"
   val FilterDescription = "Variant is likely an artifact caused by end-repair and A-base addition."
 
-  override val VcfInfoLines: Traversable[VCFInfoHeaderLine]     = Seq(vcfInfoLine(InfoKey, InfoDescription))
-  override val VcfFilterLines: Traversable[VCFFilterHeaderLine] = Seq(vcfFilterLine(FilterKey, FilterDescription))
+  override val VcfInfoLines: Iterable[VCFInfoHeaderLine]     = Seq(vcfInfoLine(InfoKey, InfoDescription))
+  override val VcfFilterLines: Iterable[VCFFilterHeaderLine] = Seq(vcfFilterLine(FilterKey, FilterDescription))
 
   /** Only applies to het SNVs where the alt allele is A or T. */
   override def appliesTo(gt: Genotype): Boolean = {
@@ -210,7 +210,7 @@ class EndRepairArtifactLikelihoodFilter(val distance: Int = 2,
   /** Applies a single filter if a) a threshold was provided at construction, b) the computed
     * pvalue is present in the annotations, and c) the pvalue <= threshold.
     */
-  override def filters(annotations: Map[String, Any]): Traversable[String] = {
+  override def filters(annotations: Map[String, Any]): Iterable[String] = {
     (this.pValueThreshold, annotations.get(InfoKey).map(_.asInstanceOf[Double])) match {
       case (Some(threshold), Some(pvalue)) if pvalue <= threshold => List(FilterKey)
       case _ => Nil
