@@ -297,9 +297,7 @@ class DemuxFastqs
  @arg(doc="Platform model to insert into the group header (ex. miseq, hiseq2500, hiseqX)") val platformModel: Option[String] = None,
  @arg(doc="Comment(s) to include in the merged output file's header.", minElements = 0) val comments: List[String] = Nil,
  @arg(doc="Date the run was produced, to insert into the read group header") val runDate: Option[Iso8601Date] = None,
- @arg(doc="The type of outputs to produce.", mutex=Array("outputFastqs")) var outputType: Option[OutputType] = None,
- @deprecated("Use outputType instead.", since="0.5.0")
- @arg(doc="*** Deprecated: use --output-type instead ***. Output gzipped FASTQs (`.fastq.gz`) instead of BAM files", mutex=Array("outputType")) val outputFastqs: Option[Boolean] = None,
+ @arg(doc="The type of outputs to produce.") val outputType: Option[OutputType] = None,
  @arg(doc="Output FASTQs according to Illumina naming standards, for example, for upload to the BaseSpace Sequence Hub") val illuminaStandards: Boolean = false,
  @arg(
    doc=
@@ -315,11 +313,9 @@ class DemuxFastqs
   private[fastq] val metricsPath = metrics.getOrElse(output.resolve(DefaultDemuxMetricsFileName))
 
   // NB: remove me when outputFastqs gets removed and use outputType directly
-  private val _outputType = (this.outputType, this.outputFastqs) match {
-    case (None, None) => OutputType.Bam
-    case (None, Some(fastqs)) => if (fastqs) OutputType.Fastq else OutputType.Bam
-    case (Some(tpe), None) => tpe
-    case _ => unreachable("Bug: outputType and outputFastqs should never be both defined")
+  private val _outputType = this.outputType match {
+    case Some(tpe) => tpe
+    case None      => OutputType.Bam
   }
 
   validate(inputs.length == readStructures.length, "The same number of read structures should be given as FASTQs.")
