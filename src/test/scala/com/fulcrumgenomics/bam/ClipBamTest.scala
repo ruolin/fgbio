@@ -454,7 +454,7 @@ class ClipBamTest extends UnitSpec with ErrorLogLevel with OptionValues {
 
       val out     = makeTempFile("out.", ".bam")
       val metrics = makeTempFile("out.", ".txt")
-      new ClipBam(input=builder.toTempFile(), output=out, metrics=Some(metrics), ref=ref, clippingMode=Some(mode), upgradeClipping=true).execute()
+      new ClipBam(input=builder.toTempFile(), output=out, metrics=Some(metrics), ref=ref, clippingMode=mode, upgradeClipping=true).execute()
       val clipped = SamSource(out).toSeq
 
       clipped.length shouldBe 2
@@ -494,7 +494,7 @@ class ClipBamTest extends UnitSpec with ErrorLogLevel with OptionValues {
 
       val out     = makeTempFile("out.", ".bam")
       val metrics = makeTempFile("out.", ".txt")
-      new ClipBam(input=builder.toTempFile(), output=out, metrics=Some(metrics), ref=ref, clippingMode=Some(mode), upgradeClipping=true).execute()
+      new ClipBam(input=builder.toTempFile(), output=out, metrics=Some(metrics), ref=ref, clippingMode=mode, upgradeClipping=true).execute()
       val clipped = SamSource(out).toSeq
 
       clipped.length shouldBe 2

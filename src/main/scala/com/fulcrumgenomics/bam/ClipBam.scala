@@ -71,9 +71,7 @@ class ClipBam
   @arg(flag='o', doc="Output SAM or BAM file.") val output: PathToBam,
   @arg(flag='m', doc="Optional output of clipping metrics.") val metrics: Option[FilePath] = None,
   @arg(flag='r', doc="Reference sequence fasta file.") val ref: PathToFasta,
-  @deprecated("Use clipping-mode instead.", since="0.4.0")
-  @arg(flag='s', doc="Soft clip reads instead of hard clipping.", mutex=Array("clippingMode")) val softClip: Boolean = false,
-  @arg(flag='c', doc="The type of clipping to perform.", mutex=Array("softClip")) val clippingMode: Option[ClippingMode] = None,
+  @arg(flag='c', doc="The type of clipping to perform.") val clippingMode: ClippingMode = ClippingMode.Hard,
   @arg(flag='a', doc="Automatically clip extended attributes that are the same length as bases.") val autoClipAttributes: Boolean = false,
   @arg(flag='H', doc="Upgrade all existing clipping in the input to the given clipping mode prior to applying any other clipping criteria.") val upgradeClipping: Boolean = false,
   @arg(          doc="Require at least this number of bases to be clipped on the 5' end of R1") val readOneFivePrime: Int  = 0,
@@ -86,12 +84,10 @@ class ClipBam
   Io.assertReadable(ref)
   Io.assertCanWriteFile(output)
 
-  private val mode = this.clippingMode.getOrElse { if (this.softClip) ClippingMode.Soft else ClippingMode.Hard }
-
   validate(upgradeClipping || clipOverlappingReads || Seq(readOneFivePrime, readOneThreePrime, readTwoFivePrime, readTwoThreePrime).exists(_ != 0),
     "At least one clipping option is required")
 
-  private val clipper = new SamRecordClipper(mode=this.mode, autoClipAttributes=autoClipAttributes)
+  private val clipper = new SamRecordClipper(mode=clippingMode, autoClipAttributes=autoClipAttributes)
 
   override def execute(): Unit = {
     val in         = SamSource(input)
