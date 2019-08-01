@@ -25,7 +25,7 @@
 package com.fulcrumgenomics.vcf.filtration
 
 import com.fulcrumgenomics.bam.{Pileup, PileupEntry}
-import htsjdk.variant.variantcontext.Genotype
+import com.fulcrumgenomics.vcf.api.{Genotype, VcfFilterHeader, VcfInfoHeader}
 import htsjdk.variant.vcf.{VCFFilterHeaderLine, VCFHeaderLineType, VCFInfoHeaderLine}
 
 /**
@@ -34,18 +34,10 @@ import htsjdk.variant.vcf.{VCFFilterHeaderLine, VCFHeaderLineType, VCFInfoHeader
   */
 trait SomaticVariantFilter {
   /** The collection of VCF INFO header lines that the filter may reference. */
-  val VcfInfoLines: Iterable[VCFInfoHeaderLine]
+  val VcfInfoLines: Iterable[VcfInfoHeader]
 
   /** The collection of VCF Filter header lines that the filter may reference. */
-  val VcfFilterLines: Iterable[VCFFilterHeaderLine]
-
-  /** Helper method to construct an INFO header line. */
-  protected def vcfInfoLine(name: String, description: String, count: Int = 1, vcfType: VCFHeaderLineType = VCFHeaderLineType.Float) = {
-    new VCFInfoHeaderLine(name, count, vcfType, description)
-  }
-
-  /** Helper method to construct a filter header line. */
-  protected def vcfFilterLine(name: String, description: String) = new VCFFilterHeaderLine(name, description)
+  val VcfFilterLines: Iterable[VcfFilterHeader]
 
   /** Returns true if the filter can be applied to a genotype, false otherwise. */
   def appliesTo(gt: Genotype): Boolean
