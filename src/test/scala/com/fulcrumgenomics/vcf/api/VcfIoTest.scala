@@ -26,6 +26,7 @@ package com.fulcrumgenomics.vcf.api
 
 import com.fulcrumgenomics.FgBioDef._
 import com.fulcrumgenomics.testing.UnitSpec
+import com.fulcrumgenomics.vcf.api.Allele.NoCallAllele
 import org.scalatest.OptionValues
 
 import scala.collection.compat._
@@ -175,5 +176,18 @@ class VcfIoTest extends UnitSpec with OptionValues {
     in.query("chr1", 1500, 1599) should have size 10
     in.query("chr1", 999,  2001) should have size 101
     in.iterator should have size 101
+  }
+
+  it should "round-trip a VCF that has no-calls in the genotypes" in {
+    val alleles = AlleleSet(ref=Allele("C"), alts=IndexedSeq(Allele("G"), Allele("T")))
+    val variants = Seq(
+      Variant(chrom="chr1", pos=10, alleles=alleles, genotypes=Map("s1" -> Genotype(alleles, "s1", IndexedSeq(NoCallAllele, NoCallAllele)))),
+      Variant(chrom="chr1", pos=20, alleles=alleles, genotypes=Map("s1" -> Genotype(alleles, "s1", IndexedSeq(Allele("G"),  NoCallAllele))))
+    )
+
+    val out = roundtrip(variants)
+    out.vs.size shouldBe 2
+    out.vs.find(_.pos == 10).value.gt("s1").gtWithBases shouldBe "./."
+    out.vs.find(_.pos == 20).value.gt("s1").gtWithBases shouldBe "G/."
   }
 }

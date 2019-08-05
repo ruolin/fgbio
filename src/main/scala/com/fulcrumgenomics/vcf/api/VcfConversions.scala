@@ -303,7 +303,7 @@ private[api] object VcfConversions {
 
     val genotypes = header.samples.iterator.map { s =>
       val sgt = in.genotypes(s)
-      val jgt = new GenotypeBuilder(s, sgt.callIndices.iterator.map(i => alleles.get(i)).toJavaList)
+      val jgt = new GenotypeBuilder(s, sgt.callIndices.iterator.map(i => if (i == -1) JavaAllele.NO_CALL else alleles.get(i)).toJavaList)
       jgt.phased(sgt.phased)
 
       sgt.attrs.foreach {
