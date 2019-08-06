@@ -3,7 +3,7 @@
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/fc4f5fe8dbe34bf784114435b202fab4)](https://www.codacy.com/app/contact_32/fgbio?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=fulcrumgenomics/fgbio&amp;utm_campaign=Badge_Grade)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.fulcrumgenomics/fgbio_2.11/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.fulcrumgenomics/fgbio_2.11)
 [![Bioconda](https://img.shields.io/conda/dn/bioconda/fgbio.svg?label=Bioconda)](http://bioconda.github.io/recipes/fgbio/README.html)
-[![Javadocs](http://javadoc.io/badge/com.fulcrumgenomics/fgbio_2.12.svg)](http://javadoc.io/doc/com.fulcrumgenomics/fgbio_2.12)
+[![Javadocs](http://javadoc.io/badge/com.fulcrumgenomics/fgbio_2.13.svg)](http://javadoc.io/doc/com.fulcrumgenomics/fgbio_2.13)
 [![License](http://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/fulcrumgenomics/fgbio/blob/master/LICENSE)
 [![Language](http://img.shields.io/badge/language-scala-brightgreen.svg)](http://www.scala-lang.org/)
 
@@ -11,7 +11,7 @@ fgbio
 ====
 
 A set of tools to analyze genomic data with a focus on Next Generation Sequencing.  This readme document is mostly for developers/contributors and those attempting to build the project from source.
-Detailed user documentation is available on the [project website](http://fulcrumgenomics.github.io/fgbio/) including [tool usage](http://fulcrumgenomics.github.io/fgbio/tools/latest) and [documentation of metrics produced](http://fulcrumgenomics.github.io/fgbio/metrics/latest).  Detailed developer documentation can be found [here](http://javadoc.io/doc/com.fulcrumgenomics/fgbio_2.12).
+Detailed user documentation is available on the [project website](http://fulcrumgenomics.github.io/fgbio/) including [tool usage](http://fulcrumgenomics.github.io/fgbio/tools/latest) and [documentation of metrics produced](http://fulcrumgenomics.github.io/fgbio/metrics/latest).  Detailed developer documentation can be found [here](http://javadoc.io/doc/com.fulcrumgenomics/fgbio_2.13).
 
 <!---toc start-->
   * [Goals](#goals)
@@ -93,14 +93,14 @@ Java SE 8 is required.
 
 ## Command line
 
-`java -jar target/scala-2.12/fgbio-<version>.jar` to see the commands supported.  Use `java -jar target/scala-2.12/fgbio-<version>.jar <command>` to see the help message for a particular command.
+`java -jar target/scala-2.13/fgbio-<version>.jar` to see the commands supported.  Use `java -jar target/scala-2.13/fgbio-<version>.jar <command>` to see the help message for a particular command.
 
 ## Include fgbio in your project
 
 You can include `fgbio` in your project using:
 
 ```
-"com.fulcrumgenomics" %% "fgbio" % "0.8.0"
+"com.fulcrumgenomics" %% "fgbio" % "1.0.0"
 ```
 
 for the latest released version or (buyer beware):
