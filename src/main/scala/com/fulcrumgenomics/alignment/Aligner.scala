@@ -407,6 +407,7 @@ class Aligner(val scorer: AlignmentScorer,
     * @param query the query sequence
     * @param target the target sequence
     * @param matrices the scoring and trace back matrices for the `Left`, `Up`, and `Diagonal` directions.
+    * @param location the cell in the matrix from which we should start the trace back.
     * @return an [[Alignment]] object representing the alignment
     */
   protected def generateAlignment(query: Array[Byte],
@@ -462,7 +463,7 @@ class Aligner(val scorer: AlignmentScorer,
     *
     * @param matrices the alignment matrices to search
     */
-  private def findBest(matrices: Array[AlignmentMatrix]): MatrixLocation = {
+  protected def findBest(matrices: Array[AlignmentMatrix]): MatrixLocation = {
     // Find location based on alignment mode:
     //   - start at the end of query and target for Global
     //   - the highest scoring cell in the last row for Glocal
