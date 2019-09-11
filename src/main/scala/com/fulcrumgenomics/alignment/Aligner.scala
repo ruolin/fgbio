@@ -258,7 +258,7 @@ class Aligner(val scorer: AlignmentScorer,
   }
 
   /** Fills in the leftmost column of the matrices. */
-  private final def fillLeftmostColumn(query: Array[Byte],
+  protected def fillLeftmostColumn(query: Array[Byte],
                                        target: Array[Byte],
                                        leftScoreMatrix: Matrix[Int],
                                        leftTraceMatrix: Matrix[Direction],
@@ -289,7 +289,7 @@ class Aligner(val scorer: AlignmentScorer,
   }
 
   /** Fills in the top row of the matrices. */
-  private final def fillTopRow(query: Array[Byte],
+  protected def fillTopRow(query: Array[Byte],
                                target: Array[Byte],
                                leftScoreMatrix: Matrix[Int],
                                leftTraceMatrix: Matrix[Direction],
