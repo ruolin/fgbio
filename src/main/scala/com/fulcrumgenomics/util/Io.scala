@@ -35,7 +35,7 @@ import htsjdk.samtools.util.BlockCompressedOutputStream
   * Provides common IO utility methods.  Can be instantiated to create a custom factory, or
   * the companion object can be used as a singleton version.
   */
-class Io(override var compressionLevel: Int = 5,
+class Io(var compressionLevel: Int = 5,
          override val bufferSize: Int = 128*1024,
          var tmpDir: DirPath = Paths.get(System.getProperty("java.io.tmpdir"))) extends IoUtil {
 
