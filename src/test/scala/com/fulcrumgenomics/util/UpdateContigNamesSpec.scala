@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2017 Fulcrum Genomics LLC
+ * Copyright (c) 2020 Fulcrum Genomics
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,31 +20,36 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
+ *
  */
 
-package com.fulcrumgenomics.bam.api
+package com.fulcrumgenomics.util
 
-import com.fulcrumgenomics.FgBioDef._
-import com.fulcrumgenomics.fasta.SequenceDictionary
-import htsjdk.samtools.{SAMFileHeader, SAMProgramRecord, SAMReadGroupRecord}
+import com.fulcrumgenomics.FgBioDef.PathToSequenceDictionary
+import com.fulcrumgenomics.fasta.{SequenceDictionary, SequenceMetadata}
+import com.fulcrumgenomics.testing.UnitSpec
 
-/**
-  * Trait that can be mixed into any class that provides access to a SAMFileHeader in
-  * order to provide some useful methods for more direct access.
-  */
-private[api] trait HeaderHelper {
-  /** The associated [[SAMFileHeader]]. */
-  def header: SAMFileHeader
+import scala.collection.mutable.ListBuffer
 
-  /** The sequence dictionary. */
-  lazy val dict: SequenceDictionary = {
-    import com.fulcrumgenomics.fasta.Converters.FromSAMSequenceDictionary
-    header.getSequenceDictionary.fromSam
+trait UpdateContigNamesSpec extends UnitSpec {
+
+  protected def toSequenceMetadata(name: String, alias: String*): SequenceMetadata = {
+    SequenceMetadata(name=name, length=100000000, aliases=alias)
   }
 
-  /** The list of read groups from the associated header. */
-  def readGroups: Seq[SAMReadGroupRecord] = header.getReadGroups.toIndexedSeq
+  protected def dict(skipLast: Boolean = false): SequenceDictionary = {
+    val infos = ListBuffer[SequenceMetadata](
+      toSequenceMetadata(name="chr1", "NC_000001.10"),
+      toSequenceMetadata(name="chr2", "NC_000002.10"),
+      toSequenceMetadata(name="chr3", "NC_000003.10")
+    )
+    if (!skipLast) infos += toSequenceMetadata(name="chr4", "NC_000004.10")
+    SequenceDictionary(infos.toSeq:_*)
+  }
 
-  /** The list of program groups from the associated header. */
-  def programGroups: Seq[SAMProgramRecord] = header.getProgramRecords.toIndexedSeq
+  protected def pathToSequenceDictionary(skipLast: Boolean = false): PathToSequenceDictionary = {
+    val path = makeTempFile("test.", "in.dict")
+    dict(skipLast=skipLast).write(path)
+    path
+  }
 }
