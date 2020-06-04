@@ -1,11 +1,12 @@
 [![Build Status](https://travis-ci.org/fulcrumgenomics/fgbio.svg?branch=master)](https://travis-ci.org/fulcrumgenomics/fgbio)
 [![codecov](https://codecov.io/gh/fulcrumgenomics/fgbio/branch/master/graph/badge.svg)](https://codecov.io/gh/fulcrumgenomics/fgbio)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/fc4f5fe8dbe34bf784114435b202fab4)](https://www.codacy.com/app/contact_32/fgbio?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=fulcrumgenomics/fgbio&amp;utm_campaign=Badge_Grade)
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.fulcrumgenomics/fgbio_2.11/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.fulcrumgenomics/fgbio_2.11)
-[![Dependency Status](https://www.versioneye.com/user/projects/57a1584c3d8eb6002dc1e812/badge.svg)](https://www.versioneye.com/user/projects/57a1584c3d8eb6002dc1e812#dialog_dependency_badge) 
-[![Javadocs](http://javadoc.io/badge/com.fulcrumgenomics/fgbio_2.12.svg)](http://javadoc.io/doc/com.fulcrumgenomics/fgbio_2.12)
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.fulcrumgenomics/fgbio_2.13/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.fulcrumgenomics/fgbio_2.13)
+[![Bioconda](https://img.shields.io/conda/dn/bioconda/fgbio.svg?label=Bioconda)](http://bioconda.github.io/recipes/fgbio/README.html)
+[![Javadocs](http://javadoc.io/badge/com.fulcrumgenomics/fgbio_2.13.svg)](http://javadoc.io/doc/com.fulcrumgenomics/fgbio_2.13)
 [![License](http://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/fulcrumgenomics/fgbio/blob/master/LICENSE)
 [![Language](http://img.shields.io/badge/language-scala-brightgreen.svg)](http://www.scala-lang.org/)
+
 
 # fgbio
 
@@ -25,8 +26,8 @@ If the reported version on the first line starts with `1.8` or higher, you are a
 
 Once you have Java installed and a release downloaded you can run:
 
-* Run `java -jar fgbio-1.0.0.jar` to get a list of available tools
-* Run `java -jar fgbio-1.0.0.jar <Tool Name>` to see detailed usage instructions on any tool
+* Run `java -jar fgbio-1.2.0.jar` to get a list of available tools
+* Run `java -jar fgbio-1.2.0.jar <Tool Name>` to see detailed usage instructions on any tool
 
 When running tools we recommend the following set of Java options as a starting point though individual tools may need more or less memory depending on the input data:
 
