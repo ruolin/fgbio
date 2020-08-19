@@ -42,6 +42,13 @@ import com.fulcrumgenomics.sopt.{arg, clp}
     |
     |The read sequence of the primer is not checked against the expected reference sequence at the primer's genomic
     |coordinates.
+    |
+    |In some cases, large deletions within one end of a read pair may cause a primary and supplementary alignment to be
+    |produced by the aligner, with the supplementary alignment containing the primer end of the read (5' sequencing order).
+    |In this case, the primer may not be assigned for this end of the read pair.  Therefore, it is recommended to prefer
+    |or choose the primary alignment that has the closest aligned read base to the 5' end of the read in sequencing order.
+    |For example, from `bwa` version `0.7.16` onwards, the `-5` option may be used.  Consider also using the `-q` option 
+    |for `bwa` `0.7.16` as well, which is standard in `0.7.17` onwards when the `-5` option is used.
   """)
 class AssignPrimers
 (@arg(flag='i', doc="Input BAM file.")  val input: PathToBam,
