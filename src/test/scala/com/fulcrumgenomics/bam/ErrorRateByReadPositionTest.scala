@@ -31,6 +31,7 @@ import com.fulcrumgenomics.bam.api.SamOrder
 import com.fulcrumgenomics.commons.io.PathUtil
 import com.fulcrumgenomics.fasta.Converters.ToSAMSequenceDictionary
 import com.fulcrumgenomics.fasta.SequenceDictionary
+import com.fulcrumgenomics.testing.SamBuilder.{Minus, Plus}
 import com.fulcrumgenomics.testing.{ReferenceSetBuilder, SamBuilder, UnitSpec, VariantContextSetBuilder}
 import com.fulcrumgenomics.util.{Metric, Rscript}
 import htsjdk.samtools.util.{Interval, IntervalList}
@@ -220,6 +221,19 @@ class ErrorRateByReadPositionTest extends UnitSpec with OptionValues {
         metricPosition1.t_to_c_error_rate.value shouldBe 1.0
       }
     }
+  }
+
+  it should "count errors by the _sequenced_ base accounting for strand when --collapse is false" in {
+    val builder = newSamBuilder
+    builder.addFrag(contig=1, start=1, bases="AACAAAAAAAAAAAAAAAAA", strand=Plus)
+    builder.addFrag(contig=1, start=1, bases="AACAAAAAAAAAAAAAAAAA", strand=Minus)
+
+    val (_, pre) = outputAndPrefix
+    val metrics = new ErrorRateByReadPosition(input=builder.toTempFile(), output=Some(pre), ref=ref, variants=None, collapse=false).computeMetrics()
+    metrics.find(m => m.position == 3 ).value.error_rate              shouldBe 0.5
+    metrics.find(m => m.position == 3 ).value.a_to_c_error_rate       shouldBe 1.0
+    metrics.find(m => m.position == 18).value.error_rate              shouldBe 0.5
+    metrics.find(m => m.position == 18).value.t_to_g_error_rate.value shouldBe 1.0
   }
 
   it should "run end to end and maybe generate a PDF" in {

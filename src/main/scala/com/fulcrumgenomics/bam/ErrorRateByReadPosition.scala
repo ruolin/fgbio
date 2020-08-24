@@ -126,7 +126,7 @@ class ErrorRateByReadPosition
   }
 
   /** Computes the metrics from the BAM file. */
-  private[bam] def computeMetrics(in: SamSource= SamSource(input, ref=Some(ref))): Seq[ErrorRateByReadPositionMetric] = {
+  private[bam] def computeMetrics(in: SamSource = SamSource(input, ref=Some(ref))): Seq[ErrorRateByReadPositionMetric] = {
     import com.fulcrumgenomics.fasta.Converters.FromSAMSequenceDictionary
     val progress = ProgressLogger(logger, verb="Processed", noun="loci", unit=50000)
     val ilist    = this.intervals.map(p => IntervalList.fromFile(p.toFile).uniqued(false))
@@ -138,7 +138,9 @@ class ErrorRateByReadPosition
     val counters = List.tabulate(3)(_ => mutable.Map[Int, ObsCounter]())
 
     locusIterator.filterNot(l => variantMask.isVariant(l.getSequenceIndex, l.getPosition)).foreach { locus =>
-      val refBase = SequenceUtil.upperCase(refWalker.get(locus.getSequenceIndex).getBases()(locus.getPosition - 1))
+      val refBase     = SequenceUtil.upperCase(refWalker.get(locus.getSequenceIndex).getBases()(locus.getPosition - 1))
+      val refBaseComp = Sequences.complement(refBase)
+
       if (SequenceUtil.isValidBase(refBase)) {
         locus.getRecordAndOffsets.iterator().filter(r => SequenceUtil.isValidBase(r.getReadBase)).foreach { rec =>
 
@@ -147,8 +149,11 @@ class ErrorRateByReadPosition
           val cycle    = if (rec.getRecord.getReadNegativeStrandFlag) rec.getRecord.getReadLength - rec.getOffset else rec.getOffset + 1
           val counter  = counters(readNum).getOrElseUpdate(cycle, new ObsCounter(readNum, cycle, collapse))
 
-          if (!collapse || refBase == 'A' || refBase == 'C') counter.count(refBase.toChar, readBase.toChar)
-          else counter.count(SequenceUtil.complement(refBase).toChar, SequenceUtil.complement(readBase).toChar)
+          val readOrderRefBase  = if (rec.getRecord.getReadNegativeStrandFlag) refBaseComp else refBase
+          val readOrderReadBase = if (rec.getRecord.getReadNegativeStrandFlag) Sequences.complement(readBase) else readBase
+
+          if (!collapse || readOrderRefBase == 'A' || readOrderRefBase == 'C') counter.count(readOrderRefBase, readOrderReadBase)
+          else counter.count(Sequences.complement(readOrderRefBase), SequenceUtil.complement(readOrderReadBase))
         }
       }
 
@@ -213,7 +218,7 @@ private class ObsCounter(readNumber: Int, position: Int, collapse: Boolean) {
   private val counts: Array[Array[Long]] = new Array[Long](4).map(_ => new Array[Long](4))
 
   /** Maps A/C/G/T to an index 0-3 and throws an exception for any other base. */
-  @inline private def index(base: Char): Int = (base: @switch) match {
+  @inline private def index(base: Byte): Int = (base: @switch) match {
     case 'A' => 0
     case 'C' => 1
     case 'G' => 2
@@ -221,13 +226,13 @@ private class ObsCounter(readNumber: Int, position: Int, collapse: Boolean) {
     case _   => throw new IllegalArgumentException(s"Invalid base: $base")
   }
 
-  @inline def count(ref: Char, read: Char): Unit =
+  @inline def count(ref: Byte, read: Byte): Unit =
     try { this.counts(index(ref))(index(read)) += 1 } catch { case _: IllegalArgumentException => () }
 
   @inline def countOf(ref: Char, read: Char): Long =
-    try { this.counts(index(ref))(index(read)) } catch { case _: IllegalArgumentException => 0 }
+    try { this.counts(index(ref.toByte))(index(read.toByte)) } catch { case _: IllegalArgumentException => 0 }
 
-  @inline private def total(ref: Char): Long    = this.counts(index(ref)).sum
+  @inline private def total(ref: Char): Long    = this.counts(index(ref.toByte)).sum
   @inline private def totalRef(ref: Char): Long = countOf(ref, ref)
 
   @inline private def errorRate(ref: Char, read: Char): Double = {
