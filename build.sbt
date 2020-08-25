@@ -78,16 +78,19 @@ val docScalacOptions = Seq("-groups", "-implicits")
 // Common settings 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
+val primaryScalaVersion = "2.13.3"
+
 lazy val commonSettings = Seq(
   organization         := "com.fulcrumgenomics",
   organizationName     := "Fulcrum Genomics LLC",
   homepage             := Some(url("http://github.com/fulcrumgenomics/fgbio")),
   startYear            := Some(2015),
-  scalaVersion         := "2.13.0",
-  crossScalaVersions   :=  Seq("2.12.12", "2.13.3"),
+  scalaVersion         := primaryScalaVersion,
+  crossScalaVersions   :=  Seq(primaryScalaVersion),
   scalacOptions        ++= Seq("-target:jvm-1.8", "-deprecation", "-unchecked"),
   scalacOptions in (Compile, doc) ++= docScalacOptions,
   scalacOptions in (Test, doc) ++= docScalacOptions,
+  useCoursier :=  false,
   autoAPIMappings := true,
   testOptions in Test  += Tests.Argument(TestFrameworks.ScalaTest, "-h", Option(System.getenv("TEST_HTML_REPORTS")).getOrElse(htmlReportsDirectory)),
   // uncomment for full stack traces
@@ -133,7 +136,7 @@ lazy val root = Project(id="fgbio", base=file("."))
       "com.intel.gkl"             %  "gkl"            % "0.8.6",
 
       //---------- Test libraries -------------------//
-      "org.scalatest"             %% "scalatest"     % "3.0.8"  % "test->*" excludeAll ExclusionRule(organization="org.junit", name="junit")
+      "org.scalatest"             %% "scalatest"     % "3.1.3"  % "test->*" excludeAll ExclusionRule(organization="org.junit", name="junit")
     ))
 
 
