@@ -90,9 +90,11 @@ class ErrorRateByReadPosition
   @arg(flag='d', doc="Include duplicate reads, otherwise ignore.") val includeDuplicates: Boolean = false,
   @arg(flag='m', doc="The minimum mapping quality for a read to be included.") val minMappingQuality: Int = 20,
   @arg(flag='q', doc="The minimum base quality for a base to be included.") val minBaseQuality: Int = 0,
-  @arg(doc="Collapse substitution types based on the reference or expected base, with only six substitution" +
-    " types being reported: `A>C`, `A>G`, `A>T`, `C>A`, `C>G` and `C>T`.For example, `T>G` is grouped in with `A>C`." +
-    " Otherwise, all possible substitution types will be reported."
+  @arg(doc="""
+            |Collapse substitution types based on the reference or expected base, with only six substitution
+            |types being reported: `A>C`, `A>G`, `A>T`, `C>A`, `C>G` and `C>T`.For example, `T>G` is grouped in with `A>C`.
+            |Otherwise, all possible substitution types will be reported.
+           """
   ) val collapse: Boolean = true
 ) extends FgBioTool with LazyLogging {
 
