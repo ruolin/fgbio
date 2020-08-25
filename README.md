@@ -23,6 +23,7 @@ Detailed user documentation is available on the [project website](http://fulcrum
   * [Contributing](#contributing)
   * [Authors](#authors)
   * [License](#license)
+  * [Sponsorship](#sponsorship)
 
 <!---toc end-->
 
@@ -126,3 +127,19 @@ For urgent matters, please contact us directly.
 
 `fgbio` is open source software released under the [MIT License](https://github.com/fulcrumgenomics/fgbio/blob/master/LICENSE).
 
+## Sponsorship
+
+### Become a sponsor
+
+As a free and open source project, `fgbio` relies on the support of the community of users for its development. If you work for an organization that uses and benefits from `fgbio`, please consider supporting `fgbio`. There are different ways, such as employing people to work on `fgbio`, funding the project, or becoming a [sponsor](https://github.com/sponsors/fulcrumgenomics) to support the broader ecosystem. Please [contact@fulcrumgenomics.com](https://www.fulcrumgenomics.com/contact/) to discuss.
+
+### Sponsors
+
+Sponsors provide support for `fgbio` through direct funding or employing contributors.
+Public sponsors include:
+
+<img src=".github/logos/fulcrumgenomics.svg" alt="Fulcrum Genomics" height="35"/>
+
+<img src=".github/logos/missionbio.svg" alt="Mission Bio" height="35"/>
+
+The full list of sponsors supporting `fgbio` is available in the [sponsor](https://github.com/sponsors/fulcrumgenomics) page.
