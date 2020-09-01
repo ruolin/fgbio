@@ -1,19 +1,17 @@
 package com.fulcrumgenomics.rnaseq
 
-import java.util
-
-import com.fulcrumgenomics.bam.api.SamSource
+import com.fulcrumgenomics.FgBioDef.{FgBioEnum, IteratorToJavaCollectionsAdapter, javaIterableToIterator}
+import com.fulcrumgenomics.bam.api.{SamRecord, SamSource}
 import com.fulcrumgenomics.cmdline.{ClpGroups, FgBioTool}
 import com.fulcrumgenomics.commons.CommonsDef.{FilePath, PathToBam, PathToIntervals}
-import com.fulcrumgenomics.commons.util.{LazyLogging, SimpleCounter}
-import com.fulcrumgenomics.sopt.{arg, clp}
-import htsjdk.samtools.util.{Interval, IntervalList, OverlapDetector, SamLocusIterator}
-import com.fulcrumgenomics.FgBioDef.IteratorToJavaCollectionsAdapter
-import com.fulcrumgenomics.FgBioDef.javaIterableToIterator
 import com.fulcrumgenomics.commons.io.Io
+import com.fulcrumgenomics.commons.util.{LazyLogging, SimpleCounter}
+import com.fulcrumgenomics.fasta.Converters.ToSAMSequenceDictionary
+import com.fulcrumgenomics.sopt.{arg, clp}
 import com.fulcrumgenomics.util.{Metric, ProgressLogger}
+import enumeratum.EnumEntry
 import htsjdk.samtools.SAMSequenceDictionary
-import htsjdk.samtools.filter.{DuplicateReadFilter, FailsVendorReadQualityFilter, SamRecordFilter, SecondaryOrSupplementaryFilter}
+import htsjdk.samtools.util.{Interval, IntervalList, OverlapDetector}
 
 /** Metric for [[AnnotateByIntervalList]].
   *
@@ -33,6 +31,12 @@ case class CoverageByIntervalMetrics
   mean_coverage: Double
 ) extends Metric
 
+sealed trait OverlapAssociationStrategy extends EnumEntry
+object OverlapAssociationStrategy extends FgBioEnum[OverlapAssociationStrategy] {
+  def values: IndexedSeq[OverlapAssociationStrategy] = findValues
+  case object AllOrNothing extends OverlapAssociationStrategy
+  case object Factional extends OverlapAssociationStrategy
+}
 
 @clp(group=ClpGroups.Fastq, description=
   """
@@ -46,7 +50,9 @@ class AnnotateByIntervalList
   @arg(flag='R', doc="The regular expression to use to classify the name of the interval") val nameRegex: Option[String] = None,
   @arg(flag='u', doc="The name of the intervals not in the given set of intervals") val unmatched: String = "unmatched",
   @arg(flag='m', doc="The minimum mapping quality for a read to be included.") val minMappingQuality: Int = 20,
-  @arg(flag='q', doc="The minimum base quality for a base to be included.") val minBaseQuality: Int = 0
+  @arg(flag='q', doc="The minimum base quality for a base to be included.") val minBaseQuality: Int = 0,
+  @arg(flag='a', doc="The strategy to determine which interval overlapping templates should be associated with")
+    val overlapAssociationStrategy: OverlapAssociationStrategy = OverlapAssociationStrategy.AllOrNothing
 ) extends FgBioTool with LazyLogging {
 
   Io.assertReadable(this.input)
@@ -57,46 +63,57 @@ class AnnotateByIntervalList
     val progress = ProgressLogger(logger, verb="Processed", noun="loci", unit=1000000)
     val reader = SamSource(this.input)
     val dict = reader.dict
+
     val (counter, overlapDetector) = {
       val _counter  = new SimpleCounter[String]()
-      val intervals = buildIntervals(dict)
-      intervals.foreach { intv => _counter.count(intv.getName, 0) }
-      val _overlapDetector = OverlapDetector.create[Interval](intervals.toIterator.toJavaList)
+      val intervals = buildIntervals(dict.asSam)
+      intervals.foreach { interval => _counter.count(interval.getName, 0) }
+      val _overlapDetector = OverlapDetector.create[Interval](intervals.iterator.toJavaList)
       (_counter, _overlapDetector)
     }
-    val iterator = {
-      val iter = new SamLocusIterator(reader.toSamReader)
-      val filters = new util.ArrayList[SamRecordFilter]()
-      filters.add(new SecondaryOrSupplementaryFilter)
-      filters.add(new FailsVendorReadQualityFilter)
-      filters.add(new DuplicateReadFilter)
-      iter.setSamFilters(filters)
-      iter.setMappingQualityScoreCutoff(this.minMappingQuality)
-      iter.setQualityScoreCutoff(this.minBaseQuality)
-      iter.setEmitUncoveredLoci(false)
-      iter.setIncludeIndels(false)
-      iter
-    }
+
+    //Templates are assigned to an interval together. Iterate through read one reads, but count bases from the mate.
+    val iterator = reader.iterator
+    val records = iterator.filterNot(record => record.duplicate
+        || record.secondOfPair
+        || record.secondary
+        || record.supplementary
+        || !record.pf
+        || record.mapq < minMappingQuality)
 
     var numLociMultiMatched: Long = 0
 
-    iterator.foreach { locus: SamLocusIterator.LocusInfo =>
-      val coverage          = locus.size
-      val locusInterval     = new Interval(locus.getSequenceName, locus.getPosition, locus.getPosition)
-      val overlaps          = overlapDetector.getOverlaps(locusInterval).toSeq
-      if (overlaps.isEmpty) {
-        counter.count(this.unmatched, coverage)
+    records.foreach { record: SamRecord =>
+      val recordInterval    = new Interval(record.refName, record.start, record.end)
+      val maybeMateInterval = record.mateEnd.map(end => new Interval(record.mateRefName, record.mateStart, end))
+      val overlaps          = overlapDetector.getOverlaps(recordInterval).toSeq
+      val maybeMateOverlaps = maybeMateInterval.map(overlapDetector.getOverlaps(_).toSeq)
+
+      if (overlaps.isEmpty && maybeMateOverlaps.isEmpty) {
+        counter.count(this.unmatched, record.length)
       } else {
-        val names = overlaps.map(_.getName).distinct 
+        val names:Seq[String] = (overlaps.map(_.getName)
+          ++ maybeMateOverlaps.map(_.map(_.getName)).getOrElse(Seq.empty[String])).distinct
+        // If there is an overlap use the association strategy to determine which bases are associated with
+        // which interval.
         if (names.length > 1) {
-          logger.warning(
-            s"Found more than one interval that matched locus '${locus.getSequenceName}:${locus.getPosition}' : ${names.mkString(", ")}"
-          )
+          //For intervals that only overlap one interval the bases are associated with that one.
+
+          //All or nothing associates all bases of the read with one interval or the other.
+
+          //Fractional associates only the bases overlapping the interval
+
           numLociMultiMatched += 1
+        } else {
+          // When there is only one interval matched we associate all intersected bases with the single interval
+          names.foreach { name =>
+            counter.count(name, overlaps.filter(_.getName == name).map(_.getIntersectionLength(recordInterval)).sum)
+            maybeMateOverlaps.map(mateOverlaps =>
+              counter.count(name, mateOverlaps.filter(_.getName == name).map(_.getIntersectionLength(maybeMateInterval.get)).sum))
+          }
         }
-        names.foreach { name => counter.count(name, coverage) }
       }
-      progress.record(locus.getSequenceName, locus.getPosition)
+      progress.record(record.refName, record.start)
     }
     reader.close()
 
@@ -105,12 +122,12 @@ class AnnotateByIntervalList
     // Get the total # of bases covered by each set of intervals
     val lengthByIntervalName = new SimpleCounter[String]()
     overlapDetector.getAll.toSeq.groupBy(_.getName).foreach { case (name, intvs) =>
-      val intervalList = new IntervalList(dict)
-      intervalList.addall(intvs.toIterator.toJavaList)
+      val intervalList = new IntervalList(dict.asSam)
+      intervalList.addall(intvs.iterator.toJavaList)
       val length = intervalList.uniqued().map(_.length()).sum
       lengthByIntervalName.count(name, length)
     }
-    lengthByIntervalName.count(this.unmatched, dict.getReferenceLength - lengthByIntervalName.total)
+    lengthByIntervalName.count(this.unmatched, dict.length - lengthByIntervalName.total)
 
     val totalBases = counter.total.toDouble
     val metrics = counter.map { case (name, bases) =>
@@ -121,7 +138,7 @@ class AnnotateByIntervalList
         name             = name,
         bases            = bases,
         span             = span,
-        frac_genome      = span / dict.getReferenceLength.toDouble,
+        frac_genome      = span / dict.length.toDouble,
         frac_total_bases = if (totalBases > 0) bases / totalBases else 0f,
         mean_coverage    = if (span > 0) bases / span.toDouble else 0f
       )
@@ -134,7 +151,7 @@ class AnnotateByIntervalList
     this.nameRegex.map(_.r) match {
       case None => inputIntervalList.uniqued(true).toList
       case Some(regex) =>
-        val intvs = inputIntervalList.map { i =>
+        val intervals = inputIntervalList.map { i =>
           val name = i.getName match {
             case regex(n) => n
             case _        => throw new IllegalArgumentException(s"Could not match name '${i.getName}' with regex '${this.nameRegex}'")
@@ -142,7 +159,7 @@ class AnnotateByIntervalList
           new Interval(i.getContig, i.getStart, i.getEnd, i.isNegativeStrand, name)
         }.toJavaList
         val intervalList = new IntervalList(dict)
-        intervalList.addall(intvs)
+        intervalList.addall(intervals)
         intervalList.toList
     }
   }
