@@ -7,11 +7,12 @@ import com.fulcrumgenomics.commons.CommonsDef.{FilePath, PathToBam, PathToInterv
 import com.fulcrumgenomics.commons.io.Io
 import com.fulcrumgenomics.commons.util.{LazyLogging, SimpleCounter}
 import com.fulcrumgenomics.fasta.Converters.ToSAMSequenceDictionary
+import com.fulcrumgenomics.rnaseq.OverlapAssociationStrategy.{Duplicate, LeastSpecific, MostSpecific}
 import com.fulcrumgenomics.sopt.{arg, clp}
 import com.fulcrumgenomics.util.{Metric, ProgressLogger}
 import enumeratum.EnumEntry
 import htsjdk.samtools.SAMSequenceDictionary
-import htsjdk.samtools.util.{Interval, IntervalList, OverlapDetector}
+import htsjdk.samtools.util.{CoordMath, Interval, IntervalList, OverlapDetector}
 
 /** Metric for [[AnnotateByIntervalList]].
   *
@@ -28,14 +29,16 @@ case class CoverageByIntervalMetrics
   span: Long,
   frac_genome: Double,
   frac_total_bases: Double,
-  mean_coverage: Double
+  mean_coverage: Double,
+  templates: Long
 ) extends Metric
 
 sealed trait OverlapAssociationStrategy extends EnumEntry
 object OverlapAssociationStrategy extends FgBioEnum[OverlapAssociationStrategy] {
   def values: IndexedSeq[OverlapAssociationStrategy] = findValues
-  case object AllOrNothing extends OverlapAssociationStrategy
-  case object Factional extends OverlapAssociationStrategy
+  case object Duplicate extends OverlapAssociationStrategy
+  case object MostSpecific extends OverlapAssociationStrategy
+  case object LeastSpecific extends OverlapAssociationStrategy
 }
 
 @clp(group=ClpGroups.Fastq, description=
@@ -52,7 +55,7 @@ class AnnotateByIntervalList
   @arg(flag='m', doc="The minimum mapping quality for a read to be included.") val minMappingQuality: Int = 20,
   @arg(flag='q', doc="The minimum base quality for a base to be included.") val minBaseQuality: Int = 0,
   @arg(flag='a', doc="The strategy to determine which interval overlapping templates should be associated with")
-    val overlapAssociationStrategy: OverlapAssociationStrategy = OverlapAssociationStrategy.AllOrNothing
+    val overlapAssociationStrategy: OverlapAssociationStrategy = OverlapAssociationStrategy.Duplicate
 ) extends FgBioTool with LazyLogging {
 
   Io.assertReadable(this.input)
@@ -64,56 +67,86 @@ class AnnotateByIntervalList
     val reader = SamSource(this.input)
     val dict = reader.dict
 
-    val (counter, overlapDetector) = {
-      val _counter  = new SimpleCounter[String]()
+    val (counter, templateCounter, overlapDetector) = {
+      val _counter         = new SimpleCounter[String]()
+      val _templateCounter = new SimpleCounter[String]()
       val intervals = buildIntervals(dict.asSam)
       intervals.foreach { interval => _counter.count(interval.getName, 0) }
       val _overlapDetector = OverlapDetector.create[Interval](intervals.iterator.toJavaList)
-      (_counter, _overlapDetector)
+      (_counter, _templateCounter, _overlapDetector)
     }
 
-    //Templates are assigned to an interval together. Iterate through read one reads, but count bases from the mate.
+    //Templates are assigned to an interval together.
     val iterator = reader.iterator
     val records = iterator.filterNot(record => record.duplicate
-        || record.secondOfPair
         || record.secondary
         || record.supplementary
         || !record.pf
+        || !record.isFrPair
         || record.mapq < minMappingQuality)
+
+    // First we filter to ensure that we only pick one read in a template and then iterate over those templates to create
+    // a set of intervals. For single ended reads the interval is just the read.
+    val templateIntervals = records.filter( record => {
+      if(record.mateMapped) {
+        val equalStarts = if (Math.min(record.start, record.end) == Math.min(record.mateStart, record.mateEnd.getOrElse(Int.MaxValue))){
+          record.firstOfPair
+        } else { true }
+        // Take only the first read by coordinate order
+        Math.min(record.start, record.end) < Math.min(record.mateStart, record.mateEnd.getOrElse(Int.MaxValue)) &&
+        // if mate start == start pick first of pair
+        equalStarts
+      } else {
+        //If we are single ended then just take the record
+        true
+      }
+    }).map(record =>
+      // Interval should be end of read one to the beginning of read two
+      new Interval(
+        record.refName,
+        Math.max(record.start, record.end) + 1,
+        Math.min(record.mateStart, record.mateEnd.getOrElse(Int.MaxValue)) -1
+      )
+    )
 
     var numLociMultiMatched: Long = 0
 
-    records.foreach { record: SamRecord =>
-      val recordInterval    = new Interval(record.refName, record.start, record.end)
-      val maybeMateInterval = record.mateEnd.map(end => new Interval(record.mateRefName, record.mateStart, end))
-      val overlaps          = overlapDetector.getOverlaps(recordInterval).toSeq
-      val maybeMateOverlaps = maybeMateInterval.map(overlapDetector.getOverlaps(_).toSeq)
+    templateIntervals.foreach { templateInterval =>
+      val overlaps = overlapDetector.getOverlaps(templateInterval).toSeq
+        .filter(interval => CoordMath.encloses(interval.getStart, interval.getEnd,
+          templateInterval.getStart, templateInterval.getEnd))
 
-      if (overlaps.isEmpty && maybeMateOverlaps.isEmpty) {
-        counter.count(this.unmatched, record.length)
+      if (overlaps.isEmpty) {
+        counter.count(this.unmatched, templateInterval.getLengthOnReference)
+        templateCounter.count(this.unmatched, 1)
       } else {
-        val names:Seq[String] = (overlaps.map(_.getName)
-          ++ maybeMateOverlaps.map(_.map(_.getName)).getOrElse(Seq.empty[String])).distinct
-        // If there is an overlap use the association strategy to determine which bases are associated with
-        // which interval.
+        val names:Seq[String] = overlaps.map(_.getName).distinct
+
+        def countForNames(namesToCount: Seq[String]): Unit = {
+          namesToCount.foreach { name =>
+            counter.count(name, overlaps.filter(_.getName == name).map(_.getIntersectionLength(templateInterval)).sum)
+            templateCounter.count(name, 1)
+          }
+        }
+
         if (names.length > 1) {
-          //For intervals that only overlap one interval the bases are associated with that one.
-
-          //All or nothing associates all bases of the read with one interval or the other.
-
-          //Fractional associates only the bases overlapping the interval
-
+          // If there is an overlap use the association strategy to determine which bases are associated with
+          // which interval.
+          overlapAssociationStrategy match {
+            // Duplicate counting associates the template base with all enclosing intervals.
+            case Duplicate  => countForNames(names)
+            // MostSpecific counting associates the template bases with the smallest enclosing interval.
+            case MostSpecific       => countForNames(Seq(overlaps.minBy(_.length).getName))
+              // LeastSpecific counting associates the template bases with the largest enclosing interval.
+            case LeastSpecific       => countForNames(Seq(overlaps.maxBy(_.length).getName))
+          }
           numLociMultiMatched += 1
         } else {
           // When there is only one interval matched we associate all intersected bases with the single interval
-          names.foreach { name =>
-            counter.count(name, overlaps.filter(_.getName == name).map(_.getIntersectionLength(recordInterval)).sum)
-            maybeMateOverlaps.map(mateOverlaps =>
-              counter.count(name, mateOverlaps.filter(_.getName == name).map(_.getIntersectionLength(maybeMateInterval.get)).sum))
-          }
+          countForNames(names)
         }
       }
-      progress.record(record.refName, record.start)
+      progress.record(templateInterval.getContig, templateInterval.getStart)
     }
     reader.close()
 
@@ -140,7 +173,8 @@ class AnnotateByIntervalList
         span             = span,
         frac_genome      = span / dict.length.toDouble,
         frac_total_bases = if (totalBases > 0) bases / totalBases else 0f,
-        mean_coverage    = if (span > 0) bases / span.toDouble else 0f
+        mean_coverage    = if (span > 0) bases / span.toDouble else 0f,
+        templates        = templateCounter.countOf(name)
       )
     }.toSeq.sortBy(_.name)
     Metric.write(this.output, metrics)

@@ -6,7 +6,6 @@ import com.fulcrumgenomics.util.{IntervalListWriter, Metric}
 import htsjdk.samtools.SAMSequenceDictionary
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory
 import htsjdk.samtools.util.Interval
-import org.scalatest.Matchers.convertToAnyShouldWrapper
 import org.scalatest.OptionValues
 
 class AnnotateByIntervalListTest extends UnitSpec with ErrorLogLevel with OptionValues {
@@ -22,39 +21,7 @@ class AnnotateByIntervalListTest extends UnitSpec with ErrorLogLevel with Option
 
   val dict: SAMSequenceDictionary = ref.getSequenceDictionary
 
-  "AnnotateByIntervalList" should "associate template bases with interval if read one overlaps a single interval" in {
-    val builder = new SamBuilder(readLength=50, sd=Some(dict.fromSam))
-    val intervalPath = makeTempFile("annotatebyinterval", "interval_list")
-    val tmpOutput = makeTempFile("annotatebyinterval_metrics", "txt")
-    val writer = IntervalListWriter(intervalPath, dict.fromSam)
-
-    writer += new Interval("chr1", 1, 150, false, "interval1")
-    writer.close()
-
-    builder.addPair("single", start1 = 50, start2 = 250)
-    new AnnotateByIntervalList(builder.toTempFile(), intervalPath, tmpOutput).execute()
-
-    val metrics = Metric.read[CoverageByIntervalMetrics](tmpOutput)
-    metrics.filter(_.name == "interval1").head.bases shouldBe 50
-  }
-
-  "AnnotateByIntervalList" should "associate template bases with interval if read two overlaps a single interval" in {
-    val builder = new SamBuilder(readLength=50, sd=Some(dict.fromSam))
-    val intervalPath = makeTempFile("annotatebyinterval", "interval_list")
-    val tmpOutput = makeTempFile("annotatebyinterval_metrics", "txt")
-    val writer = IntervalListWriter(intervalPath, dict.fromSam)
-
-    writer += new Interval("chr1", 200, 350, false, "interval1")
-    writer.close()
-
-    builder.addPair("single", start1 = 50, start2 = 250)
-    new AnnotateByIntervalList(builder.toTempFile(), intervalPath, tmpOutput).execute()
-
-    val metrics = Metric.read[CoverageByIntervalMetrics](tmpOutput)
-    metrics.filter(_.name == "interval1").head.bases shouldBe 50
-  }
-
-  "AnnotateByIntervalList" should "associate template bases with interval if both reads overlap a single interval" in {
+  "AnnotateByIntervalList" should "associate template bases if the template is enclosed in an interval" in {
     val builder = new SamBuilder(readLength=50, sd=Some(dict.fromSam))
     val intervalPath = makeTempFile("annotatebyinterval", "interval_list")
     val tmpOutput = makeTempFile("annotatebyinterval_metrics", "txt")
@@ -67,41 +34,96 @@ class AnnotateByIntervalListTest extends UnitSpec with ErrorLogLevel with Option
     new AnnotateByIntervalList(builder.toTempFile(), intervalPath, tmpOutput).execute()
 
     val metrics = Metric.read[CoverageByIntervalMetrics](tmpOutput)
-    metrics.filter(_.name == "interval1").head.bases shouldBe 100
+    metrics.filter(_.name == "interval1").head.bases shouldBe 150
   }
 
-  "AnnotateByIntervalList" should "associate partial template bases with interval when part of a read overlaps" in {
+  "AnnotateByIntervalList" should "not associate template bases if the template is not fully enclosed in an interval" in {
     val builder = new SamBuilder(readLength=50, sd=Some(dict.fromSam))
     val intervalPath = makeTempFile("annotatebyinterval", "interval_list")
     val tmpOutput = makeTempFile("annotatebyinterval_metrics", "txt")
     val writer = IntervalListWriter(intervalPath, dict.fromSam)
 
-    writer += new Interval("chr1", 76, 275, false, "interval1")
+    writer += new Interval("chr1", 1, 200, false, "interval1")
     writer.close()
 
     builder.addPair("single", start1 = 50, start2 = 250)
     new AnnotateByIntervalList(builder.toTempFile(), intervalPath, tmpOutput).execute()
 
     val metrics = Metric.read[CoverageByIntervalMetrics](tmpOutput)
-    // 25 from read one 25 from read two
-    metrics.filter(_.name == "interval1").head.bases shouldBe 50
+    metrics.filter(_.name == "interval1").head.bases shouldBe 0
   }
 
-  "AnnotateByIntervalList" should "associate bases with abutting intervals" in {
+  "AnnotateByIntervalList" should "associate bases with only enclosing intervals" in {
     val builder = new SamBuilder(readLength=50, sd=Some(dict.fromSam))
     val intervalPath = makeTempFile("annotatebyinterval", "interval_list")
     val tmpOutput = makeTempFile("annotatebyinterval_metrics", "txt")
     val writer = IntervalListWriter(intervalPath, dict.fromSam)
 
-    writer += new Interval("chr1", 1, 76, false, "interval1")
-    writer += new Interval("chr1", 77, 100, false, "interval2")
+    writer += new Interval("chr1", 1, 500, false, "interval1")
+    writer += new Interval("chr1", 152, 300, false, "interval2")
     writer.close()
 
     builder.addPair("single", start1 = 50, start2 = 250)
-    new AnnotateByIntervalList(builder.toTempFile(), intervalPath, tmpOutput).execute()
+    new AnnotateByIntervalList(builder.toTempFile(), intervalPath, tmpOutput, nameRegex = Some("(^interval.).*")).execute()
 
     val metrics = Metric.read[CoverageByIntervalMetrics](tmpOutput)
-    // 25 from read one 25 from read two
-    metrics.filter(_.name == "interval1").head.bases shouldBe 50
+    metrics.filter(_.name == "interval1").head.bases shouldBe 150
+    metrics.filter(_.name == "interval2").head.bases shouldBe 0
+  }
+
+  "AnnotateByIntervalList" should "associate bases with all enclosing intervals (duplicate counts)" in {
+    val builder = new SamBuilder(readLength=50, sd=Some(dict.fromSam))
+    val intervalPath = makeTempFile("annotatebyinterval", "interval_list")
+    val tmpOutput = makeTempFile("annotatebyinterval_metrics", "txt")
+    val writer = IntervalListWriter(intervalPath, dict.fromSam)
+
+    writer += new Interval("chr1", 1, 500, false, "interval1")
+    writer += new Interval("chr1", 10, 490, false, "interval2")
+    writer.close()
+
+    builder.addPair("single", start1 = 50, start2 = 250)
+    new AnnotateByIntervalList(builder.toTempFile(), intervalPath, tmpOutput, nameRegex = Some("(^interval.).*")).execute()
+
+    val metrics = Metric.read[CoverageByIntervalMetrics](tmpOutput)
+    metrics.filter(_.name == "interval1").head.bases shouldBe 150
+    metrics.filter(_.name == "interval2").head.bases shouldBe 150
+  }
+
+  "AnnotateByIntervalList" should "associate bases with the smallest interval (most specific counts)" in {
+    val builder = new SamBuilder(readLength=50, sd=Some(dict.fromSam))
+    val intervalPath = makeTempFile("annotatebyinterval", "interval_list")
+    val tmpOutput = makeTempFile("annotatebyinterval_metrics", "txt")
+    val writer = IntervalListWriter(intervalPath, dict.fromSam)
+
+    writer += new Interval("chr1", 1, 500, false, "interval1")
+    writer += new Interval("chr1", 10, 490, false, "interval2")
+    writer.close()
+
+    builder.addPair("single", start1 = 50, start2 = 250)
+    new AnnotateByIntervalList(builder.toTempFile(), intervalPath, tmpOutput, nameRegex = Some("(^interval.).*"),
+      overlapAssociationStrategy = OverlapAssociationStrategy.MostSpecific).execute()
+
+    val metrics = Metric.read[CoverageByIntervalMetrics](tmpOutput)
+    metrics.filter(_.name == "interval1").head.bases shouldBe 0
+    metrics.filter(_.name == "interval2").head.bases shouldBe 150
+  }
+
+  "AnnotateByIntervalList" should "associate bases with the largest interval (least specific counts)" in {
+    val builder = new SamBuilder(readLength=50, sd=Some(dict.fromSam))
+    val intervalPath = makeTempFile("annotatebyinterval", "interval_list")
+    val tmpOutput = makeTempFile("annotatebyinterval_metrics", "txt")
+    val writer = IntervalListWriter(intervalPath, dict.fromSam)
+
+    writer += new Interval("chr1", 1, 500, false, "interval1")
+    writer += new Interval("chr1", 10, 490, false, "interval2")
+    writer.close()
+
+    builder.addPair("single", start1 = 50, start2 = 250)
+    new AnnotateByIntervalList(builder.toTempFile(), intervalPath, tmpOutput, nameRegex = Some("(^interval.).*"),
+      overlapAssociationStrategy = OverlapAssociationStrategy.LeastSpecific).execute()
+
+    val metrics = Metric.read[CoverageByIntervalMetrics](tmpOutput)
+    metrics.filter(_.name == "interval1").head.bases shouldBe 150
+    metrics.filter(_.name == "interval2").head.bases shouldBe 0
   }
 }
