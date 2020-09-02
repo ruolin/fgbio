@@ -86,7 +86,9 @@ class AnnotateByIntervalListTest extends UnitSpec with ErrorLogLevel with Option
 
     val metrics = Metric.read[CoverageByIntervalMetrics](tmpOutput)
     metrics.filter(_.name == "interval1").head.bases shouldBe 150
+    metrics.filter(_.name == "interval1").head.unique_bases shouldBe 0
     metrics.filter(_.name == "interval2").head.bases shouldBe 150
+    metrics.filter(_.name == "interval2").head.unique_bases shouldBe 0
   }
 
   "AnnotateByIntervalList" should "associate bases with the smallest interval (most specific counts)" in {
@@ -105,7 +107,9 @@ class AnnotateByIntervalListTest extends UnitSpec with ErrorLogLevel with Option
 
     val metrics = Metric.read[CoverageByIntervalMetrics](tmpOutput)
     metrics.filter(_.name == "interval1").head.bases shouldBe 0
+    metrics.filter(_.name == "interval1").head.unique_bases shouldBe 0
     metrics.filter(_.name == "interval2").head.bases shouldBe 150
+    metrics.filter(_.name == "interval2").head.unique_bases shouldBe 150
   }
 
   "AnnotateByIntervalList" should "associate bases with the largest interval (least specific counts)" in {

@@ -1,7 +1,7 @@
 package com.fulcrumgenomics.rnaseq
 
 import com.fulcrumgenomics.FgBioDef.{FgBioEnum, IteratorToJavaCollectionsAdapter, javaIterableToIterator}
-import com.fulcrumgenomics.bam.api.{SamRecord, SamSource}
+import com.fulcrumgenomics.bam.api.SamSource
 import com.fulcrumgenomics.cmdline.{ClpGroups, FgBioTool}
 import com.fulcrumgenomics.commons.CommonsDef.{FilePath, PathToBam, PathToIntervals}
 import com.fulcrumgenomics.commons.io.Io
@@ -13,33 +13,6 @@ import com.fulcrumgenomics.util.{Metric, ProgressLogger}
 import enumeratum.EnumEntry
 import htsjdk.samtools.SAMSequenceDictionary
 import htsjdk.samtools.util.{CoordMath, Interval, IntervalList, OverlapDetector}
-
-/** Metric for [[AnnotateByIntervalList]].
-  *
-  * @param name the name of the intervals
-  * @param bases the number of bases mapping to intervals with the given name.
-  * @param span the number of unique genomic loci/bases coverage by intervals with the given name.
-  * @param frac_genome the fraction of unique genomic loci/bases coverage by intervals with the given name.
-  * @param frac_total_bases the fraction of mapped bases covered by intervals with the given name.
-  * @param mean_coverage the mean coverage of intervals with the given name.
-  */
-case class CoverageByIntervalMetrics
-( name: String,
-  bases: Long,
-  span: Long,
-  frac_genome: Double,
-  frac_total_bases: Double,
-  mean_coverage: Double,
-  templates: Long
-) extends Metric
-
-sealed trait OverlapAssociationStrategy extends EnumEntry
-object OverlapAssociationStrategy extends FgBioEnum[OverlapAssociationStrategy] {
-  def values: IndexedSeq[OverlapAssociationStrategy] = findValues
-  case object Duplicate extends OverlapAssociationStrategy
-  case object MostSpecific extends OverlapAssociationStrategy
-  case object LeastSpecific extends OverlapAssociationStrategy
-}
 
 @clp(group=ClpGroups.Fastq, description=
   """
@@ -67,13 +40,15 @@ class AnnotateByIntervalList
     val reader = SamSource(this.input)
     val dict = reader.dict
 
-    val (counter, templateCounter, overlapDetector) = {
-      val _counter         = new SimpleCounter[String]()
+    val (baseCounter, uniqueBaseCounter, templateCounter, uniqueTemplateCounter, overlapDetector) = {
+      val _baseCounter         = new SimpleCounter[String]()
+      val _uniqueBaseCounter  = new SimpleCounter[String]()
       val _templateCounter = new SimpleCounter[String]()
+      val _uniqueTemplateCounter = new SimpleCounter[String]()
       val intervals = buildIntervals(dict.asSam)
-      intervals.foreach { interval => _counter.count(interval.getName, 0) }
+      intervals.foreach { interval => _baseCounter.count(interval.getName, 0) }
       val _overlapDetector = OverlapDetector.create[Interval](intervals.iterator.toJavaList)
-      (_counter, _templateCounter, _overlapDetector)
+      (_baseCounter, _uniqueBaseCounter, _templateCounter, _uniqueTemplateCounter, _overlapDetector)
     }
 
     //Templates are assigned to an interval together.
@@ -117,15 +92,20 @@ class AnnotateByIntervalList
           templateInterval.getStart, templateInterval.getEnd))
 
       if (overlaps.isEmpty) {
-        counter.count(this.unmatched, templateInterval.getLengthOnReference)
+        baseCounter.count(this.unmatched, templateInterval.getLengthOnReference)
         templateCounter.count(this.unmatched, 1)
       } else {
         val names:Seq[String] = overlaps.map(_.getName).distinct
 
         def countForNames(namesToCount: Seq[String]): Unit = {
           namesToCount.foreach { name =>
-            counter.count(name, overlaps.filter(_.getName == name).map(_.getIntersectionLength(templateInterval)).sum)
+            val bases = overlaps.filter(_.getName == name).map(_.getIntersectionLength(templateInterval)).sum
+            baseCounter.count(name, bases)
             templateCounter.count(name, 1)
+            if(namesToCount.length == 1) {
+              uniqueBaseCounter.count(name, bases)
+              uniqueTemplateCounter.count(name, 1)
+            }
           }
         }
 
@@ -162,19 +142,21 @@ class AnnotateByIntervalList
     }
     lengthByIntervalName.count(this.unmatched, dict.length - lengthByIntervalName.total)
 
-    val totalBases = counter.total.toDouble
-    val metrics = counter.map { case (name, bases) =>
+    val totalBases = baseCounter.total.toDouble
+    val metrics = baseCounter.map { case (name, bases) =>
       // The total # of genomic bases covered by the intervals with the given name
       val span = lengthByIntervalName.countOf(name)
 
       CoverageByIntervalMetrics(
         name             = name,
         bases            = bases,
+        unique_bases     = uniqueBaseCounter.countOf(name),
         span             = span,
         frac_genome      = span / dict.length.toDouble,
         frac_total_bases = if (totalBases > 0) bases / totalBases else 0f,
         mean_coverage    = if (span > 0) bases / span.toDouble else 0f,
-        templates        = templateCounter.countOf(name)
+        templates        = templateCounter.countOf(name),
+        unique_templates = uniqueTemplateCounter.countOf(name)
       )
     }.toSeq.sortBy(_.name)
     Metric.write(this.output, metrics)
@@ -197,4 +179,33 @@ class AnnotateByIntervalList
         intervalList.toList
     }
   }
+}
+
+/** Metric for [[AnnotateByIntervalList]].
+  *
+  * @param name the name of the intervals
+  * @param bases the number of bases mapping to intervals with the given name.
+  * @param span the number of unique genomic loci/bases coverage by intervals with the given name.
+  * @param frac_genome the fraction of unique genomic loci/bases coverage by intervals with the given name.
+  * @param frac_total_bases the fraction of mapped bases covered by intervals with the given name.
+  * @param mean_coverage the mean coverage of intervals with the given name.
+  */
+case class CoverageByIntervalMetrics
+( name: String,
+  unique_bases: Long,
+  bases: Long,
+  span: Long,
+  frac_genome: Double,
+  frac_total_bases: Double,
+  mean_coverage: Double,
+  templates: Long,
+  unique_templates: Long
+) extends Metric
+
+sealed trait OverlapAssociationStrategy extends EnumEntry
+object OverlapAssociationStrategy extends FgBioEnum[OverlapAssociationStrategy] {
+  def values: IndexedSeq[OverlapAssociationStrategy] = findValues
+  case object Duplicate extends OverlapAssociationStrategy
+  case object MostSpecific extends OverlapAssociationStrategy
+  case object LeastSpecific extends OverlapAssociationStrategy
 }
