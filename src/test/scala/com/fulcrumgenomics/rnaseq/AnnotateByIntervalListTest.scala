@@ -1,3 +1,26 @@
+/*
+ * The MIT License
+ *
+ * Copyright (c) 2020 Fulcrum Genomics LLC
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 package com.fulcrumgenomics.rnaseq
 
 import com.fulcrumgenomics.fasta.Converters.FromSAMSequenceDictionary
@@ -33,7 +56,7 @@ class AnnotateByIntervalListTest extends UnitSpec with ErrorLogLevel with Option
     new AnnotateByIntervalList(builder.toTempFile(), intervalPath, tmpOutput).execute()
 
     val metrics = Metric.read[CoverageByIntervalMetrics](tmpOutput)
-    metrics.filter(_.name == "interval1").head.bases shouldBe 150
+    metrics.filter(_.name == "interval1").head.bases shouldBe 100
   }
 
   "AnnotateByIntervalList" should "not associate template bases if the template is not fully enclosed in an interval" in {
@@ -66,7 +89,7 @@ class AnnotateByIntervalListTest extends UnitSpec with ErrorLogLevel with Option
     new AnnotateByIntervalList(builder.toTempFile(), intervalPath, tmpOutput, nameRegex = Some("(^interval.).*")).execute()
 
     val metrics = Metric.read[CoverageByIntervalMetrics](tmpOutput)
-    metrics.filter(_.name == "interval1").head.bases shouldBe 150
+    metrics.filter(_.name == "interval1").head.bases shouldBe 100
     metrics.filter(_.name == "interval2").head.bases shouldBe 0
   }
 
@@ -84,9 +107,9 @@ class AnnotateByIntervalListTest extends UnitSpec with ErrorLogLevel with Option
     new AnnotateByIntervalList(builder.toTempFile(), intervalPath, tmpOutput, nameRegex = Some("(^interval.).*")).execute()
 
     val metrics = Metric.read[CoverageByIntervalMetrics](tmpOutput)
-    metrics.filter(_.name == "interval1").head.bases shouldBe 150
+    metrics.filter(_.name == "interval1").head.bases shouldBe 100
     metrics.filter(_.name == "interval1").head.unique_bases shouldBe 0
-    metrics.filter(_.name == "interval2").head.bases shouldBe 150
+    metrics.filter(_.name == "interval2").head.bases shouldBe 100
     metrics.filter(_.name == "interval2").head.unique_bases shouldBe 0
   }
 
@@ -107,8 +130,8 @@ class AnnotateByIntervalListTest extends UnitSpec with ErrorLogLevel with Option
     val metrics = Metric.read[CoverageByIntervalMetrics](tmpOutput)
     metrics.filter(_.name == "interval1").head.bases shouldBe 0
     metrics.filter(_.name == "interval1").head.unique_bases shouldBe 0
-    metrics.filter(_.name == "interval2").head.bases shouldBe 150
-    metrics.filter(_.name == "interval2").head.unique_bases shouldBe 150
+    metrics.filter(_.name == "interval2").head.bases shouldBe 100
+    metrics.filter(_.name == "interval2").head.unique_bases shouldBe 100
   }
 
   "AnnotateByIntervalList" should "associate bases with the largest interval (least specific counts)" in {
@@ -126,7 +149,7 @@ class AnnotateByIntervalListTest extends UnitSpec with ErrorLogLevel with Option
       overlapAssociationStrategy = OverlapAssociationStrategy.LeastSpecific).execute()
 
     val metrics = Metric.read[CoverageByIntervalMetrics](tmpOutput)
-    metrics.filter(_.name == "interval1").head.bases shouldBe 150
+    metrics.filter(_.name == "interval1").head.bases shouldBe 100
     metrics.filter(_.name == "interval2").head.bases shouldBe 0
   }
 }
