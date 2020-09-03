@@ -41,7 +41,7 @@ import htsjdk.samtools.util.{CoordMath, Interval, IntervalList, OverlapDetector}
   """)
 class AnnotateByIntervalList
 (
-  @arg(flag = 'i', doc = "Mapped BAM file.") val input: PathToBam,
+  @arg(flag = 'i', doc = "Path to a mapped BAM file.") val input: PathToBam,
   @arg(flag = 'l', doc = "Path to intervals") val intervals: PathToIntervals,
   @arg(flag = 'o', doc = "Path to the output metrics file") val output: FilePath,
   @arg(flag = 'R', doc = "The regular expression to use to classify the name of the interval") val nameRegex: Option[String] = None,
