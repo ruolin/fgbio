@@ -86,12 +86,13 @@ class AnnotateByIntervalList
     // an interval for each template. For single ended reads the interval is just the read.
     val templateIntervals = records.filter { record =>
       if (record.mateMapped) {
-        val equalStartTieBreaker =
+        val equalStartTieBreaker = {
           if (Math.min(record.start, record.end) == Math.min(record.mateStart, record.mateEnd.getOrElse(Int.MaxValue))) {
             record.firstOfPair
           } else {
             true
           }
+        }
         // Take only the first read by coordinate order
         Math.min(record.start, record.end) < Math.min(record.mateStart, record.mateEnd.getOrElse(Int.MaxValue)) &&
         // if mate start == start pick first of pair
