@@ -17,7 +17,7 @@ import htsjdk.samtools.util.{CoordMath, Interval, IntervalList, OverlapDetector}
 @clp(group = ClpGroups.Fastq, description =
   """
     |Collects base and read coverage statistics across intervals by name.
-    |A regular expression is used to classify the name of the intervals to be counted and how they should be grouped.
+    |A regular expression may used to classify the name of the intervals to be counted and how they should be grouped.  Otherwise, the name is used as-is.
     |
     |For example for the following interval list:
     |
