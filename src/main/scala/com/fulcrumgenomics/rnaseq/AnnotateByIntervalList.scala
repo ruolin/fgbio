@@ -35,7 +35,7 @@ import htsjdk.samtools.util.{CoordMath, Interval, IntervalList, OverlapDetector}
     |
     |Using the the regex `([^;]*).*` would produce 3 separate interval counts CDS, utr and intron.
     |
-    |Counts template bases (paired-end) or read bases (single end) that are fully enclosed within an interval.
+    |Template bases (paired-end) or read bases (single end) are only counted if they fully enclosed within an interval.
     |By default if a read is enclosed by multiple intervals it will be counted for both intervals. This behavior
     |can be changed using a different `OverlapAssociationStrategy`
   """)
