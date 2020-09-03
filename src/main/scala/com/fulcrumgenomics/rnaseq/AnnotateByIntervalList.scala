@@ -46,8 +46,8 @@ class AnnotateByIntervalList
   @arg(flag = 'o', doc = "Path to the output metrics file") val output: FilePath,
   @arg(flag = 'R', doc = "The regular expression to use to classify the name of the interval") val nameRegex: Option[String] = None,
   @arg(flag = 'u', doc = "The name of the intervals not in the given set of intervals") val unmatched: String = "unmatched",
-  @arg(flag = 'm', doc = "The minimum mapping quality for a read to be included.") val minMappingQuality: Int = 20,
-  @arg(flag = 'q', doc = "The minimum base quality for a base to be included.") val minBaseQuality: Int = 0,
+  @arg(flag = 'm', doc = "The minimum mapping quality for a read to be included") val minMappingQuality: Int = 20,
+  @arg(flag = 'q', doc = "The minimum base quality for a base to be included") val minBaseQuality: Int = 0,
   @arg(flag = 'a', doc = "The strategy to determine which interval overlapping templates should be associated with")
   val overlapAssociationStrategy: OverlapAssociationStrategy = OverlapAssociationStrategy.Duplicate
 ) extends FgBioTool with LazyLogging {
