@@ -16,7 +16,7 @@ import htsjdk.samtools.util.{CoordMath, Interval, IntervalList, OverlapDetector}
 
 @clp(group = ClpGroups.Fastq, description =
   """
-    |Get percentage of bases falling in each interval by name.
+    |Collects base and read coverage statistics across intervals by name.
     |A regular expression is used to classify the name of the intervals to be counted and how they should be grouped.
     |
     |For example for the following interval list:
