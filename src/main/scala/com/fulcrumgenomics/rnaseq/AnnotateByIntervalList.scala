@@ -37,7 +37,7 @@ import htsjdk.samtools.util.{CoordMath, Interval, IntervalList, OverlapDetector}
     |
     |Template bases (paired-end) or read bases (single end) are only counted if they fully enclosed within an interval.
     |By default if a read is enclosed by multiple intervals it will be counted for both intervals. This behavior
-    |can be changed using a different `OverlapAssociationStrategy`
+    |can be changed using a different `--overlap-association-strategy`.
   """)
 class AnnotateByIntervalList
 (
