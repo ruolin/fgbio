@@ -195,7 +195,7 @@ class AnnotateByIntervalList
         val intervals = inputIntervalList.map { i =>
           val name = i.getName match {
             case regex(n) => n
-            case _ => throw new IllegalArgumentException(s"Could not match name '${i.getName}' with regex '${this.nameRegex}'")
+            case _        => throw new IllegalArgumentException(s"Could not match name '${i.getName}' with regex '${this.nameRegex}'")
           }
           new Interval(i.getContig, i.getStart, i.getEnd, i.isNegativeStrand, name)
         }.toJavaList
