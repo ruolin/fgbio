@@ -190,7 +190,7 @@ class AnnotateByIntervalList
   private def buildIntervals(dict: SAMSequenceDictionary): List[Interval] = {
     val inputIntervalList = IntervalList.fromPath(this.intervals)
     this.nameRegex.map(_.r) match {
-      case None => inputIntervalList.uniqued(true).toList
+      case None        => inputIntervalList.uniqued(true).toList
       case Some(regex) =>
         val intervals = inputIntervalList.map { i =>
           val name = i.getName match {
