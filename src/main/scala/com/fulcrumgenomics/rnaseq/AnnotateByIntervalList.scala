@@ -105,8 +105,8 @@ class AnnotateByIntervalList
       // Interval should be end of read one to the beginning of read two
       new Interval(
         record.refName,
-        Math.max(record.start, record.end) + 1,
-        Math.min(record.mateStart, record.mateEnd.getOrElse(Int.MaxValue)) - 1
+        Math.max(record.start, record.mateStart) + 1,
+        Math.max(record.mateStart, record.mateEnd.getOrElse(exception) - 1
       )
     )
 
