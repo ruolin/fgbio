@@ -108,7 +108,7 @@ class AnnotateByIntervalList
     val iterator = reader.iterator
 
     val records = iterator.filterNot { rec =>
-      rec.duplicate || rec.secondary || rec.supplementary || !rec.pf || (rec.paired && !rec.isFrPair) || rec.mapq < minMappingQuality || pairStartTieBreaker(rec)
+      rec.duplicate || rec.secondary || rec.supplementary || !rec.pf || (rec.paired && !rec.isFrPair) || rec.mapq < minMappingQuality || pairStartTieBreaker(rec) || getInsertSize(rec) > maxInsertSize
     }
 
     val enclosingIntervalToRecords: Map[Interval, SamRecord] = records.map(record =>
@@ -190,6 +190,15 @@ class AnnotateByIntervalList
       )
     }.toSeq.sortBy(_.name)
     Metric.write(this.output, metrics)
+  }
+
+  private def getInsertSize(rec: SamRecord): Int = {
+    if (rec.paired && rec.mateMapped && (rec.mateRefName == rec.refName)) {
+      Math.max(
+        Math.abs(rec.start - rec.mateEnd.getOrElse(rec.start - rec.end)),
+        Math.abs(rec.mateStart - rec.end)
+      )
+    } else 0
   }
 
   /**
