@@ -79,7 +79,7 @@ class AnnotateByIntervalList
       || record.secondary
       || record.supplementary
       || !record.pf
-      || !record.isFrPair
+      || (record.paired && !record.isFrPair)
       || record.mapq < minMappingQuality)
 
     // First we filter to ensure that we only pick one read in a template and then iterate over those reads to create
