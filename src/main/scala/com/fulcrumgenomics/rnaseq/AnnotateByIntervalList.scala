@@ -151,7 +151,8 @@ class AnnotateByIntervalList
       }
       progress.record(templateInterval.getContig, templateInterval.getStart)
     }
-    reader.close()
+    progress.logLast()
+    reader.safelyClose()
 
     logger.info(f"Found $numLociMultiMatched%,d templates with multiple classifications.")
 
