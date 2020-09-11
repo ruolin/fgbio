@@ -113,6 +113,8 @@ object VcfHeaderParser {
     private val reservedHeadersMap: Map[String, T] = reservedHeaders.map { header => header.id -> header }.toMap
     /** Returns a parser for this entry/line given a lookup of attributes, id, count, and kind. */
     protected def toParser[_: P](lookup: Lookup, id: String, count: Count, kind: Kind): P[T]
+    /** Parses a [[Count]] from the input for a [[VcfInfoHeader]] */
+    protected def numberToCount(implicit ctx: P[_]): P[Count]
     /** Builds a header entry of type [[T]] after parsing comma-delimited key-value pairs. */
     def build[_: P]: P[T] = csvKeyValues.flatMap { attrs: Seq[(SI, SI)] =>
       Lookup.parse(attrs).flatMap { lookup =>
@@ -124,9 +126,9 @@ object VcfHeaderParser {
           // Check against pre-defined/reserved INFO values
           reservedHeadersMap.get(id) match {
             case Some(info) if info.count != count =>
-              fail(startIndex=lookup.si(key = Number).startIndex, s"expected `${info.count}` for $Number, found $count")
+              lookup.si(key = Number).fail(s"expected `${info.count}` for $Number, found $count")
             case Some(info) if info.kind != kind =>
-              fail(startIndex=lookup.si(key = Type).startIndex, s"expected `${info.kind}` for $Type, found $kind")
+              lookup.si(key = Type).fail(s"expected `${info.kind}` for $Type, found $kind")
             case _ => toParser(lookup=lookup, id=id, count=count, kind=kind)
           }
         }
@@ -162,6 +164,15 @@ object VcfHeaderParser {
       VcfInfoHeader(id="VALIDATED", count=0,               kind=Kind.Flag,    description=""),
       VcfInfoHeader(id="1000G",     count=0,               kind=Kind.Flag,    description=""),
     )
+
+    /** Parses a [[Count]] from the input for a [[VcfInfoHeader]] */
+    protected def numberToCount(implicit ctx: P[_]): P[Count] = {
+      Unknown.number.!.map(_ => Unknown) |
+        OnePerAltAllele.number.!.map(_ => OnePerAltAllele) |
+        OnePerAllele.number.!.map(_ => OnePerAllele) |
+        OnePerGenotype.number.!.map(_ => OnePerGenotype) |
+        CharsWhileIn("0-9").rep(1).!.map { value => Fixed(value.toInt) }
+    }
     /** Returns a parser for this entry/line given a lookup of attributes, id, count, and kind. */
     protected def toParser[_: P](lookup: Lookup, id: String, count: Count, kind: Kind): P[VcfInfoHeader] = {
       (lookup(Description) ~/ lookup.get(Source) ~/ lookup.get(Version)).map {
@@ -199,6 +210,14 @@ object VcfHeaderParser {
       VcfFormatHeader(id="PQ",  count=1,               kind=Kind.Integer, description=""),
       VcfFormatHeader(id="PS",  count=1,               kind=Kind.Integer, description=""),
     )
+    /** Parses a [[Count]] from the input for a [[VcfFormatHeader]] */
+    protected def numberToCount(implicit ctx: P[_]): P[Count] = {
+      Unknown.number.!.map(_ => Unknown) |
+        OnePerAltAllele.number.!.map(_ => OnePerAltAllele) |
+        OnePerAllele.number.!.map(_ => OnePerAllele) |
+        OnePerGenotype.number.!.map(_ => OnePerGenotype) |
+        CharsWhileIn("0-9").rep(1).!.map { value => Fixed(value.toInt) }
+    }
     /** Returns a parser for this entry/line given a lookup of attributes, id, count, and kind. */
     protected def toParser[_: P](lookup: Lookup, id: String, count: Count, kind: Kind): P[VcfFormatHeader] = {
       lookup(Description).map { description =>
@@ -256,15 +275,6 @@ object VcfHeaderParser {
 
   /** Converts the given count to a [[Count.Fixed]] value. */
   private implicit def countToFixedVcfCount(count: Int): Count.Fixed = Count.Fixed(count)
-
-  /** Parses a [[Count]] from the input */
-  def numberToCount(implicit ctx: P[_]): P[Count] = {
-    Unknown.number.!.map(_ => Unknown) |
-      OnePerAltAllele.number.!.map(_ => OnePerAltAllele) |
-      OnePerAllele.number.!.map(_ => OnePerAllele) |
-      OnePerGenotype.number.!.map(_ => OnePerGenotype) |
-      CharsWhileIn("0-9").rep(1).!.map { value => Fixed(value.toInt) }
-  }
 
   /** The names for the valid [[Kind]]s. */
   private val VcfFieldTypeNames: Seq[String] = Kind.values.map(_.toString)

@@ -27,7 +27,7 @@ package com.fulcrumgenomics.vcf.parsing.util
 
 import com.fulcrumgenomics.vcf.parsing.util.ValueAndIndex.Index
 import fastparse.P
-
+import com.fulcrumgenomics.vcf.parsing.util.ParseResult
 /**
   * Stores a value of a given type along with the start and end index of the source string in the original input.  This
   * is useful when downstream validation of the value fails, and the start and end index want to be known.
@@ -42,6 +42,9 @@ case class ValueAndIndex[T](value: T, start: Index, end: Index) {
   def startIndex: Index = start
   /** The end index in the original input (0-based)  */
   def endIndex: Index = start
+
+  /** Returns a parse failure with the given message and start index in the input. */
+  def fail[_: P](message: String): P[Nothing] = ParseResult.fail(startIndex=this.startIndex, message=message)
 }
 
 object ValueAndIndex {

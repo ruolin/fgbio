@@ -272,7 +272,7 @@ private[api] object VcfConversions {
     Variant(
       chrom     = in.getContig,
       pos       = in.getStart,
-      id        = Option(if (in.getID == Variant.Missing) null else in.getID),
+      id        = if (in.getID == Variant.Missing) Seq.empty else Seq(in.getID),
       alleles   = alleles,
       qual      = if (in.hasLog10PError) Some(in.getPhredScaledQual) else None,
       filters   = filters,

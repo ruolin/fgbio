@@ -114,7 +114,7 @@ case class Lookup private (private val lookup: Map[String, SI], startIndex: Inde
   def andMap[T](key: String, f: String => T): P[T] = {
     lookup.get(key) match {
       case None         => fail(startIndex=startIndex, message="key `$key` not found")
-      case Some(result) => applyF(key=key, value=result.value, f=f, startIndex=result.startIndex)
+      case Some(result) => applyF(key=key, result=result, f=f)
     }
   }
 
@@ -134,19 +134,18 @@ case class Lookup private (private val lookup: Map[String, SI], startIndex: Inde
   /** Return the transformed value associated with the given key.  Fail if the value could not be transformed from the
     * [[String]] value with the given method, failing at the given start index.
     * @param key the key associated with the value
-    * @param value the [[String]] value associated with the key
+    * @param result the result associated with the key
     * @param f the method to transform the [[String]] value
-    * @param startIndex the start index to specify upon failure
     * @tparam T the type of the return value
     */
-  private def applyF[T](key: String, value: String, f: String => T, startIndex: Int): P[T] = {
+  private def applyF[T](key: String, result: SI, f: String => T): P[T] = {
     try {
-      success(f(value))
+      success(f(result.value))
     } catch {
       case _: NumberFormatException =>
-        fail(startIndex=startIndex, message=f"key `$key`: value is not a number: `$value`")
+        result.fail(message=f"key `$key`: value is not a number: `${result.value}`")
       case ex: Exception            =>
-        fail(startIndex=startIndex, message=f"key `$key`: value could not be parsed `$value`: ${ex.getMessage}")
+        result.fail(message=f"key `$key`: value could not be parsed `${result.value}`: ${ex.getMessage}")
     }
   }
 }
@@ -164,10 +163,7 @@ object Lookup {
         val startIndex: Index = attrs.head._1.startIndex
         ctx.freshSuccess(Lookup(map, startIndex=startIndex))
       case Some((key, values: Seq[(SI, SI)])) =>
-        fail(
-          message    =  f"found `${values.length}` values for key `$key`: " + values.map(_._2.value).mkString(", "),
-          startIndex = values(1)._2.start
-        )
+        values(1)._2.fail(f"found `${values.length}` values for key `$key`: " + values.map(_._2.value).mkString(", "))
     }
   }
 }
