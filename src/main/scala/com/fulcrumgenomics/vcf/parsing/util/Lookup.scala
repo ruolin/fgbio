@@ -86,7 +86,7 @@ case class Lookup private (private val lookup: Map[String, SI], startIndex: Inde
   def getAndMap[T](key: String, f: String => T): P[Option[T]] = {
     lookup.get(key) match {
       case None         => success(None)
-      case Some(result) => applyF(key=key, value=result.value, f=f, startIndex=result.startIndex).map(Some(_))
+      case Some(result) => applyF(key=key, result=result, f=f).map(Some(_))
     }
   }
 

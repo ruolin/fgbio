@@ -27,16 +27,15 @@ package com.fulcrumgenomics.vcf.parsing.variant
 
 import com.fulcrumgenomics.fasta.SequenceMetadata
 import com.fulcrumgenomics.vcf.api.Allele.{NoCallAllele, SpannedAllele, SymbolicAllele}
-import com.fulcrumgenomics.vcf.api.{Allele, AlleleSet, ArrayAttr, Genotype, Variant, VcfCount, VcfCountAndKindHeader, VcfFieldType, VcfFilterHeader, VcfFormatHeader, VcfHeader, VcfInfoHeader}
-import fastparse.NoWhitespace._
-import fastparse.{&, CharIn, CharPred, Index, P, _}
+import com.fulcrumgenomics.vcf.api._
 import com.fulcrumgenomics.vcf.parsing.util.ParseResult._
-import com.fulcrumgenomics.vcf.parsing.util.ValueAndIndex._
-import com.fulcrumgenomics.vcf.parsing.util.ValueAndIndex.CaptureResultAndIndex
+import com.fulcrumgenomics.vcf.parsing.util.ValueAndIndex
+import com.fulcrumgenomics.vcf.parsing.util.ValueAndIndex.{CaptureResultAndIndex, _}
+import fastparse.NoWhitespace._
+import fastparse.{CharIn, CharPred, Index, P, _}
 
 import scala.annotation.tailrec
 import scala.collection.immutable.ListMap
-import scala.util.{Success, Try}
 
 
 // TODO:
@@ -44,15 +43,13 @@ import scala.util.{Success, Try}
 // - coordinate sort order...
 //
 
-sealed trait BlahUtil {
-
+sealed trait VariantParserUtil {
   def field[_ :P]: P[SI] = (Index ~ CharPred(_ != '\t').rep(1).! ~ Index).si
   def tabThenField[_ :P]: P[SI] = "\t" ~/ field
-
 }
 
 /** Trait to parse the contig name and return the [[SequenceMetadata]] */
-sealed trait SequenceMetadataParser extends BlahUtil {
+sealed trait SequenceMetadataParser extends VariantParserUtil {
   def header: VcfHeader
 
   /** Parses the contig name and returns the associated [[SequenceMetadata]], or fails if not found. */
@@ -64,12 +61,14 @@ sealed trait SequenceMetadataParser extends BlahUtil {
   }
 }
 
+/** Trait to parse the variant position. */
 sealed trait PositionParser {
   def parsePosition[_: P]: P[Int] = {
     (CharIn("1-9").! ~ CharsWhileIn("0-9").!).map { case (left, right) => (left + right).toInt }
   }
 }
 
+/** Trait to parse the variant identifier. */
 sealed trait IdentifierParser {
 
   private def parseId[_: P]: P[SI] = {
@@ -81,7 +80,8 @@ sealed trait IdentifierParser {
   }
 }
 
-sealed trait RefAlleleParser extends BlahUtil {
+/** Trait to parse the reference allele. */
+sealed trait RefAlleleParser extends VariantParserUtil {
 
   private val DnaBases: String = "ACGTNacgtn"
 
@@ -104,7 +104,8 @@ sealed trait RefAlleleParser extends BlahUtil {
   }
 }
 
-sealed trait AltAlleleParser extends BlahUtil {
+/** Trait to parse the alternate allele(s). */
+sealed trait AltAlleleParser extends VariantParserUtil {
 
   def dna[_: P]: P[Allele] = CharIn("ACGTNacgtn").rep(1).!.map(Allele.apply)
   def spanendAllele[_: P]: P[Allele] = "*".!.map(_ => SpannedAllele)
@@ -127,6 +128,7 @@ sealed trait AltAlleleParser extends BlahUtil {
   }
 }
 
+/** Trait to parse the variant quality. */
 sealed trait QualParser {
   private def double[_: P]: P[Double] = {
     (CharIn("1-9") ~ CharsWhileIn("0-9").rep ~ ".".? ~ CharsWhileIn("0-9")).!.map(_.toDouble)
@@ -134,12 +136,16 @@ sealed trait QualParser {
   def parseQual[_: P]: P[Option[Double]] = ".".!.map(_ => None) | double.map(Some(_))
 }
 
+/** Trait to parse the variant filter(s). */
 sealed trait FilterParser {
   def header: VcfHeader
 
   private val illegalFilterChars: String = "; \t\n"
+
+  private def value[_: P]: P[SI] = (Index ~ CharPred(!illegalFilterChars.contains(_)).rep(1).! ~ Index).si
+
   private def filterValue[_: P]: P[VcfFilterHeader] = {
-    (Index ~ CharPred(!illegalFilterChars.contains(_)).rep(1).! ~ Index).si.flatMap { key =>
+    value.flatMap { key =>
       header.filter.get(key.value) match {
         case Some(filter) => success(filter)
         case None         => key.fail(s"FILTER was not found in the header: `${key.value}`")
@@ -151,17 +157,115 @@ sealed trait FilterParser {
   def parseFilter[_: P]: P[Seq[VcfFilterHeader]] = missingValue | filterValues
 }
 
-sealed trait Blah {
+sealed trait FieldUtil {
   protected case class Field[T](key: SI, field: VcfCountAndKindHeader, values: Seq[T] = Seq.empty)
 
+  private sealed trait ParseResult {
+    def isSuccess: Boolean
+    def isFailure: Boolean = !isSuccess
+    def success: ParseSuccess
+    def failure: ParseFailure
+  }
+  private case class ParseSuccess(headerField: VcfCountAndKindHeader, results: Seq[Any]) extends ParseResult {
+    override def isSuccess: Boolean = true
+    def success: ParseSuccess = this
+    def failure: ParseFailure = throw new NoSuchElementException
+  }
+  private case class ParseFailure(headerField: VcfCountAndKindHeader, value: SI, ex: Exception) extends ParseResult {
+    override def isSuccess: Boolean = false
+    def success: ParseSuccess = throw new NoSuchElementException
+    def failure: ParseFailure = this
+  }
+
+  @tailrec
+  private def parseRecursive(values: Seq[SI], curSuccess: ParseSuccess): ParseResult = {
+    values match {
+      case Seq()                  => curSuccess
+      case Seq(value, tail @ _*) =>
+        val parseResult = try {
+          curSuccess.copy(
+            results = curSuccess.results :+ curSuccess.headerField.kind.parse(value.value)
+          )
+        } catch {
+          case ex: Exception => ParseFailure(headerField=curSuccess.headerField, value=value, ex=ex)
+        }
+        // Developer note: this is to make the function tail recursive
+        parseResult match {
+          case failure: ParseFailure => failure
+          case success: ParseSuccess => parseRecursive(values=tail, curSuccess=success)
+        }
+    }
+  }
+
+  private def parseValues(headerField: VcfCountAndKindHeader, values: Seq[SI]): ParseResult = {
+    val startSuccess = ParseSuccess(headerField=headerField, results=Seq.empty)
+    values match {
+      case Seq(value) if value.value == "." =>
+        parseRecursive(values=Seq.empty, curSuccess=startSuccess)
+      case _         =>
+        parseRecursive(values=values, curSuccess=startSuccess)
+    }
+  }
+
+  @tailrec
+  private def parseKindRecursive(inputFields: Seq[Field[SI]], pastResults: Seq[ParseResult]): Seq[ParseResult] = {
+    inputFields match {
+      case Seq()                => pastResults
+      case Seq(data, tailFields @ _*) =>
+        parseValues(headerField=data.field, values=data.values) match {
+          case failure: ParseFailure => Seq(failure)
+          case success: ParseSuccess => parseKindRecursive(inputFields=tailFields, pastResults=pastResults :+ success)
+        }
+    }
+  }
+
+  protected def parseKind[_: P](inputFields: Seq[Field[SI]], fieldName: String): P[Seq[(String,Any)]] = {
+    parseKindRecursive(inputFields=inputFields, pastResults=Seq.empty) match {
+      case Seq(ParseFailure(headerField, value, ex)) =>
+        value.fail(s"could not parse $fieldName `${value.value}` as type `${headerField.kind}`: ${ex.getMessage}")
+      case results =>
+        success(results.map(_.success).map {
+          case ParseSuccess(headerField, Seq(result)) => headerField.id -> result
+          case ParseSuccess(headerField, results)     => headerField.id -> results
+        })
+    }
+  }
+
+  protected def parseCount[_: P](inputFields: Seq[Field[SI]], alleles: AlleleSet, fieldName: String): P[Seq[Field[SI]]] = {
+    inputFields.find { case Field(_, field, values) =>
+      val countOption: Option[Int] = field.count match {
+        case VcfCount.Fixed(count)    => Some(count)
+        case VcfCount.OnePerAllele    => Some(alleles.size)
+        case VcfCount.OnePerAltAllele => Some(alleles.size - 1)
+        case VcfCount.Unknown         => None
+        case VcfCount.OnePerGenotype  => throw new Exception(s"bug: found one-per-genotype in $fieldName.${field.id}")
+      }
+      countOption.exists(count => count != values.length)
+    } match {
+      case None => success(inputFields)
+      case Some(Field(key, field, values)) =>
+        values.headOption.getOrElse(key).fail(
+          s"$fieldName key `${field.id}`: expected ${field.count} values but found ${values.length} values"
+        )
+    }
+  }
+
+  protected def parseDuplicateKeys[_: P](inputFields: Seq[Field[SI]], fieldName: String): P[Seq[Field[SI]]] = {
+    inputFields.groupBy(_.key.value).find(_._2.length > 1) match {
+      case None                => success(inputFields)
+      case Some((key, fields)) => fields.head.key.fail(f"found $fieldName key `$key` ${fields.length} times")
+    }
+  }
 }
 
-sealed trait InfoParser extends Blah {
+sealed trait InfoParser extends FieldUtil {
   def header: VcfHeader
 
-  /** Parses the INFO key, making sure it is found in the VCF header */
+  private def key[_: P]: P[SI] = (Index ~ ("1000G".! | (CharIn("A-Za-z_") ~ CharIn("0-9A-Za-z_.").rep).!) ~ Index).si
+
+  /** Parses the INFO key, making sure it is found in the VCF header.  Must be `^([A-Za-z ][0-9A-Za-z .]*|1000G)$,`. */
   def infoKey[_: P]: P[Field[SI]] = {
-    (Index ~ ("1000G".! | (CharIn("A-Za-z_") ~ CharIn("0-9A-Za-z_.").rep).!) ~ Index).si.flatMap { key =>
+    key.flatMap { key =>
       this.header.info.get(key.value) match {
         case None       => key.fail(f"INFO key not found in the header: `${key.value}`")
         case Some(info) => success(Field[SI](key, info))
@@ -169,20 +273,18 @@ sealed trait InfoParser extends Blah {
     }
   }
 
-  /** Parses the value for an INFO field. Must be `^([A-Za-z ][0-9A-Za-z .]*|1000G)$,` */
-  def infoValue[_: P]: P[SI] = (Index ~ CharPred(c => c != ';' && c != '=').rep(1).! ~ Index).si
+  /** Parses the value for an INFO field. */
+  def infoValue[_: P]: P[SI] = (Index ~ CharPred(c => c != ';' && c != '=' && c != ',').rep(1).! ~ Index).si
 
   /** Parses an INFO key and value (may be a list) */
   def infoKeyAndValues[_: P]: P[Field[SI]] = {
     (infoKey ~ ("=" ~ infoValue.rep(min=1, sep=",")).?).map {
-      case (data, None)         => data
-      case (data, Some(values)) => data.copy(values=values)
+      case (data: Field[SI], None) => data
+      case (data, Some(values))    => data.copy(values=values)
     }
   }
 
-  def infos[_: P]: P[Seq[Field[SI]]] = {
-     (".".!.map(_ => Seq.empty) | infoKeyAndValues.rep(sep=";"))
-  }
+  def infos[_: P]: P[Seq[Field[SI]]] = ".".!.map(_ => Seq.empty) | infoKeyAndValues.rep(sep=";")
 
   private def parseMissing[_: P](missing: Field[SI], infoValues: Seq[Field[SI]]): P[ListMap[String, Any]] = {
     if (infoValues.length != 1) {
@@ -196,111 +298,13 @@ sealed trait InfoParser extends Blah {
     }
   }
 
-  private def parseDuplicateKeys[_: P](infoValues: Seq[Field[SI]]): P[Seq[Field[SI]]] = {
-    infoValues.groupBy(_.key.value).find(_._2.length > 1) match {
-      case None                => success(infoValues)
-      case Some((key, values)) => values.head.key.fail(f"found INFO key `$key` ${values.length} times")
-    }
-  }
-
-  private def parseCount[_: P](infoValues: Seq[Field[SI]], alleles: AlleleSet): P[Seq[Field[SI]]] = {
-    infoValues.find { case Field(_, info, values) =>
-      val countOption: Option[Int] = info.count match {
-        case VcfCount.Fixed(count)    => Some(count)
-        case VcfCount.OnePerAllele    => Some(alleles.size)
-        case VcfCount.OnePerAltAllele => Some(alleles.size - 1)
-        case VcfCount.Unknown         => None
-        case VcfCount.OnePerGenotype  => throw new Exception(s"bug: found one-per-genotype in INFO.${info.id}")
-      }
-      countOption.exists(count => count != values.length)
-    } match {
-      case None => success(infoValues)
-      case Some(Field(key, info, values)) =>
-        values.headOption.getOrElse(key).fail(
-          s"INFO key `${key.value}`: expected ${info.count} values but found ${values.length} values"
-        )
-    }
-  }
-
-  sealed trait ParseResult {
-    def isSuccess: Boolean
-    def isFailure: Boolean = !isSuccess
-    def success: ParseSuccess
-    def failure: ParseFailure
-  }
-  private case class ParseSuccess(info: VcfCountAndKindHeader, results: Seq[Any]) extends ParseResult {
-    override def isSuccess: Boolean = true
-    def success: ParseSuccess = this
-    def failure: ParseFailure = throw new NoSuchElementException
-  }
-  private case class ParseFailure(info: VcfCountAndKindHeader, value: SI, ex: Exception) extends ParseResult {
-    override def isSuccess: Boolean = false
-    def success: ParseSuccess = throw new NoSuchElementException
-    def failure: ParseFailure = this
-
-  }
-
-  @tailrec
-  private def parseRecursive(values: Seq[SI], curSuccess: ParseSuccess): ParseResult = {
-      values match {
-        case Seq()                  => curSuccess
-        case Seq(value, tail @ _*) =>
-          val parseResult = try {
-            curSuccess.copy(
-              results = curSuccess.results :+ curSuccess.info.kind.parse(value.value)
-            )
-          } catch {
-            case ex: Exception => ParseFailure(info=curSuccess.info, value=value, ex=ex)
-          }
-          // Developer note: this is to make the function tail recursive
-          parseResult match {
-            case failure: ParseFailure => failure
-            case success: ParseSuccess => parseRecursive(values=tail, curSuccess=success)
-          }
-      }
-  }
-
-  private def parseValues(info: VcfCountAndKindHeader, values: Seq[SI]): ParseResult = {
-    val startSuccess = ParseSuccess(info=info, results=Seq.empty)
-    values match {
-      case Seq(value) if value.value == "." =>
-        parseRecursive(values=Seq.empty, curSuccess=startSuccess)
-      case _         =>
-        parseRecursive(values=values, curSuccess=startSuccess)
-    }
-  }
-
-  @tailrec
-  private def parseKindRecursive(infoValues: Seq[Field[SI]], pastResults: Seq[ParseResult]): Seq[ParseResult] = {
-    infoValues match {
-      case Seq()                => pastResults
-      case Seq(data, tail @ _*) =>
-        parseValues(info=data.field, values=data.values) match {
-          case failure: ParseFailure => Seq(failure)
-          case success: ParseSuccess => parseKindRecursive(infoValues=tail, pastResults=pastResults :+ success)
-        }
-    }
-  }
-
-  private def parseKind[_: P](infoValues: Seq[Field[SI]]): P[Seq[(String,Any)]] = {
-    parseKindRecursive(infoValues=infoValues, pastResults=Seq.empty) match {
-      case Seq(ParseFailure(info, value, ex)) =>
-        value.fail(s"could not parse `${value.value}` as type `${info.kind}`: ${ex.getMessage}")
-      case results =>
-        success(results.map(_.success).map {
-          case ParseSuccess(info, Seq(result)) => info.id -> result
-          case ParseSuccess(info, results)     => info.id -> results
-        })
-    }
-  }
-
   def parseInfos[_: P](alleles: AlleleSet): P[ListMap[String, Any]] = infos.flatMap { infoValues=>
     infoValues.find(_.key.value == ".") match {
       case Some(missing) => parseMissing(missing=missing, infoValues=infoValues)  // empty INFO
       case None          => // non-empty INFOs
-        parseDuplicateKeys(infoValues=infoValues)
-          .flatMap { _ => parseCount(infoValues=infoValues, alleles=alleles) }
-          .flatMap { _ => parseKind(infoValues=infoValues) }
+        parseDuplicateKeys(inputFields=infoValues, fieldName="INFO")
+          .flatMap { _ => parseCount(inputFields=infoValues, alleles=alleles, fieldName="INFO") }
+          .flatMap { _ => parseKind(inputFields=infoValues, fieldName="INFO") }
           .map { values =>
             val builder = ListMap.newBuilder[String, Any]
             builder ++= values
@@ -310,52 +314,112 @@ sealed trait InfoParser extends Blah {
   }
 }
 
-sealed trait FormatKeysParser  {
+sealed trait FormatKeysParser {
   def header: VcfHeader
 
-  def formatKey[_: P]: P[VcfFormatHeader] = (Index ~ (CharIn("A-Za-z_") ~ CharIn("0-9A-Za-z_.").rep).! ~ Index).si.flatMap {
-    key: SI =>
-      this.header.format.get(key.value) match {
-        case None         => key.fail(f"FORMAT key not found in the header: `${key.value}`")
-        case Some(format) => success(format)
-      }
+  private def checkKeyInHeader[_: P](key: SI): P[VcfFormatHeader] = {
+    this.header.format.get(key.value) match {
+      case None         => key.fail(f"FORMAT key not found in the header: `${key.value}`")
+      case Some(format) => success(format)
+    }
   }
 
-  def parseFormatKeys[_: P]: P[Seq[VcfFormatHeader]] = formatKey.rep(1, sep=":")
+  def gtKey[_: P]: P[VcfFormatHeader] = (Index ~ "GT".! ~ Index).si.flatMap {
+    checkKeyInHeader(_)
+  }
+
+  def rawKey[_: P]: P[SI] = (Index ~ (CharIn("A-Za-z_") ~ CharIn("0-9A-Za-z_.").rep).! ~ Index).si
+
+  def rawKeys[_: P]: P[Seq[SI]] =  ".".!.map(_ => Seq.empty) | rawKey.rep(1, sep=":")
+
+  def parseFormatKeys[_: P]: P[Seq[VcfFormatHeader]] = {
+    rawKeys.flatMap { keys: Seq[SI] =>
+      if (keys.isEmpty) success(keys)
+      else if (keys.head.value != "GT") keys.head.fail(s"the first FORMAT key must be GT")
+      else { // Check for duplicate keys
+        keys.groupBy(_.value).find(_._2.length > 1) match {
+          case None => success(keys)
+          case Some((key, values)) => values.head.fail(f"found FORMAT key `$key` ${values.length} times")
+        }
+      }
+    }.flatMap { keys =>
+      // Find each key in the header
+      keys.find(key => !this.header.format.contains(key.value)) match {
+        case None      => success(keys.map(key => this.header.format(key.value)))
+        case Some(key) => key.fail(f"FORMAT key not found in the header: `${key.value}`")
+      }
+    }
+  }
 }
 
-sealed trait GenotypeParser {
+sealed trait GenotypeParser extends VariantParserUtil with FieldUtil {
   def header: VcfHeader
 
   def gtValue[_: P]: P[SI] = (Index ~ ("0".! | (CharIn("1-0") ~ CharIn("0-9").rep).!) ~ Index).si
-  def gt[_: P](alleles: AlleleSet): P[Allele] = ".".!.map(_ => NoCallAllele) | gtValue.flatMap { v =>
+
+  def gt[_: P](alleles: AlleleSet): P[Allele] = ".".!.map(_ => NoCallAllele) | gtValue.flatMap { v: SI =>
     val index = v.value.toInt
     alleles.get(index) match {
       case None         => v.fail(s"genotype index `$index` is out of range: [0, ${alleles.size}]")
       case Some(allele) => success(allele)
     }
   }
-  def parseGT[_: P](alleles: AlleleSet): P[Seq[Allele]] = {
-    (gt(alleles).rep(min=1, sep="/") | gt(alleles).rep(min=1, sep="|"))
+  def parseGT[_: P](alleles: AlleleSet): P[(Seq[Allele], Boolean)] = {
+    gt(alleles).rep(min=1, sep="/").map(alleles => (alleles, true)) |
+      gt(alleles).rep(min=1, sep="|").map(alleles => (alleles, false))
   }
 
-//  def sampleValue[_: P]: P[Any] = (Index ~ (".".map | CharPred(_ != ':').rep(1)).! ~ Index).si.flatMap { key =>
-//    if (key.value)
-//
-//  }
-  def sampleValues[_: P]: P[Seq[String]] = (Start ~ sampleValue.rep(0, sep=":") ~ End)
+  /** Parses the value for an FORMAT field. */
+  def genotypeValue[_: P]: P[SI] = (Index ~ CharPred(c => c != ':' && c != ',').rep(1).! ~ Index).si
 
+  /** Parses an FORMAT key and value (may be a list) */
+  def genotypeValues[_: P]: P[Seq[SI]] = genotypeValue.rep(min=0, sep=",")
 
-  def parseGenotype[_: P](formatKeys: Seq[VcfFormatHeader], alleles: AlleleSet): P[Genotype] = {
-
-    formatKeys match {
-      case Seq(gtKey, tail @ _*) if gtKey.id == "GT" =>
-        parseGT(alleles)
-
-      case _                                         =>
+  def genotype[_: P](formatKeys: Seq[VcfFormatHeader], alleles: AlleleSet): P[Genotype] = {
+    require(formatKeys.headOption.forall(_.id == "GT"))
+    val tailFormatKeys = formatKeys.tail
+    (".".!.map(_ => (Seq.empty, false)) | parseGT(alleles=alleles)).flatMap { case (calls: Seq[Allele], phased: Boolean) =>
+      genotypeValues.rep(min=0, sep=":").flatMap { fieldValues: Seq[Seq[SI]] =>
+        if (fieldValues.length > tailFormatKeys.length) fieldValues(tailFormatKeys.length).head.fail(f"found too many FORMAT values")
+        else { // Build some fields for parsing
+          // Unspecified trailing fields are allowed
+          val missingFields: Seq[Field[SI]] = tailFormatKeys.drop(fieldValues.length).map { field =>
+            val key: SI = ValueAndIndex(value=field.id, start=0, end=0) // FIXME: start and end
+            Field(key=key, field=field, values=Seq.empty)
+          }
+          // Specified fields
+          val fields: Seq[Field[SI]] = fieldValues.zip(tailFormatKeys).map { case (attrValues: Seq[SI], field: VcfFormatHeader) =>
+            val key: SI = ValueAndIndex(value=field.id, start=0, end=0) // FIXME: start and end
+            Field(key=key, field=field, values=attrValues)
+          }
+          success(fields ++ missingFields)
+        }
+      }
+      .flatMap { fields: Seq[Field[SI]] => parseCount(inputFields=fields, alleles=alleles, fieldName="FORMAT") }
+      .flatMap { fields: Seq[Field[SI]] => parseKind(inputFields=fields, fieldName="FORMAT") }
+      .map { formatValues: Seq[(String, Any)] =>
+        val builder = ListMap.newBuilder[String, Any]
+        builder ++= formatValues
+        builder.result()
+      }.map { attributes: Map[String, Any] =>
+        Genotype(
+          alleles = alleles,
+          sample  = "", // NB: this will be updated later
+          calls   = calls.toIndexedSeq,
+          phased  = phased,
+          attrs   = attributes
+        )
+      }
     }
   }
 
+  def missingGenotype[_: P](alleles: AlleleSet): P[Genotype] = {
+    ".".!.map(_ => Genotype(alleles=alleles, sample="", calls=IndexedSeq.empty))
+  }
+
+  def parseGenotype[_: P](formatKeys: Seq[VcfFormatHeader], alleles: AlleleSet): P[Genotype] = {
+    "\t" ~/ (missingGenotype(alleles=alleles) | genotype(formatKeys=formatKeys, alleles=alleles))
+  }
 }
 
 class VariantParser(val header: VcfHeader)
@@ -367,7 +431,8 @@ class VariantParser(val header: VcfHeader)
     with QualParser
     with FilterParser
     with InfoParser
-    with FormatKeysParser {
+    with FormatKeysParser
+    with GenotypeParser {
 
   private val numSamples: Int = header.samples.length
 
@@ -403,13 +468,14 @@ class VariantParser(val header: VcfHeader)
         }
       }
       else {
-        ("\t" ~/ parseFormatKeys).flatMap { formats =>
-          // FIXME
-          success(metadata, pos, id, ref, alleleSet, qual, filters, infos, Seq.empty[Genotype])
-          // TODO: parse a sample!
+        ("\t" ~/ parseFormatKeys).flatMap { formats: Seq[VcfFormatHeader] =>
+          "\t" ~/
+            parseGenotype(formatKeys=formats, alleles=alleleSet)
+              .repX(min=this.numSamples, max=this.numSamples, sep="\t")
+              .map { genotypes => (metadata, pos, id, ref, alleleSet, qual, filters, infos, genotypes) }
         }
       }
-    }.map { case (metadata, pos, id, ref, alleleSet, qual, filters, infos, genotypes) =>
+    }.map { case (metadata, pos, id, _, alleleSet, qual, filters, infos, genotypes) =>
       new Variant(
         chrom     = metadata.name,
         pos       = pos,
@@ -418,7 +484,7 @@ class VariantParser(val header: VcfHeader)
         qual      = qual,
         filters   = filters.map(_.id).toSet,
         attrs     = infos,
-        genotypes = genotypes.map(genotype => genotype.sample -> genotype).toMap
+        genotypes = header.samples.zip(genotypes).toMap
       )
     }
   }
