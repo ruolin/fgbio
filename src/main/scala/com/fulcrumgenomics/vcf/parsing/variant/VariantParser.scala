@@ -113,12 +113,9 @@ sealed trait AltAlleleParser extends VariantParserUtil {
   def symbolicAllele[_: P]: P[Allele] = ("<" ~ CharPred(_ != '>').! ~ ">").map(SymbolicAllele.apply)
   // TODO: breakend
 
-  def alts[_: P]: P[Seq[Allele]] = {
-      dna.rep(1, sep=",") |
-        spanendAllele.rep(exactly=1) |
-        missingAllele.rep(exactly=1) |
-        symbolicAllele.rep(exactly=1)
-  }
+  def alt[_: P]: P[Allele] = dna | spanendAllele | missingAllele | symbolicAllele
+
+  def alts[_: P]: P[Seq[Allele]] = alt.rep(min=1, sep=",")
 
   def parseAltAlleles[_: P](ref: String): P[AlleleSet] = alts.map { alleles =>
     AlleleSet(
@@ -131,7 +128,7 @@ sealed trait AltAlleleParser extends VariantParserUtil {
 /** Trait to parse the variant quality. */
 sealed trait QualParser {
   private def double[_: P]: P[Double] = {
-    (CharIn("1-9") ~ CharsWhileIn("0-9").rep ~ ".".? ~ CharsWhileIn("0-9")).!.map(_.toDouble)
+    (CharIn("1-9") ~ CharsWhileIn("0-9").rep ~ ("." ~ CharsWhileIn("0-9")).?.!).!.map(_.toDouble)
   }
   def parseQual[_: P]: P[Option[Double]] = ".".!.map(_ => None) | double.map(Some(_))
 }
@@ -152,9 +149,10 @@ sealed trait FilterParser {
       }
     }
   }
-  private def filterValues[_: P]: P[Seq[VcfFilterHeader]] = filterValue.rep(min=0, sep=":")
-  private def missingValue[_: P]: P[Seq[VcfFilterHeader]] = ".".!.map(_ => Seq.empty)
-  def parseFilter[_: P]: P[Seq[VcfFilterHeader]] = missingValue | filterValues
+  private def filterValues[_: P]: P[Option[Seq[VcfFilterHeader]]] = filterValue.rep(min=0, sep=":").map(Some(_))
+  private def missingValue[_: P]: P[Option[Seq[VcfFilterHeader]]] = ".".!.map(_ => None)
+  private def pass[_: P]: P[Option[Seq[VcfFilterHeader]]] = "PASS".!.map(_ => Some(Seq.empty))
+  def parseFilter[_: P]: P[Option[Seq[VcfFilterHeader]]] = pass | missingValue | filterValues
 }
 
 sealed trait FieldUtil {
@@ -274,7 +272,7 @@ sealed trait InfoParser extends FieldUtil {
   }
 
   /** Parses the value for an INFO field. */
-  def infoValue[_: P]: P[SI] = (Index ~ CharPred(c => c != ';' && c != '=' && c != ',').rep(1).! ~ Index).si
+  def infoValue[_: P]: P[SI] = (Index ~ CharPred(c => c != ';' && c != '=' && c != ',' && c != '\t').rep(1).! ~ Index).si
 
   /** Parses an INFO key and value (may be a list) */
   def infoKeyAndValues[_: P]: P[Field[SI]] = {
@@ -355,7 +353,7 @@ sealed trait FormatKeysParser {
 sealed trait GenotypeParser extends VariantParserUtil with FieldUtil {
   def header: VcfHeader
 
-  def gtValue[_: P]: P[SI] = (Index ~ ("0".! | (CharIn("1-0") ~ CharIn("0-9").rep).!) ~ Index).si
+  def gtValue[_: P]: P[SI] = (Index ~ ("0".! | (CharIn("1-9") ~ CharIn("0-9").rep).!) ~ Index).si
 
   def gt[_: P](alleles: AlleleSet): P[Allele] = ".".!.map(_ => NoCallAllele) | gtValue.flatMap { v: SI =>
     val index = v.value.toInt
@@ -370,7 +368,7 @@ sealed trait GenotypeParser extends VariantParserUtil with FieldUtil {
   }
 
   /** Parses the value for an FORMAT field. */
-  def genotypeValue[_: P]: P[SI] = (Index ~ CharPred(c => c != ':' && c != ',').rep(1).! ~ Index).si
+  def genotypeValue[_: P]: P[SI] = (Index ~ CharPred(c => c != ':' && c != ',' && c != '\t').rep(1).! ~ Index).si
 
   /** Parses an FORMAT key and value (may be a list) */
   def genotypeValues[_: P]: P[Seq[SI]] = genotypeValue.rep(min=0, sep=",")
@@ -379,8 +377,10 @@ sealed trait GenotypeParser extends VariantParserUtil with FieldUtil {
     require(formatKeys.headOption.forall(_.id == "GT"))
     val tailFormatKeys = formatKeys.tail
     (".".!.map(_ => (Seq.empty, false)) | parseGT(alleles=alleles)).flatMap { case (calls: Seq[Allele], phased: Boolean) =>
-      genotypeValues.rep(min=0, sep=":").flatMap { fieldValues: Seq[Seq[SI]] =>
-        if (fieldValues.length > tailFormatKeys.length) fieldValues(tailFormatKeys.length).head.fail(f"found too many FORMAT values")
+      ":" ~ genotypeValues.rep(min=0, sep=":").flatMap { fieldValues: Seq[Seq[SI]] =>
+        if (fieldValues.length > tailFormatKeys.length) {
+          fieldValues(tailFormatKeys.length).head.fail(f"found too many FORMAT values ${fieldValues.length} > ${tailFormatKeys.length}")
+        }
         else { // Build some fields for parsing
           // Unspecified trailing fields are allowed
           val missingFields: Seq[Field[SI]] = tailFormatKeys.drop(fieldValues.length).map { field =>
@@ -418,7 +418,7 @@ sealed trait GenotypeParser extends VariantParserUtil with FieldUtil {
   }
 
   def parseGenotype[_: P](formatKeys: Seq[VcfFormatHeader], alleles: AlleleSet): P[Genotype] = {
-    "\t" ~/ (missingGenotype(alleles=alleles) | genotype(formatKeys=formatKeys, alleles=alleles))
+    (missingGenotype(alleles=alleles) | genotype(formatKeys=formatKeys, alleles=alleles))
   }
 }
 
@@ -471,18 +471,24 @@ class VariantParser(val header: VcfHeader)
         ("\t" ~/ parseFormatKeys).flatMap { formats: Seq[VcfFormatHeader] =>
           "\t" ~/
             parseGenotype(formatKeys=formats, alleles=alleleSet)
-              .repX(min=this.numSamples, max=this.numSamples, sep="\t")
-              .map { genotypes => (metadata, pos, id, ref, alleleSet, qual, filters, infos, genotypes) }
+              .rep(exactly=this.numSamples, sep="\t")
+              .map { genotypes => (metadata, pos, id, ref, alleleSet, qual, filters, infos, genotypes) } ~ End
         }
       }
     }.map { case (metadata, pos, id, _, alleleSet, qual, filters, infos, genotypes) =>
+      val filterStrings = filters match {
+        case None           => Seq()
+        case Some(Seq())    => Seq("PASS")
+        case Some(_filters) => _filters.map(_.id)
+      }
+
       new Variant(
         chrom     = metadata.name,
         pos       = pos,
         id        = id.map(_.value),
         alleles   = alleleSet,
         qual      = qual,
-        filters   = filters.map(_.id).toSet,
+        filters   = filterStrings.toSet,
         attrs     = infos,
         genotypes = header.samples.zip(genotypes).toMap
       )
