@@ -43,6 +43,11 @@ import fastparse.{Parsed, parse}
   description =
     """
       |Validates a VCF by trying to parse it.
+      |
+      |Currently only supports VCF specification 4.3.
+      |
+      |Many things are NOT validated, user beware.
+      |
     """,
   group=ClpGroups.VcfOrBcf
 )

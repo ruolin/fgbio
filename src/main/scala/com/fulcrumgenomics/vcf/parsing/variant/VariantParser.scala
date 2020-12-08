@@ -377,22 +377,24 @@ sealed trait GenotypeParser extends VariantParserUtil with FieldUtil {
     require(formatKeys.headOption.forall(_.id == "GT"))
     val tailFormatKeys = formatKeys.tail
     (".".!.map(_ => (Seq.empty, false)) | parseGT(alleles=alleles)).flatMap { case (calls: Seq[Allele], phased: Boolean) =>
-      ":" ~ genotypeValues.rep(min=0, sep=":").flatMap { fieldValues: Seq[Seq[SI]] =>
+      ":" ~ genotypeValues.rep(min=0, max=formatKeys.length-1, sep=":").flatMap { fieldValues: Seq[Seq[SI]] =>
         if (fieldValues.length > tailFormatKeys.length) {
           fieldValues(tailFormatKeys.length).head.fail(f"found too many FORMAT values ${fieldValues.length} > ${tailFormatKeys.length}")
         }
         else { // Build some fields for parsing
           // Unspecified trailing fields are allowed
-          val missingFields: Seq[Field[SI]] = tailFormatKeys.drop(fieldValues.length).map { field =>
-            val key: SI = ValueAndIndex(value=field.id, start=0, end=0) // FIXME: start and end
-            Field(key=key, field=field, values=Seq.empty)
-          }
+//          val missingFields: Seq[Field[SI]] = tailFormatKeys.drop(fieldValues.length).map { field =>
+//            val key: SI = ValueAndIndex(value=field.id, start=0, end=0) // FIXME: start and end
+//            Field(key=key, field=field, values=Seq.empty) // FIXME: what should these be?
+//          }
           // Specified fields
           val fields: Seq[Field[SI]] = fieldValues.zip(tailFormatKeys).map { case (attrValues: Seq[SI], field: VcfFormatHeader) =>
             val key: SI = ValueAndIndex(value=field.id, start=0, end=0) // FIXME: start and end
             Field(key=key, field=field, values=attrValues)
           }
-          success(fields ++ missingFields)
+//          assert(missingFields.length + fields.length == tailFormatKeys.length)
+//          success(fields ++ missingFields)
+          success(fields)
         }
       }
       .flatMap { fields: Seq[Field[SI]] => parseCount(inputFields=fields, alleles=alleles, fieldName="FORMAT") }
