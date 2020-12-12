@@ -103,7 +103,7 @@ class EstimatePoolingFractionsTest extends UnitSpec with ParallelTestExecution {
     val metrics = Metric.read[PoolingFractionMetric](out)
     metrics should have size 2
     metrics.foreach {m =>
-      val expected = if (m.sample == samples.head) 0.75 else 0.25
+      val expected = if (m.pool_sample == samples.head) 0.75 else 0.25
       expected should (be >= m.ci99_low and be <= m.ci99_high)
     }
   }
@@ -162,7 +162,7 @@ class EstimatePoolingFractionsTest extends UnitSpec with ParallelTestExecution {
 
     metrics should have size 2
     metrics.foreach {m =>
-      val expected = if (m.sample == samples.head) 1/3.0 else 2/3.0
+      val expected = if (m.pool_sample == samples.head) 1/3.0 else 2/3.0
       expected should (be >= m.ci99_low and be <= m.ci99_high)
     }
   }
