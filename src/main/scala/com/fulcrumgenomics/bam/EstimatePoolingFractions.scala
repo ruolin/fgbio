@@ -119,12 +119,13 @@ class EstimatePoolingFractions
     regression.setNoIntercept(true) // Intercept should be at 0!
 
     val metrics = observedSamples.flatMap { observedSample =>
+      logger.info(f"Examining $observedSample")
       val (observedFractions, lociExpectedSampleFractions) = loci.flatMap { locus =>
         locus.observedFraction.get(observedSample).map { observedFraction =>
           (observedFraction, locus.expectedSampleFractions)
         }
       }.unzip
-      logger.info(f"Regressing on ${observedFractions.length}%,d of ${loci.length}%,d that met coverage requirements.")
+      logger.info(f"Regressing on ${observedFractions.length}%,d of ${loci.length}%,d loci that met coverage requirements.")
       regression.newSampleData(
         observedFractions,
         lociExpectedSampleFractions
@@ -162,6 +163,7 @@ class EstimatePoolingFractions
       }
     }
 
+    logger.info("Writing metrics")
     Metric.write(output, metrics)
   }
 
