@@ -36,12 +36,14 @@ import com.fulcrumgenomics.util.ProgressLogger
 @clp(description =
   """
     |Annotates existing BAM files with UMIs (Unique Molecular Indices, aka Molecular IDs,
-    |Molecular barcodes) from a separate FASTQ file. Takes an existing BAM file and a FASTQ
-    |file consisting of UMI reads, matches the reads between the files based on read names,
+    |Molecular barcodes) from  separate FASTQ files. Takes an existing BAM file and one or more FASTQ
+    |files consisting of UMI reads, matches the reads between the files based on read names,
     |and produces an output BAM file where each record is annotated with an optional tag
     |(specified by `attribute`) that contains the read sequence of the UMI.  Trailing read
     |numbers (`/1` or `/2`) are removed from FASTQ read names, as is any text after whitespace,
-    |before matching.
+    |before matching.  If multiple FASTQs are given, the UMI are the bases dash-delimited in the same
+    |order as FASTQs are specified on the command line.  The delimiter is controlled by the
+    |`--delimiter` option.
     |
     |At the end of execution, reports how many records were processed and how many were
     |missing UMIs. If any read from the BAM file did not have a matching UMI read in the
@@ -49,9 +51,9 @@ import com.fulcrumgenomics.util.ProgressLogger
     |may be specified to cause the program to terminate the first time it finds a records
     |without a matching UMI.
     |
-    |In order to avoid sorting the input files, the entire UMI fastq file is read into
+    |In order to avoid sorting the input files, the entire UMI fastq file(s) is read into
     |memory. As a result the program needs to be run with memory proportional the size of
-    |the (uncompressed) fastq.
+    |the (uncompressed) fastq(s).
   """,
   group = ClpGroups.SamOrBam)
 class AnnotateBamWithUmis(
