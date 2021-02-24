@@ -56,11 +56,15 @@ import com.fulcrumgenomics.util.ProgressLogger
   group = ClpGroups.SamOrBam)
 class AnnotateBamWithUmis(
   @arg(flag='i', doc="The input SAM or BAM file.")             val input: PathToBam,
-  @arg(flag='f', doc="Input FASTQ file with UMI reads.")       val fastq: PathToFastq,
+  @arg(flag='f', doc="Input FASTQ file with UMI reads.")       val fastq: Seq[PathToFastq],
   @arg(flag='o', doc="Output BAM file to write.")              val output: PathToBam,
   @arg(flag='t', doc="The BAM attribute to store UMIs in.")    val attribute: String = "RX",
-  @arg(          doc="If set, fail on the first missing UMI.") val failFast: Boolean = false
+  @arg(          doc="If set, fail on the first missing UMI.") val failFast: Boolean = false,
+  @arg(flag='d', doc="The delimiter for joining the bases from multiple FASTQs") val delimiter: String = "-"
 ) extends FgBioTool with LazyLogging {
+
+  Io.assertReadable(Seq(input) ++ fastq)
+  Io.assertCanWriteFile(output)
 
   private var missingUmis: Long = 0
 
@@ -72,13 +76,13 @@ class AnnotateBamWithUmis(
 
   /** Main method that does the work of reading input files, matching up reads and writing the output file. */
   override def execute(): Unit = {
-    Io.assertReadable(Seq(input, fastq))
-    Io.assertCanWriteFile(output)
-
     // Read in the fastq file
     logger.info("Reading in UMIs from FASTQ.")
-    val fqIn = FastqSource(fastq)
-    val nameToUmi = fqIn.map(fq => (fq.name, fq.bases)).toMap
+    val fqSources = fastq.map(FastqSource.apply)
+    val nameToUmi = FastqSource.zipped(sources=fqSources).map { records =>
+      (records.head.name, records.map(_.bases).mkString(sep=delimiter))
+    }.toMap
+    fqSources.foreach(_.close())
 
     // Loop through the BAM file an annotate it
     logger.info("Reading input BAM and annotating output BAM.")

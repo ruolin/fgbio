@@ -40,20 +40,30 @@ class AnnotateBamWithUmisTest extends UnitSpec {
   val umiTag    = "RX"
   val umiLength = 8
 
-  "AnnotateBamWithUmis" should "successfully add UMIs to a BAM in" in {
+  "AnnotateBamWithUmis" should "successfully add UMIs to a BAM" in {
     val out = makeTempFile("with_umis.", ".bam")
-    val annotator = new AnnotateBamWithUmis(input=sam, fastq=fq, output=out, attribute=umiTag)
+    val annotator = new AnnotateBamWithUmis(input=sam, fastq=Seq(fq), output=out, attribute=umiTag)
     annotator.execute()
     SamSource(out).foreach(rec => {
       rec[String](umiTag) shouldBe rec.basesString.substring(0,8)
     })
   }
 
-  "AnnotateBamWithUmis" should "fail if one or more reads doesn't have a UMI" in {
+  it should "fail if one or more reads doesn't have a UMI" in {
     val out     = makeTempFile("with_umis.", ".bam")
     val shortFq = makeTempFile("missing_umis.", ".fq.gz")
     Io.writeLines(shortFq, Io.readLines(fq).toSeq.dropRight(8))
-    val annotator = new AnnotateBamWithUmis(input=sam, fastq=shortFq, output=out, attribute=umiTag)
+    val annotator = new AnnotateBamWithUmis(input=sam, fastq=Seq(shortFq), output=out, attribute=umiTag)
     an[FailureException] shouldBe thrownBy { annotator.execute() }
+  }
+
+  it should "successfully add UMIs to a BAM with multiple FASTQs" in {
+    val out = makeTempFile("with_umis.", ".bam")
+    val annotator = new AnnotateBamWithUmis(input=sam, fastq=Seq(fq, fq), output=out, attribute=umiTag, delimiter="x")
+    annotator.execute()
+    SamSource(out).foreach(rec => {
+      val bases = rec.basesString.substring(0,8)
+      rec[String](umiTag) shouldBe s"${bases}x${bases}"
+    })
   }
 }
