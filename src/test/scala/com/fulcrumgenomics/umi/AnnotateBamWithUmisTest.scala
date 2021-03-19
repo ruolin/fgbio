@@ -28,17 +28,16 @@ import com.fulcrumgenomics.bam.api.SamSource
 import com.fulcrumgenomics.cmdline.FgBioMain.FailureException
 import com.fulcrumgenomics.commons.io.PathUtil
 import com.fulcrumgenomics.testing.UnitSpec
-import com.fulcrumgenomics.util.Io
+import com.fulcrumgenomics.util.{Io, ReadStructure}
 
 /**
   * Tests for AnnotateBamWithUmis
   */
 class AnnotateBamWithUmisTest extends UnitSpec {
-  val dir = PathUtil.pathTo("src/test/resources/com/fulcrumgenomics/umi")
-  val sam = dir.resolve("annotate_umis.sam")
-  val fq  = dir.resolve("annotate_umis.fastq")
-  val umiTag    = "RX"
-  val umiLength = 8
+  private val dir = PathUtil.pathTo("src/test/resources/com/fulcrumgenomics/umi")
+  private val sam = dir.resolve("annotate_umis.sam")
+  private val fq  = dir.resolve("annotate_umis.fastq")
+  private val umiTag    = "RX"
 
   "AnnotateBamWithUmis" should "successfully add UMIs to a BAM in" in {
     val out = makeTempFile("with_umis.", ".bam")
@@ -55,5 +54,14 @@ class AnnotateBamWithUmisTest extends UnitSpec {
     Io.writeLines(shortFq, Io.readLines(fq).toSeq.dropRight(8))
     val annotator = new AnnotateBamWithUmis(input=sam, fastq=shortFq, output=out, attribute=umiTag)
     an[FailureException] shouldBe thrownBy { annotator.execute() }
+  }
+
+  "AnnotateBamWithUmis" should "successfully add UMIs to a BAM with a given read structure in" in {
+    val out = makeTempFile("with_umis.", ".bam")
+    val annotator = new AnnotateBamWithUmis(input=sam, fastq=fq, output=out, attribute=umiTag, readStructure=ReadStructure("2B4M+B"))
+    annotator.execute()
+    SamSource(out).foreach(rec => {
+      rec[String](umiTag) shouldBe rec.basesString.substring(2,6)
+    })
   }
 }
