@@ -10,6 +10,9 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+          lfs: true
+      - name: Checkout LFS objects
+        run: git lfs checkout        
       - name: Setup Scala
         uses: olafurpg/setup-scala@v12
         with:
@@ -17,9 +20,7 @@ jobs:
       - name: Unit Tests
         run: |
           set -e
-          sbt +clean coverage +test && sbt coverageReport coverageAggregate
-          find $HOME/.sbt -name "*.lock" | xargs rm
-          find $HOME/.ivy2 -name "ivydata-*.properties" | xargs rm
+          sbt +clean coverage +test && sbt coverageReport coverageAggregate && (find $HOME/.sbt -name "*.lock" | xargs rm) && (find $HOME/.ivy2 -name "ivydata-*.properties" | xargs rm)
       - name: Code Coverage
         uses: codecov/codecov-action@v1
         with:
