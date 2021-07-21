@@ -50,6 +50,8 @@ class SetMateInformation
   @arg(flag='i', doc="Input SAM/BAM/CRAM file.")                      val input: PathToBam = Io.StdIn,
   @arg(flag='o', doc="Output SAM/BAM/CRAM file.")                     val output: PathToBam = Io.StdOut,
   @arg(flag='r', doc="Reference fasta, only needed if writing CRAM.") val ref: Option[PathToFasta] = None,
+  @arg(flag='s', doc="Skip checking the header for sort order of alignments.")
+                                                                      val skipSortOrderCheck: Boolean = false,
   @arg(flag='x', doc="If specified, do not fail when reads marked as paired are missing their mate pairs.")
                                                                       val allowMissingMates: Boolean = false
 ) extends FgBioTool with LazyLogging {
@@ -57,7 +59,7 @@ class SetMateInformation
   Io.assertReadable(input)
   Io.assertCanWriteFile(output)
   private val in = SamSource(input)
-  if (in.header.getSortOrder != SortOrder.queryname && in.header.getGroupOrder != GroupOrder.query) {
+  if (!skipSortOrderCheck && in.header.getSortOrder != SortOrder.queryname && in.header.getGroupOrder != GroupOrder.query) {
     in.safelyClose()
     throw new ValidationException("Input is not queryname sorted or grouped.")
   }
