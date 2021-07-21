@@ -24,7 +24,7 @@
 package com.fulcrumgenomics.bam
 
 import com.fulcrumgenomics.FgBioDef._
-import com.fulcrumgenomics.bam.api.{SamRecord, SamSource, SamWriter}
+import com.fulcrumgenomics.bam.api.{SamOrder, SamRecord, SamSource, SamWriter}
 import com.fulcrumgenomics.cmdline.{ClpGroups, FgBioTool}
 import com.fulcrumgenomics.commons.util.LazyLogging
 import com.fulcrumgenomics.sopt.cmdline.ValidationException
@@ -65,7 +65,8 @@ class SetMateInformation
   }
 
   override def execute(): Unit = {
-    val out = SamWriter(output, in.header, ref=ref)
+    val sortOrder = if (skipSortOrderCheck) Some(SamOrder.Unknown) else None
+    val out = SamWriter(output, in.header, ref=ref, sort=sortOrder)
     val iterator = new SetMateInfoIterator(in.iterator.map(_.asSam), true, allowMissingMates).map(_.asInstanceOf[SamRecord])
     out ++= iterator
     out.close()
