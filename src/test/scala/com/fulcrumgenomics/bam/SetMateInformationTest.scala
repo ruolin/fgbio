@@ -39,6 +39,7 @@ class SetMateInformationTest extends UnitSpec {
   val querySortedSam      = dir.resolve("set_mate_querysorted.sam")
   val queryGroupedSam     = dir.resolve("set_mate_querygrouped.sam")
   val coordinateSortedSam = dir.resolve("set_mate_coordinatesorted.sam")
+  val unknownSortedSam    = dir.resolve("set_mate_unknown_querysorted.sam")
 
   "SetMateInformation" should "correctly set mate information in a query sorted file" in {
     val out = makeTempFile("mated.", ".bam")
@@ -68,4 +69,22 @@ class SetMateInformationTest extends UnitSpec {
     val out = makeTempFile("mated.", ".bam")
     an[ValidationException] should be thrownBy new SetMateInformation(input=coordinateSortedSam, output=out)
   }
+
+  it should "throw an exception on an unknown sorted file" in {
+    val out = makeTempFile("mated.", ".bma")
+    an[ValidationException] should be thrownBy new SetMateInformation(input=unknownSortedSam, output=out, skipSortOrderCheck=false)
+  }
+
+  it should "correctly set mate information in an unknown query sorted file" in {
+    val out = makeTempFile("mated.", ".bma")
+    val fixer =  new SetMateInformation(input=unknownSortedSam, output=out, skipSortOrderCheck=true)
+    fixer.execute()
+    val in = SamSource(out)
+    in.iterator.filter(r => r.mapped && r.mateMapped).foreach(rec => {
+      rec.get("MC") shouldBe defined
+      rec.get("MQ") shouldBe defined
+    })
+    in.close()
+  }
+
 }
