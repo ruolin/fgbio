@@ -65,7 +65,9 @@ class SetMateInformation
   }
 
   override def execute(): Unit = {
-    val sortOrder = if (skipSortOrderCheck) Some(SamOrder.Unknown) else None
+    // if we are skipping the header order check, there is a good chance that the headers sort order is not set and the writer
+    // will expect coordinate sorted output. This lowers the expectation of the writer to the least sorted possible input.
+    val sortOrder = if (skipSortOrderCheck) Some(SamOrder.RandomQuery) else None
     val out = SamWriter(output, in.header, ref=ref, sort=sortOrder)
     val iterator = new SetMateInfoIterator(in.iterator.map(_.asSam), true, allowMissingMates).map(_.asInstanceOf[SamRecord])
     out ++= iterator
