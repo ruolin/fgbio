@@ -143,7 +143,8 @@ object DemuxFastqs {
                              demultiplexer: FastqDemultiplexer,
                              threads: Int,
                              batchSize: Int = DemuxBatchRecordsSize,
-                             omitFailingReads: Boolean): Iterator[DemuxResult] = {
+                             omitFailingReads: Boolean,
+                             omitControlReads: Boolean): Iterator[DemuxResult] = {
 
     require(demultiplexer.expectedNumberOfReads == sources.length,
       s"The demultiplexer expects ${demultiplexer.expectedNumberOfReads} reads but ${sources.length} FASTQ sources given.")
@@ -165,7 +166,8 @@ object DemuxFastqs {
     else {
       zippedIterator.map { readRecords => demultiplexer.demultiplex(readRecords: _*) }
     }
-    resultIterator.filter(r => r.keep(omitFailingReads))
+
+    resultIterator.filter(r => r.keep(omitFailingReads, omitControlReads))
   }
 }
 
@@ -294,6 +296,8 @@ object DemuxFastqs {
       |`--omit-fastq-read-numbers=true --include-sample-barcodes-in-fastq=true --illumina-file-names=true`
       |
       |By default all input reads are output.  If your input FASTQs contain reads that do not pass filter (as defined by the Y/N filter flag in the FASTQ comment) these can be filtered out during demultiplexing using the `--omit-failing-reads` option.
+      |
+      |To output only reads that are not control reads, as encoded in the `<control number>` field in the header comment, use the `--omit-control-reads` flag
     """,
   group=ClpGroups.Fastq
 )
@@ -345,7 +349,9 @@ class DemuxFastqs
  @arg(doc="Name the output files according to the Illumina file name standards.", mutex=Array("illuminaStandards"))
  val illuminaFileNames: Boolean = false,
  @arg(doc="Keep only passing filter reads if true, otherwise keep all reads. Passing filter reads are determined from the comment in the FASTQ header.")
- val omitFailingReads: Boolean = false
+ val omitFailingReads: Boolean = false,
+ @arg(doc="Do not keep reads identified as control if true, otherwise keep all reads. Control reads are determined from the comment in the FASTQ header.")
+ val omitControlReads: Boolean = false
 ) extends FgBioTool with LazyLogging {
 
   // Support the deprecated --illumina-standards option
@@ -434,7 +440,9 @@ class DemuxFastqs
       maxNoCalls       = maxNoCalls,
       includeOriginal  = this.includeAllBasesInFastqs,
       fastqStandards   = this.fastqStandards,
-      omitFailingReads = this.omitFailingReads)
+      omitFailingReads = this.omitFailingReads,
+      omitControlReads = this.omitControlReads
+    )
 
     val progress = ProgressLogger(this.logger, unit=1e6.toInt)
 
@@ -442,10 +450,11 @@ class DemuxFastqs
     // DemuxRecord in parallel
     val sources   = inputs.map(FastqSource(_))
     val iterator  = demultiplexingIterator(
-      sources       = sources,
-      demultiplexer = demultiplexer,
-      threads       = threads,
-      omitFailingReads = this.omitFailingReads
+      sources          = sources,
+      demultiplexer    = demultiplexer,
+      threads          = threads,
+      omitFailingReads = this.omitFailingReads,
+      omitControlReads = this.omitControlReads
     )
 
     // Write the records out in its own thread
@@ -627,21 +636,23 @@ private[fastq] object FastqDemultiplexer {
     * @param numMismatches the # of mismatches if it matched a sample with a sample barcode.  This will be [[Int.MaxValue]]
     *                      for the unmatched sample.
     * @param records the records, one for each read that has template bases.
+    * @param passQc flag noting if the read passes QC. Default true to keep all reads unless otherwise specified.
+    * @param isControl flag noting if the read is an internal control. Default false unless filtering to remove internal control reads.
     */
-  case class DemuxResult(sampleInfo: SampleInfo, numMismatches: Int, records: Seq[DemuxRecord], passQc: Boolean = true) {
+  case class DemuxResult(sampleInfo: SampleInfo, numMismatches: Int, records: Seq[DemuxRecord], passQc: Boolean = true, isControl: Boolean = false) {
 
     /** Returns true if this [[DemuxResult]] should be kept for output, false otherwise.
-     *
-     * Returns true if `omitFailingReads` is fase or if `passQc` is true
+     * Returns true if `omitFailingReads` is false or if `passQc` is true
      *
      * @param omitFailingReads true to keep only passing reads, false to keep all reads
     */
-    def keep(omitFailingReads: Boolean = false): Boolean = {
-      if (!omitFailingReads) true else passQc
+
+    def keep(omitFailingReads: Boolean, omitControlReads: Boolean): Boolean = {
+      val keepByQc      = if (!omitFailingReads) true else passQc
+      val keepByControl = if (!omitControlReads) true else !isControl
+      keepByQc && keepByControl
     }
   }
-
-
 
   /** Counts the nucleotide mismatches between two strings of the same length.  Ignores no calls in expectedBases. */
   private[fastq] def countMismatches(observedBases: Array[Byte], expectedBases: Array[Byte]): Int = {
@@ -677,6 +688,8 @@ private[fastq] object FastqDemultiplexer {
   * @param includeOriginal true if to provide set the values for `originaBases` and `originalQuals` in [[DemuxResult]],
   *                        namely the bases and qualities FOR ALL bases, including molecular barcode, sample barcode,
   *                        and skipped bases.
+  * @param keepOnlyPassing true if to remove reads that don't pass QC, marked as 'N' in the header comment
+  * @param omitControlReads false if to keep reads that are marked as internal control reads in the header comment.
   */
 private class FastqDemultiplexer(val sampleInfos: Seq[SampleInfo],
                                  readStructures: Seq[ReadStructure],
@@ -686,7 +699,8 @@ private class FastqDemultiplexer(val sampleInfos: Seq[SampleInfo],
                                  val minMismatchDelta: Int = 1,
                                  val maxNoCalls: Int = 2,
                                  val includeOriginal: Boolean = false,
-                                 val omitFailingReads: Boolean = false) {
+                                 val omitFailingReads: Boolean = false,
+                                 val omitControlReads: Boolean = false) {
   import FastqDemultiplexer._
 
   require(readStructures.nonEmpty, "No read structures were given")
@@ -793,8 +807,10 @@ private class FastqDemultiplexer(val sampleInfos: Seq[SampleInfo],
         )
       }
 
+
     val passQc = demuxRecords.forall(d => d.readInfo.forall(_.passQc))
-    DemuxResult(sampleInfo=sampleInfo, numMismatches=numMismatches, records=demuxRecords, passQc=passQc)
+    val isControl = demuxRecords.forall(d => d.readInfo.forall(_.internalControl))
+    DemuxResult(sampleInfo=sampleInfo, numMismatches=numMismatches, records=demuxRecords, passQc=passQc, isControl=isControl)
   }
 }
 
@@ -857,7 +873,7 @@ object ReadInfo {
     ReadInfo(
       readNumber      = readNumber.toInt,
       passQc          = keepBoolean,
-      internalControl = internalControl.toInt == 1,
+      internalControl = internalControl.toInt != 0,
       sampleInfo      = sampleInfo,
       rest            = comments.drop(1)
     )
