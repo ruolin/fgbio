@@ -179,7 +179,10 @@ object DemuxFastqs {
           .map { result => result.maskLowQualityBases(threshold = thresh, qualityEncoding = qualityEncoding) }
       }
 
-    resultIterator.filter(r => r.keep(omitFailingReads, omitControlReads))
+    resultIterator.map { res =>
+      if (!omitControlReads || !res.isControl) res.sampleInfo.metric.increment(numMismatches = res.numMismatches, isPf = res.passQc)
+      res
+    }.filter(r => r.keep(omitFailingReads, omitControlReads))
   }
 }
 
@@ -474,7 +477,6 @@ class DemuxFastqs
 
     // Write the records out in its own thread
     iterator.foreach { demuxResult =>
-      demuxResult.sampleInfo.metric.increment(numMismatches=demuxResult.numMismatches)
       val writer = sampleToWriter(demuxResult.sampleInfo.sample)
       demuxResult.records.foreach { rec =>
         writer.add(rec.copy(quals=qualityEncoding.toStandardAscii(rec.quals)))
@@ -846,6 +848,7 @@ private class FastqDemultiplexer(val sampleInfos: Seq[SampleInfo],
 
     val passQc = demuxRecords.forall(d => d.readInfo.forall(_.passQc))
     val isControl = demuxRecords.forall(d => d.readInfo.forall(_.internalControl))
+
     DemuxResult(sampleInfo=sampleInfo, numMismatches=numMismatches, records=demuxRecords, passQc=passQc, isControl=isControl)
   }
 }
