@@ -32,6 +32,7 @@ import com.fulcrumgenomics.commons.util.LazyLogging
 import com.fulcrumgenomics.fastq.FastqSource
 import com.fulcrumgenomics.sopt._
 import com.fulcrumgenomics.util.{ProgressLogger, ReadStructure, SegmentType}
+import com.fulcrumgenomics.FgBioDef.BetterBufferedIteratorScalaWrapper
 
 @clp(description =
   """
@@ -45,6 +46,9 @@ import com.fulcrumgenomics.util.{ProgressLogger, ReadStructure, SegmentType}
     |
     |The `--read-structure` option may be used to specify which bases in the FASTQ contain UMI
     |bases.  Otherwise it is assumed the FASTQ contains only UMI bases.
+    |
+    |The `--sorted` option may be used to indicate that the FASTQ has the same reads and is
+    |sorted in the same order as the BAM file.
     |
     |At the end of execution, reports how many records were processed and how many were
     |missing UMIs. If any read from the BAM file did not have a matching UMI read in the
@@ -64,7 +68,9 @@ class AnnotateBamWithUmis(
   @arg(flag='t', doc="The BAM attribute to store UMIs in.")    val attribute: String = "RX",
   @arg(flag='r', doc="The read structure for the FASTQ, otherwise all bases will be used.")
                                                                val readStructure: ReadStructure = ReadStructure("+M"),
-  @arg(          doc="If set, fail on the first missing UMI.") val failFast: Boolean = false
+  @arg(flag='s', doc="Whether the FASTQ file is sorted in the same order as the BAM.")
+                                                               val sorted: Boolean = false,
+  @arg(          doc="If set, fail on the first missing UMI.") val failFast: Boolean = false,
 ) extends FgBioTool with LazyLogging {
 
   private var missingUmis: Long = 0
@@ -91,25 +97,45 @@ class AnnotateBamWithUmis(
 
     // Read in the fastq file
     logger.info("Reading in UMIs from FASTQ.")
-    val fqIn      = FastqSource(fastq)
-    val nameToUmi =  fqIn.map(fq => (fq.name, extractUmis(fq.bases, readStructure))).toMap
+    val fqIn     = FastqSource(fastq)
 
-    // Loop through the BAM file an annotate it
     logger.info("Reading input BAM and annotating output BAM.")
     val in       = SamSource(input)
     val out      = SamWriter(output, in.header)
     val progress = ProgressLogger(logger)
 
-    in.foreach(rec => {
-      val name = rec.name
-      nameToUmi.get(name) match {
-        case Some(umi) => rec(attribute) = umi
-        case None      => logMissingUmi(name)
+    if (sorted) {
+      // Loop through fastq and annotate corresponding BAM entries
+      val samIter = in.iterator.bufferBetter
+      fqIn.foreach { fqRec =>
+        val records = samIter.takeWhile(_.name == fqRec.name).toIndexedSeq
+        if (records.isEmpty) logMissingUmi(fqRec.name) else {
+          val umi = extractUmis(fqRec.bases, structure=readStructure)
+          records.foreach { rec =>
+            rec(attribute) = umi
+            out += rec
+            progress.record(rec)
+          }
+        }
       }
-      out += rec
-      progress.record(rec)
-    })
-
+      samIter.foreach { rec =>
+        logMissingUmi(rec.name)
+        progress.record(rec)
+      }
+    } else {
+      // Loop through the BAM file an annotate it
+      val nameToUmi = fqIn.map(fq => (fq.name, extractUmis(fq.bases, readStructure))).toMap
+      in.foreach { rec => 
+        val name = rec.name
+        nameToUmi.get(name) match {
+          case Some(umi) => rec(attribute) = umi
+          case None      => logMissingUmi(name)
+        }
+        out += rec
+        progress.record(rec)
+      }
+    }
+    progress.logLast()
     // Finish up
     out.close()
     logger.info(s"Processed ${progress.getCount} records with ${missingUmis} missing UMIs.")
