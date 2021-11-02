@@ -100,13 +100,16 @@ object SampleSheet {
 
     // get the rows (values), so skip "[Data]" and the header
     val lineNumber = preData.size + 2 // 0-based
-    val sampleDatums = postData.drop(2).zipWithIndex.map { case (line, rowNumber) =>
+    val sampleDatums = postData.drop(2).zipWithIndex.flatMap { case (line, rowNumber) =>
         val values = line.split(SplitRegex, -1)
+        // If this is an empty line, skip it
+        if (values.forall(_.trim.isEmpty)) None
         // check we have the correct # of columns
-        if (values.size != header.length) {
+        else if (values.size != header.length) {
           throw new IllegalArgumentException(s"Found a line with a mismatching number of columns on line #$lineNumber: " + line)
+        } else {
+          Some(header.zip(values.map(_.trim)).toMap)
         }
-        header.zip(values.map(_.trim)).toMap
       }
     lane match {
       case Some(l: Int) => sampleDatums.filter { SampleSheet.getIntField(_, Lane).exists(_ == l) }
