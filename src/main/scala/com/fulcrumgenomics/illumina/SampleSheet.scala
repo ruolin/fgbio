@@ -100,17 +100,25 @@ object SampleSheet {
 
     // get the rows (values), so skip "[Data]" and the header
     val lineNumber = preData.size + 2 // 0-based
-    val sampleDatums = postData.drop(2).zipWithIndex.flatMap { case (line, rowNumber) =>
+    val maybeSampleDatums = postData.drop(2).zipWithIndex.map { case (line, rowNumber) =>
         val values = line.split(SplitRegex, -1)
-        // If this is an empty line, skip it
+        // treat as empty line iff all columns are empty (empty line or comma-only line, often added by spreadsheet editors)
         if (values.forall(_.trim.isEmpty)) None
         // check we have the correct # of columns
         else if (values.size != header.length) {
-          throw new IllegalArgumentException(s"Found a line with a mismatching number of columns on line #$lineNumber: " + line)
+          throw new IllegalArgumentException(s"Found a line with a mismatching number of columns at sample data row #${rowNumber + 1}: " + line)
         } else {
           Some(header.zip(values.map(_.trim)).toMap)
         }
       }
+    // skip empty lines that come after the last sample data line
+    // throw an error if empty lines are mixed in with sample data
+    val sampleDatums = maybeSampleDatums.take(maybeSampleDatums.lastIndexWhere(_.isDefined) + 1) match {
+      case datums if datums.forall(_.isDefined) => datums.flatten
+      case datums =>
+        val emptyRows = datums.zipWithIndex.filter(_._1.isEmpty).map(_._2).map(_ + 1) // 1 indexed
+        throw new IllegalArgumentException(s"Found empty rows in sample data section: ${emptyRows.mkString(", ")}")
+    }
     lane match {
       case Some(l: Int) => sampleDatums.filter { SampleSheet.getIntField(_, Lane).exists(_ == l) }
       case None         => sampleDatums
@@ -119,8 +127,8 @@ object SampleSheet {
 
   /** Creates a sample from the given row data. */
   protected def makeSample(sampleOrdinal: Int, sampleDatum: Map[String, String]): Sample = {
-    val sampleName: String          = SampleSheet.getStringField(sampleDatum, SampleName)    getOrElse (throw new IllegalArgumentException(s"Missing: $SampleName"))
-    val sampleId: String            = SampleSheet.getStringField(sampleDatum, SampleId)      getOrElse (throw new IllegalArgumentException(s"Missing: $SampleId"))
+    val sampleName: String          = SampleSheet.getStringField(sampleDatum, SampleName)    getOrElse (throw new IllegalArgumentException(s"Sample at ordinal #$sampleOrdinal is missing: $SampleName"))
+    val sampleId: String            = SampleSheet.getStringField(sampleDatum, SampleId)      getOrElse (throw new IllegalArgumentException(s"Sample at ordinal #$sampleOrdinal is missing: $SampleId"))
     val libraryId: String           = SampleSheet.getStringField(sampleDatum, LibraryId)     getOrElse sampleId
     val project: Option[String]     = SampleSheet.getStringField(sampleDatum, SampleProject)
     val description: Option[String] = SampleSheet.getStringField(sampleDatum, Description)
