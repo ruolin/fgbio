@@ -128,8 +128,8 @@ object SampleSheet {
 
   /** Creates a sample from the given row data. */
   protected def makeSample(sampleOrdinal: Int, sampleDatum: Map[String, String]): Sample = {
-    val sampleName: String          = SampleSheet.getStringField(sampleDatum, SampleName)    getOrElse (throw new IllegalArgumentException(s"Missing: $SampleName"))
-    val sampleId: String            = SampleSheet.getStringField(sampleDatum, SampleId)      getOrElse (throw new IllegalArgumentException(s"Missing: $SampleId"))
+    val sampleName: String          = SampleSheet.getStringField(sampleDatum, SampleName)    getOrElse (throw new IllegalArgumentException(s"Sample at ordinal #$sampleOrdinal is missing: $SampleName"))
+    val sampleId: String            = SampleSheet.getStringField(sampleDatum, SampleId)      getOrElse (throw new IllegalArgumentException(s"Sample at ordinal #$sampleOrdinal is missing: $SampleId"))
     val libraryId: String           = SampleSheet.getStringField(sampleDatum, LibraryId)     getOrElse sampleId
     val project: Option[String]     = SampleSheet.getStringField(sampleDatum, SampleProject)
     val description: Option[String] = SampleSheet.getStringField(sampleDatum, Description)
