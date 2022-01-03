@@ -98,27 +98,28 @@ object SampleSheet {
       case None => throw new IllegalArgumentException("Could not find the header for sample data.")
     }).map(_.toUpperCase.trim)
 
-    // get the rows (values), so skip "[Data]" and the header
+    // get the rows (values), so skip "[Data]" and header line
     val lineNumber = preData.size + 2 // 0-based
-    val maybeSampleDatums = postData.drop(2).zipWithIndex.map { case (line, rowNumber) =>
-        val values = line.split(SplitRegex, -1)
-        // treat as empty line if all columns are empty (empty line or comma-only line, often added by spreadsheet editors)
-        if (values.forall(_.trim.isEmpty)) None
-        // check we have the correct # of columns
-        else if (values.size != header.length) {
-          throw new IllegalArgumentException(s"Found a line with a mismatching number of columns at sample data row #${rowNumber + 1}: " + line)
-        } else {
-          Some(header.zip(values.map(_.trim)).toMap)
+    val sampleDatums = postData
+      .drop(2) // skip the "[Data]" and header line
+      .zipWithIndex // add the row #
+      .map { case (line, rowNumber) => (line.split(SplitRegex, -1), rowNumber) } // just split the values
+      .reverse // to skip empty lines, and lines with all empty values, at the end of the sample
+      .dropWhile { case (values, rowNumber) => values.isEmpty || values.forall(_.trim.isEmpty) } // no values, regardless of number, so drop/skip it
+      .reverse // put back in the correct order
+      .map { case (values, rowNumber) =>
+        if (values.isEmpty || values.forall(_.trim.isEmpty)) { // empty line, or all values are empty
+          val emptyRows = values.zipWithIndex.filter(_._1.isEmpty).map(_._2).map(_ + 1) // 1 indexed
+          throw new IllegalArgumentException(s"Found empty rows in sample data section: ${emptyRows.mkString(", ")}")
         }
+        else if (values.size != header.length) { // there aren't the required # of values
+          throw new IllegalArgumentException(
+            s"Found a line with a mismatching number of columns on line #${lineNumber + rowNumber + 1}: " + values.mkString(",")
+          )
+        }
+        header.zip(values.map(_.trim)).toMap
       }
-    // skip empty lines that come after the last sample data line
-    // throw an error if empty lines are mixed in with sample data
-    val sampleDatums = maybeSampleDatums.take(maybeSampleDatums.lastIndexWhere(_.isDefined) + 1) match {
-      case datums if datums.forall(_.isDefined) => datums.flatten
-      case datums =>
-        val emptyRows = datums.zipWithIndex.filter(_._1.isEmpty).map(_._2).map(_ + 1) // 1 indexed
-        throw new IllegalArgumentException(s"Found empty rows in sample data section: ${emptyRows.mkString(", ")}")
-    }
+
     lane match {
       case Some(l: Int) => sampleDatums.filter { SampleSheet.getIntField(_, Lane).exists(_ == l) }
       case None         => sampleDatums
@@ -127,8 +128,8 @@ object SampleSheet {
 
   /** Creates a sample from the given row data. */
   protected def makeSample(sampleOrdinal: Int, sampleDatum: Map[String, String]): Sample = {
-    val sampleName: String          = SampleSheet.getStringField(sampleDatum, SampleName)    getOrElse (throw new IllegalArgumentException(s"Sample at ordinal #$sampleOrdinal is missing: $SampleName"))
-    val sampleId: String            = SampleSheet.getStringField(sampleDatum, SampleId)      getOrElse (throw new IllegalArgumentException(s"Sample at ordinal #$sampleOrdinal is missing: $SampleId"))
+    val sampleName: String          = SampleSheet.getStringField(sampleDatum, SampleName)    getOrElse (throw new IllegalArgumentException(s"Missing: $SampleName"))
+    val sampleId: String            = SampleSheet.getStringField(sampleDatum, SampleId)      getOrElse (throw new IllegalArgumentException(s"Missing: $SampleId"))
     val libraryId: String           = SampleSheet.getStringField(sampleDatum, LibraryId)     getOrElse sampleId
     val project: Option[String]     = SampleSheet.getStringField(sampleDatum, SampleProject)
     val description: Option[String] = SampleSheet.getStringField(sampleDatum, Description)
