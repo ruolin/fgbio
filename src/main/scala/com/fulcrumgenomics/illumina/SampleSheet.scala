@@ -102,7 +102,7 @@ object SampleSheet {
     val lineNumber = preData.size + 2 // 0-based
     val maybeSampleDatums = postData.drop(2).zipWithIndex.map { case (line, rowNumber) =>
         val values = line.split(SplitRegex, -1)
-        // treat as empty line iff all columns are empty (empty line or comma-only line, often added by spreadsheet editors)
+        // treat as empty line if all columns are empty (empty line or comma-only line, often added by spreadsheet editors)
         if (values.forall(_.trim.isEmpty)) None
         // check we have the correct # of columns
         else if (values.size != header.length) {
