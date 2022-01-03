@@ -109,8 +109,7 @@ object SampleSheet {
       .reverse // put back in the correct order
       .map { case (values, rowNumber) =>
         if (values.isEmpty || values.forall(_.trim.isEmpty)) { // empty line, or all values are empty
-          val emptyRows = values.zipWithIndex.filter(_._1.isEmpty).map(_._2).map(_ + 1) // 1 indexed
-          throw new IllegalArgumentException(s"Found empty rows in sample data section: ${emptyRows.mkString(", ")}")
+          throw new IllegalArgumentException(s"Found empty row in sample data section: ${rowNumber}")
         }
         else if (values.size != header.length) { // there aren't the required # of values
           throw new IllegalArgumentException(
