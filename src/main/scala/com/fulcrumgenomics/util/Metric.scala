@@ -25,23 +25,24 @@
 
 package com.fulcrumgenomics.util
 
-import java.io.{Closeable, Writer}
+import com.fulcrumgenomics.cmdline.FgBioMain.FailureException
+import com.fulcrumgenomics.commons.CommonsDef._
+import com.fulcrumgenomics.commons.io.{Writer => CommonsWriter}
+import com.fulcrumgenomics.commons.reflect.{ReflectionUtil, ReflectiveBuilder}
+import com.fulcrumgenomics.commons.util.{DelimitedDataParser, LazyLogging}
+import enumeratum.EnumEntry
+import htsjdk.samtools.util.Iso8601Date
+
+import java.io.{PrintWriter, StringWriter, Writer}
 import java.nio.file.Path
 import java.text.{DecimalFormat, NumberFormat, SimpleDateFormat}
 import java.util.Date
-
-import com.fulcrumgenomics.commons.CommonsDef._
-import com.fulcrumgenomics.commons.reflect.{ReflectionUtil, ReflectiveBuilder}
-import com.fulcrumgenomics.commons.util.DelimitedDataParser
-import htsjdk.samtools.util.{FormatUtil, Iso8601Date}
-import com.fulcrumgenomics.commons.io.{Writer => CommonsWriter}
-import enumeratum.EnumEntry
-
 import scala.collection.compat._
+import scala.collection.concurrent.TrieMap
 import scala.reflect.runtime.{universe => ru}
 import scala.util.{Failure, Success}
 
-object Metric {
+object Metric extends LazyLogging {
   val Delimiter: Char = '\t'
   val DelimiterAsString: String = s"$Delimiter"
 
@@ -59,6 +60,9 @@ object Metric {
 
   /** A format object for Dates. Should be sync'd over. */
   private val DateFormat = new SimpleDateFormat("yyyy-MM-dd")
+
+  /** Add a cache of names for metric classes. */
+  private val nameCache = new TrieMap[Class[_ <: Metric], Seq[String]]()
 
   /** A class that provides streaming writing capability for metrics. */
   class MetricWriter[T <: Metric] private[Metric](val writer: Writer)(implicit tt: ru.TypeTag[T]) extends CommonsWriter[T] {
@@ -80,37 +84,64 @@ object Metric {
 
   /** Get the names of the arguments in the order they were defined for the type [T]. */
   def names[T <: Metric](implicit tt: ru.TypeTag[T]): Seq[String] = {
-    val clazz             = ReflectionUtil.typeTagToClass[T]
-    val reflectiveBuilder = new ReflectiveBuilder(clazz)
-    reflectiveBuilder.argumentLookup.ordered.map(_.name)
+    names(ReflectionUtil.typeTagToClass[T])
+  }
+
+  /** Get the names of the arguments in the order they were defined for the class T. */
+  def names[T <: Metric](clazz: Class[T]): Seq[String] = {
+    this.nameCache.get(clazz) match {
+      case Some(names) => names
+      case None        =>
+        val reflectiveBuilder = new ReflectiveBuilder(clazz)
+        val names = reflectiveBuilder.argumentLookup.ordered.map(_.name)
+        this.nameCache.put(clazz, names)
+        names
+    }
   }
 
   /** Reads metrics from a set of lines.  The first line should be the header with the field names.  Each subsequent
     * line should be a single metric. */
   def iterator[T <: Metric](lines: Iterator[String], source: Option[String] = None)(implicit tt: ru.TypeTag[T]): Iterator[T] = {
-    if (lines.isEmpty) throw new IllegalArgumentException(s"No header found in metrics" + source.map(" in source: " + _).getOrElse(""))
+    val clazz: Class[T]   = ReflectionUtil.typeTagToClass[T]
+
+    def fail(lineNumber: Int,
+             message: String,
+             throwable: Option[Throwable] = None): Unit = {
+      val sourceMessage = source.map("\nIn source: " + _).getOrElse("")
+      val fullMessage   = s"On line #$lineNumber for metric '${clazz.getSimpleName}'$sourceMessage\n$message"
+      throwable.foreach { thr =>
+        val stringWriter = new StringWriter
+        thr.printStackTrace(new PrintWriter(stringWriter))
+        val banner = "#" * 80
+        logger.debug(banner)
+        logger.debug(stringWriter.toString)
+        logger.debug(banner)
+      }
+      throw FailureException(message=Some(fullMessage))
+    }
+
+    if (lines.isEmpty) fail(lineNumber=1, message="No header found")
     val parser = new DelimitedDataParser(lines=lines, delimiter=Delimiter, ignoreBlankLines=false, trimFields=true)
     val names  = parser.headers.toIndexedSeq
-
-    val clazz             = ReflectionUtil.typeTagToClass[T]
     val reflectiveBuilder = new ReflectiveBuilder(clazz)
 
-    parser.map { row =>
+    parser.zipWithIndex.map { case (row, rowIndex) =>
       forloop(from = 0, until = names.length) { i =>
-        val value = {
-          val tmp = row[String](i)
-          if (tmp.nonEmpty) tmp else ReflectionUtil.SpecialEmptyOrNoneToken
-        }
-
         reflectiveBuilder.argumentLookup.forField(names(i)) match {
           case Some(arg) =>
+            val value = {
+              val tmp = row[String](i)
+              if (tmp.isEmpty && arg.argumentType == classOf[Option[_]]) ReflectionUtil.SpecialEmptyOrNoneToken else tmp
+            }
+
             val argumentValue = ReflectionUtil.constructFromString(arg.argumentType, arg.unitType, value) match {
               case Success(v) => v
-              case Failure(thr) => throw thr
+              case Failure(thr) =>
+                fail(lineNumber=rowIndex+2, message=s"Could not construct value for column '${arg.name}' of type '${arg.typeDescription}' from '$value'", Some(thr))
             }
             arg.value = argumentValue
           case None =>
-            throw new IllegalArgumentException(s"The class '${clazz.getSimpleName}' did not have a field with name '${names(i)}'.")
+            fail(lineNumber=rowIndex+2, message=s"Did not have a field with name '${names(i)}'.")
         }
       }
 
@@ -181,12 +212,8 @@ object Metric {
   * words separated by underscores.
   */
 trait Metric extends Product with Iterable[(String,String)] {
-  private lazy val reflectiveBuilder = new ReflectiveBuilder(this.getClass)
-
   /** Get the names of the arguments in the order they were defined. */
-  def names: Seq[String] = {
-    this.reflectiveBuilder.argumentLookup.ordered.map(_.name)
-  }
+  def names: Seq[String] = Metric.names(getClass)
 
   /** Get the values of the arguments in the order they were defined. */
   def values: Seq[String] = productIterator.map(formatValue).toSeq
