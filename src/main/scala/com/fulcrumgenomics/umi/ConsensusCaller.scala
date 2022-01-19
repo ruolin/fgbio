@@ -34,7 +34,7 @@ object ConsensusCaller {
   type Base = Byte
 
   private val NoCall = 'N'.toByte
-  private val DnaBasesUpperCase: Array[Base] = Array('A', 'C', 'G', 'T').map(_.toByte)
+  private val DnaBasesUpperCase: Array[Base] = Array('A', 'C', 'G', 'T', 'N').map(_.toByte)
   private val DnaBaseCount  = DnaBasesUpperCase.length
 
   /** Returns a copy of the DNA bases in the order they are used in all internal arrays. */
@@ -95,7 +95,7 @@ class ConsensusCaller(errorRatePreLabeling:  PhredScore,
     /** Adds a base with adjusted error and truth probabilities to the consensus likelihoods. */
     def add(base: Base, pError: LogProbability, pTruth: LogProbability) = {
       val b = SequenceUtil.upperCase(base)
-      if (b != 'N') {
+      //if (b != 'N') {
         val pErrorNormalized = LogProbability.normalizeByScalar(pError, 3)
         var i = 0
         while (i < DnaBaseCount) {
@@ -110,7 +110,7 @@ class ConsensusCaller(errorRatePreLabeling:  PhredScore,
 
           i += 1
         }
-      }
+      //}
     }
 
     /**
@@ -118,7 +118,7 @@ class ConsensusCaller(errorRatePreLabeling:  PhredScore,
       * to the number of times add() was called with non-ambiguous bases.
       */
     def contributions: Int = {
-      this.observations(0) + this.observations(1) + this.observations(2) + this.observations(3)
+      this.observations(0) + this.observations(1) + this.observations(2) + this.observations(3) + this.observations(4)
     }
 
     /** Gets the number of observations of the base in question. */
@@ -127,6 +127,7 @@ class ConsensusCaller(errorRatePreLabeling:  PhredScore,
       case 'C' => this.observations(1)
       case 'G' => this.observations(2)
       case 'T' => this.observations(3)
+      case 'N' => this.observations(4)
       case x   => throw new IllegalArgumentException("Unsupported base: " + x.toChar)
     }
 

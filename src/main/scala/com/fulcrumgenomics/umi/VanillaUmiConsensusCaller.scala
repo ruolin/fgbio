@@ -204,7 +204,8 @@ class VanillaUmiConsensusCaller(override val readNamePrefix: String,
           if (read.length > positionInRead) {
             val base = read.bases(positionInRead)
             val qual = read.quals(positionInRead)
-            if (base != NoCall) builder.add(base=base, qual=qual)
+            //if (base != NoCall) builder.add(base=base, qual=qual)
+            builder.add(base=base, qual=qual)
           }
         }
 
