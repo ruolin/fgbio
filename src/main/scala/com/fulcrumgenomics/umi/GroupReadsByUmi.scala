@@ -27,7 +27,6 @@
 package com.fulcrumgenomics.umi
 
 import java.util.concurrent.atomic.AtomicLong
-
 import com.fulcrumgenomics.FgBioDef._
 import com.fulcrumgenomics.bam.{Bams, Template}
 import com.fulcrumgenomics.bam.api.{SamOrder, SamRecord, SamSource, SamWriter}
@@ -46,7 +45,10 @@ import scala.collection.BufferedIterator
 import scala.collection.immutable.IndexedSeq
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
+import com.fulcrumgenomics.commons.util.Threads.IterableThreadLocal
+import com.fulcrumgenomics.FgBioDef._
 
+import java.util.concurrent.ForkJoinPool
 
 object GroupReadsByUmi {
   /** A type representing an actual UMI that is a string of DNA sequence. */
@@ -222,7 +224,7 @@ object GroupReadsByUmi {
         root.descendants.foreach(child => mappings += ((child.umi, id)))
       })
 
-      mappings.result
+      mappings.result()
     }
 
     override def assign(rawUmis: Seq[Umi]): Map[Umi, MoleculeId] = {
@@ -247,7 +249,7 @@ object GroupReadsByUmi {
         }
       }
 
-      assignIdsToNodes(roots.result)
+      assignIdsToNodes(roots.result())
     }
   }
 
@@ -462,8 +464,9 @@ class GroupReadsByUmi
   val minUmiLength: Option[Int] = None,
   @arg(flag='x', doc= """Allow read pairs with primary alignments on different contigs to be grouped when using the
                        |paired assigner (otherwise filtered out).""")
-  val allowInterContig: Boolean = false
-)extends FgBioTool with LazyLogging {
+  val allowInterContig: Boolean = false,
+  @arg(doc="The number of threads to use while grouping.") val threads: Int = 1
+) extends FgBioTool with LazyLogging {
   import GroupReadsByUmi._
 
   require(this.minUmiLength.forall(_ => this.strategy != Strategy.Paired), "Paired strategy cannot be used with --min-umi-length")
@@ -554,24 +557,41 @@ class GroupReadsByUmi
     val out = SamWriter(output, outHeader)
 
     val iterator = Bams.templateIterator(sorter.iterator, out.header, Bams.MaxInMemory, Io.tmpDir)
+
+    val tagFamilySizeCounters = new IterableThreadLocal(() => new NumericCounter[Int]())
+    val pool                  = new ForkJoinPool(threads, ForkJoinPool.defaultForkJoinWorkerThreadFactory, null, true)
+
+    Iterator.continually(if (iterator.hasNext) takeNextGroup(iterator) else Seq.empty)
+      .takeWhile(_.nonEmpty)
+      .grouped(100000)
+      .foreach { group =>
+        group
+          .parWith(pool)
+          .map { templates: Seq[Template] =>
+            // Take the next set of templates by position and assign UMIs
+            assignUmiGroups(templates)
+
+            // Then output the records in the right order (assigned tag, read name, r1, r2)
+            val templatesByMi = templates.groupBy { t => t.r1.get[String](this.assignTag) }
+
+            // Count up the family sizes
+            val tagFamilySizeCounter = tagFamilySizeCounters.get()
+            templatesByMi.values.foreach(ps => tagFamilySizeCounter.count(ps.size))
+
+            templatesByMi.keys.toSeq.sortBy(id => (id.length, id)).flatMap { tag =>
+              templatesByMi(tag).sortBy(t => t.name).flatMap(t => t.primaryReads)
+            }
+          }
+          .seq
+          .iterator
+          .flatten
+          .foreach { rec => out += rec }
+      }
+
+    // Gather the counters per thread
     val tagFamilySizeCounter = new NumericCounter[Int]()
-
-    while (iterator.hasNext) {
-      // Take the next set of templates by position and assign UMIs
-      val templates = takeNextGroup(iterator)
-      assignUmiGroups(templates)
-
-      // Then output the records in the right order (assigned tag, read name, r1, r2)
-      val templatesByMi = templates.groupBy { t => t.r1.get[String](this.assignTag) }
-
-      templatesByMi.keys.toSeq.sortBy(id => (id.length, id)).foreach(tag => {
-        templatesByMi(tag).sortBy(t => t.name).flatMap(t => t.primaryReads).foreach(rec => {
-          out += rec
-        })
-      })
-
-      // Count up the family sizes
-      templatesByMi.values.foreach(ps => tagFamilySizeCounter.count(ps.size))
+    tagFamilySizeCounters.foreach { counter =>
+      tagFamilySizeCounter += counter
     }
 
     out.close()
@@ -669,6 +689,7 @@ class GroupReadsByUmi
         fail(s"Template ${t.name} has only one read, paired-reads required for paired strategy.")
       case (Some(r1), _, _) =>
         r1[String](this.rawTag)
+      case _ => fail(f"Bug: template ${t.name}")
     }
   }
 }
