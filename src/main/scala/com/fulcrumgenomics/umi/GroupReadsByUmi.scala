@@ -563,7 +563,7 @@ class GroupReadsByUmi
 
     Iterator.continually(if (iterator.hasNext) takeNextGroup(iterator) else Seq.empty)
       .takeWhile(_.nonEmpty)
-      .grouped(100000)
+      .grouped(25000)
       .foreach { group =>
         group
           .parWith(pool)
