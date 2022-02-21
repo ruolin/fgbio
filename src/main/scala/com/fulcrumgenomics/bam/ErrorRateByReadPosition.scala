@@ -136,12 +136,7 @@ class ErrorRateByReadPosition
       case (None, None)              => None // no intervals
       case (Some(left), None)        => Some(left) // just the intervals to keep
       case (Some(left), Some(right)) => Some(IntervalList.subtract(left, right)) // remove the ignore intervals from the keep intervals
-      case (None, Some(right))       =>
-        // build an interval list for the whole reference, then subtract the ignore intervals
-        val left = new IntervalList(dict.toSam)
-        dict.foreach { meta => left.add(new Interval(meta.name, 1, meta.length)) }
-        left.uniqued(false)
-        Some(IntervalList.subtract(left, right))
+      case (None, Some(right))       => Some(IntervalList.invert(right)) // invert the ignore intervals
     }
   }
 
