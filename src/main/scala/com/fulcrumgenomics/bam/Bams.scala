@@ -33,7 +33,7 @@ import com.fulcrumgenomics.util.{Io, ProgressLogger, Sorter}
 import htsjdk.samtools.SAMFileHeader.{GroupOrder, SortOrder}
 import htsjdk.samtools.SamPairUtil.PairOrientation
 import htsjdk.samtools._
-import htsjdk.samtools.reference.ReferenceSequenceFileWalker
+import htsjdk.samtools.reference.{ReferenceSequence, ReferenceSequenceFileWalker}
 import htsjdk.samtools.util.{CloserUtil, CoordMath, SequenceUtil}
 
 import scala.math.{max, min}
@@ -263,7 +263,7 @@ object Bams extends LazyLogging {
       case (Some(Queryname), _) => new SelfClosingIterator(iterator.bufferBetter, () => CloserUtil.close(iterator))
       case (_, _) =>
         logger.info(parts = "Sorting into queryname order.")
-        val progress = ProgressLogger(this.logger, "Records", "sorted")
+        val progress = ProgressLogger(this.logger, "records", "sorted")
         val sort     = sorter(Queryname, header, maxInMemory, tmpDir)
         iterator.foreach { rec =>
           progress.record(rec)
@@ -427,9 +427,9 @@ object Bams extends LazyLogging {
     * values are removed.  If the read is mapped all three tags will have values regenerated.
     *
     * @param rec the SamRecord to update
-    * @param ref a reference sequence file walker to pull the reference information from
+    * @param ref a reference sequence if the record is mapped
     */
-  def regenerateNmUqMdTags(rec: SamRecord, ref: ReferenceSequenceFileWalker): Unit = {
+  def regenerateNmUqMdTags(rec: SamRecord, ref: => ReferenceSequence): Unit = {
     import SAMTag._
     if (rec.unmapped) {
       rec(NM.name()) =  null
@@ -437,12 +437,13 @@ object Bams extends LazyLogging {
       rec(MD.name()) =  null
     }
     else {
-      val refBases = ref.get(rec.refIndex).getBases
+      val refBases = ref.getBases
       SequenceUtil.calculateMdAndNmTags(rec.asSam, refBases, true, true)
       if (rec.quals != null && rec.quals.length != 0) {
         rec(SAMTag.UQ.name) = SequenceUtil.sumQualitiesOfMismatches(rec.asSam, refBases, 0)
       }
     }
+    rec
   }
 
   /**
