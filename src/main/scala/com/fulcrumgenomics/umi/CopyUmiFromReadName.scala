@@ -36,15 +36,17 @@ import com.fulcrumgenomics.util.{Io, ProgressLogger}
   """
     |Copies the UMI at the end of the BAM's read name to the RX tag.
     |
-    |The read name is split by the given name delimiter, and the last field is assumed to be the UMI sequence.  The UMI
-    |will be copied to the `RX` tag as per the SAM specification.
+    |The read name is split on `:` characters with the last field is assumed to be the UMI sequence.  The UMI
+    |will be copied to the `RX` tag as per the SAM specification.  If any read does not have a UMI composed of
+    |valid bases (ACGTN), the program will report the error and fail.
+    |
+    |If a read name contains multiple UMIs they may be delimited by either hyphens (`-`) or pluses (`+`). The
+    |resulting UMI in the `RX` tag will always be hyphen delimited.
   """)
 class CopyUmiFromReadName
 ( @arg(flag='i', doc="The input BAM file") input: PathToBam,
   @arg(flag='o', doc="The output BAM file") output: PathToBam,
-  @arg(doc="Remove the UMI from the read name") removeUmi: Boolean = false,
-  @arg(doc="Replaces any occurrences of this delimiter found in the UMI with a dash ('-') as per the SAM specification")
-  umiDelimiter: Option[Char] = None
+  @arg(doc="Remove the UMI from the read name") removeUmi: Boolean = false
 ) extends FgBioTool with LazyLogging {
 
   Io.assertReadable(input)
@@ -56,7 +58,7 @@ class CopyUmiFromReadName
     val progress = new ProgressLogger(logger)
     source.foreach { rec =>
       progress.record(rec)
-      writer += Umis.copyUmiFromReadName(rec=rec, removeUmi=removeUmi, umiDelimiter=umiDelimiter)
+      writer += Umis.copyUmiFromReadName(rec=rec, removeUmi=removeUmi)
     }
     progress.logLast()
     source.safelyClose()
