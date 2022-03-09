@@ -26,16 +26,19 @@ package com.fulcrumgenomics.bam
 
 import com.fulcrumgenomics.FgBioDef._
 import com.fulcrumgenomics.bam.api.SamOrder.Queryname
-import com.fulcrumgenomics.bam.api.{SamOrder, SamRecord, SamRecordCodec, SamSource}
+import com.fulcrumgenomics.bam.api._
 import com.fulcrumgenomics.commons.collection.{BetterBufferedIterator, SelfClosingIterator}
+import com.fulcrumgenomics.commons.io.Writer
 import com.fulcrumgenomics.commons.util.LazyLogging
+import com.fulcrumgenomics.fasta.ReferenceSequenceIterator
 import com.fulcrumgenomics.util.{Io, ProgressLogger, Sorter}
 import htsjdk.samtools.SAMFileHeader.{GroupOrder, SortOrder}
 import htsjdk.samtools.SamPairUtil.PairOrientation
 import htsjdk.samtools._
-import htsjdk.samtools.reference.{ReferenceSequence, ReferenceSequenceFileWalker}
+import htsjdk.samtools.reference.ReferenceSequence
 import htsjdk.samtools.util.{CloserUtil, CoordMath, SequenceUtil}
 
+import java.io.Closeable
 import scala.math.{max, min}
 
 /**
@@ -467,7 +470,6 @@ object Bams extends LazyLogging {
     (min(firstEnd,secondEnd), max(firstEnd,secondEnd))
   }
 
-
   /** If the read is mapped in an FR pair, returns the distance of the position from the other end
     * of the template, other wise returns None.
     *
@@ -488,6 +490,37 @@ object Bams extends LazyLogging {
     }
     else {
       None
+    }
+  }
+
+  /** Requires that the header is queryname sorted or query grouped. */
+  def requireTemplateGrouped(header: SAMFileHeader, toolName: String): Unit = {
+    require(header.getSortOrder == SortOrder.queryname || header.getGroupOrder == GroupOrder.query,
+      "Input was not queryname sorted or query grouped, found: " +
+        s"SO:${header.getSortOrder} GO:${header.getGroupOrder}" +
+        Option(header.getAttribute("SS")).map(ss => f" SS:$ss").getOrElse("") +
+        f". Use `samtools sort -n -u in.bam | fgbio $toolName -i /dev/stdin`"
+    )
+  }
+
+  /** Builds a [[Writer]] of [[SamRecord]]s that regenerates the NM, UQ, and MD tags using the given map of reference
+    * sequences.
+    *
+    * @param writer the writer to write to
+    * @param ref the path to the reference FASTA
+    */
+  def regenerateNmUqMdTagsWriter(writer: SamWriter, ref: PathToFasta): Writer[SamRecord] with Closeable = {
+    logger.info("Reading the reference fasta into memory")
+    val refMap = ReferenceSequenceIterator(ref, stripComments=true).map { ref => ref.getContigIndex -> ref}.toMap
+    logger.info(f"Read ${refMap.size}%,d contigs.")
+
+    // Create the final writer based on if the full reference has been loaded, or not
+    new Writer[SamRecord] with Closeable {
+      override def write(rec: SamRecord): Unit = {
+        Bams.regenerateNmUqMdTags(rec, refMap(rec.refIndex))
+        writer += rec
+      }
+      def close(): Unit = writer.close()
     }
   }
 }
