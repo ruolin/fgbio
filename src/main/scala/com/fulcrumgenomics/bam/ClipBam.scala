@@ -50,8 +50,8 @@ import scala.collection.immutable.IndexedSeq
     |Secondary alignments and supplemental alignments are not clipped, but are passed through into the
     |output.
     |
-    |In order to correctly clip reads in or out by template, the input BAM must be either `queryname`  or `query`
-    |grouped.  The sort can be done in streaming fashion with:
+    |In order to correctly clip reads by template, the input BAM must be either `queryname`  or `query` grouped.  The
+    |sort can be done in streaming fashion with:
     |
     |```
     |samtools sort -n -u in.bam | fgbio ClipBam -i /dev/stdin ...

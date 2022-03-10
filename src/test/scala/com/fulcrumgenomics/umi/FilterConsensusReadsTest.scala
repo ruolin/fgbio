@@ -330,7 +330,7 @@ class FilterConsensusReadsTest extends UnitSpec {
     result.out should contain theSameElementsInOrderAs Seq("q2", "q2", "q1", "q1") // query grouped, but not query name
   }
 
-    it should "should output coordinate sorted if the output order is coordinate" in {
+  it should "should output coordinate sorted if the output order is coordinate" in {
     val result = sortOrderTest(
       name1="q1", start1R1=100, start1R2=200,
       name2="q2", start2R1=101, start2R2=201,

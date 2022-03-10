@@ -88,7 +88,7 @@ private[umi] case class ConsensusReadFilter(minReads: Int, maxReadErrorRate: Dou
       |single-strand consensus, and the last value to the other single-strand consensus. It is required that if
       |values two and three differ, the _more stringent value comes earlier_.
       |
-      |In order to correctly filter reads in or out by template, if the input BAM must be either `queryname` sorted or
+      |In order to correctly filter reads in or out by template, the input BAM must be either `queryname` sorted or
       |`query` grouped.  The sort can be done in streaming fashion with:
       |
       |```
