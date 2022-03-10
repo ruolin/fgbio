@@ -95,7 +95,7 @@ jobs:
         shell: bash -l {0}
         run: |
           set -e
-          bash src/scripts/run_metrics_doclet.sh
+          bash run_metrics_doclet.sh
       - name: Commit generated docs
         shell: bash -l {0}
         run: |
