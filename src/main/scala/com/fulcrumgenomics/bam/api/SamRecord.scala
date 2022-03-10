@@ -236,14 +236,14 @@ trait SamRecord {
   // transient attributes
   @inline final val transientAttrs: TransientAttrs = new TransientAttrs(this)
 
-  /** Returns the 1-based reference position for the 1-based position in the read, or [[None]] if the reference does
-    * not map at the read position (e.g. insertion).
+  /** Returns the 1-based reference position for the 1-based position in the read, or [[None]] if the read base indicated
+  * is not aligned to a reference position (e.g. insertion).
     *
     * @param pos the 1-based read position to query
-    * @param returnLastBaseIfInserted if the reference is an insertion, true to returned the previous reference base,
-    *                                 false to return None
+    * @param returnLastBaseIfInserted if the read base is part of an insertion, true to return the reference base
+    *                                 immediately before the insertion, false for None
     * */
-  @inline final def refPosAtReadPos(pos: Int, returnLastBaseIfInserted: Boolean = false): Option[Int] = if (pos <= 0) None else {
+  final def refPosAtReadPos(pos: Int, returnLastBaseIfInserted: Boolean = false): Option[Int] = if (pos <= 0) None else {
     var readPos      = 1
     var refPos       = this.start
     var elementIndex = 0
@@ -274,8 +274,12 @@ trait SamRecord {
   }
 
 
-  /** Returns the 1-based position into the read's bases where the position is mapped either as a match or mismatch,
-    * [[None]] if the read does not map the position.
+  /** Returns the 1-based position into the read's bases corresponding to the reference position. 
+    * If `returnLastBaseIfDeleted` is false (default) then a position is only returned if a read base
+    * is directly aligned to the reference position.  If `returnLastBaseIfDeleted` is true and the
+    * reference base is deleted in the read, the read-base immediately prior to the deletion is
+    * returned.
+    */
     *
     * @param pos the 1-based reference position to query
     * @param returnLastBaseIfDeleted if the reference is a deletion, true to returned the previous read base, false to
