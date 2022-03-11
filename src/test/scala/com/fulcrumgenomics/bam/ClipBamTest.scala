@@ -26,6 +26,7 @@ package com.fulcrumgenomics.bam
 
 import com.fulcrumgenomics.FgBioDef.unreachable
 import com.fulcrumgenomics.bam.ClippingMode.{Hard, Soft, SoftWithMask}
+import com.fulcrumgenomics.bam.api.SamOrder.Queryname
 import com.fulcrumgenomics.bam.api.{SamRecord, SamSource}
 import com.fulcrumgenomics.testing.SamBuilder._
 import com.fulcrumgenomics.testing.{ErrorLogLevel, ReferenceSetBuilder, SamBuilder, UnitSpec}
@@ -257,7 +258,7 @@ class ClipBamTest extends UnitSpec with ErrorLogLevel with OptionValues {
 
   "ClipBam" should "clip overlapping reads, update mate info, and reset NM, UQ & MD" in {
     val random = new Random(1)
-    val builder = new SamBuilder(readLength=50)
+    val builder = new SamBuilder(readLength=50, sort=Some(Queryname))
     builder.addPair(name="q1", start1=100, start2=140) // overlaps by ten
     builder.addPair(name="q2", start1=200, start2=242) // overlaps by eight
     builder.addPair(name="q3", start1=300, start2=344) // overlaps by six
@@ -362,7 +363,7 @@ class ClipBamTest extends UnitSpec with ErrorLogLevel with OptionValues {
 
   it should "clip fragment reads, and reset NM, UQ & MD" in {
     val random = new Random(1)
-    val builder = new SamBuilder(readLength=50)
+    val builder = new SamBuilder(readLength=50, sort=Some(Queryname))
     builder.addFrag(start=100)
     builder.addFrag(start=200, strand=Minus)
     builder.addFrag(start=300, cigar="40S10M") // should be fully clipped
@@ -437,7 +438,7 @@ class ClipBamTest extends UnitSpec with ErrorLogLevel with OptionValues {
 
   Seq((Soft, SoftWithMask), (Soft, Hard), (SoftWithMask, Hard)).foreach { case (prior, mode) =>
     it should s"upgrade existing clipping from $prior to $mode with --upgrade-clipping" in {
-      val builder = new SamBuilder(readLength=50)
+      val builder = new SamBuilder(readLength=50, sort=Some(Queryname))
       val frag1 = builder.addFrag(name="q1", start=100).value
       val frag2 = builder.addFrag(name="q2", start=200, strand=Minus).value
 
@@ -482,7 +483,7 @@ class ClipBamTest extends UnitSpec with ErrorLogLevel with OptionValues {
 
   Seq((Soft, Soft), (SoftWithMask, Soft), (SoftWithMask, SoftWithMask), (Hard, Hard), (Hard, SoftWithMask), (Hard, Soft)).foreach { case (prior, mode) =>
     it should s"not upgrade existing clipping from $prior to $mode with --upgrade-clipping" in {
-      val builder = new SamBuilder(readLength=50)
+      val builder = new SamBuilder(readLength=50, sort=Some(Queryname))
       val frag1 = builder.addFrag(name="q1", start=100).value
       val frag2 = builder.addFrag(name="q2", start=200, strand=Minus).value
 
@@ -527,7 +528,7 @@ class ClipBamTest extends UnitSpec with ErrorLogLevel with OptionValues {
   }
 
   it should "clip FR reads that extend past the mate" in {
-    val builder = new SamBuilder(readLength=50)
+    val builder = new SamBuilder(readLength=50, sort=Some(Queryname))
     val clipper = new ClipBam(input=dummyBam, output=dummyBam, ref=ref, clipBasesPastMate=true)
     val Seq(r1, r2) = builder.addPair(start1=100, start2=90)
 

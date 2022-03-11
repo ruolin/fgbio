@@ -25,8 +25,8 @@
 package com.fulcrumgenomics.umi
 
 import java.nio.file.Files
-
 import com.fulcrumgenomics.FgBioDef._
+import com.fulcrumgenomics.bam.api.SamOrder.Queryname
 import com.fulcrumgenomics.bam.api.{SamOrder, SamRecord, SamSource, SamWriter}
 import com.fulcrumgenomics.testing.{ReferenceSetBuilder, SamBuilder, UnitSpec}
 import com.fulcrumgenomics.util.NumericTypes.PhredScore
@@ -330,16 +330,6 @@ class FilterConsensusReadsTest extends UnitSpec {
     result.out should contain theSameElementsInOrderAs Seq("q2", "q2", "q1", "q1") // query grouped, but not query name
   }
 
-  it should "should output queryname sorted if the input is neither queryname nor query grouped sorted" in {
-    val result = sortOrderTest(
-      name1="q2", start1R1=100, start1R2=200,
-      name2="q1", start2R1=101, start2R2=201,
-      inOrder=SamOrder.Unsorted
-    )
-    result.in should contain theSameElementsInOrderAs Seq("q2", "q2", "q1", "q1") // query grouped, but not query name
-    result.out should contain theSameElementsInOrderAs Seq("q1", "q1", "q2", "q2") // query name
-  }
-
   it should "should output coordinate sorted if the output order is coordinate" in {
     val result = sortOrderTest(
       name1="q1", start1R1=100, start1R2=200,
@@ -366,7 +356,7 @@ class FilterConsensusReadsTest extends UnitSpec {
   }
 
   /** An extension to SamBuilder to make building duplex pairs marginally less painful. */
-  object DuplexBuilder extends SamBuilder(readLength=10, baseQuality=90) {
+  object DuplexBuilder extends SamBuilder(readLength=10, baseQuality=90, sort=Some(Queryname)) {
     /** Method to create/add a single read with all the duplex tags on it. */
     def add(name:String=nextName,
             dp: Int=10, minDp:Int=10, abDp:Int=5, baDp:Int=5, abMinDp:Int=5, baMinDp:Int=5,

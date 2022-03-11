@@ -25,7 +25,6 @@
 package com.fulcrumgenomics.bam
 
 import java.util
-
 import com.fulcrumgenomics.FgBioDef._
 import com.fulcrumgenomics.alignment.Cigar
 import com.fulcrumgenomics.bam.api.{SamOrder, SamRecord}
@@ -33,7 +32,7 @@ import com.fulcrumgenomics.testing.SamBuilder.{Minus, Plus}
 import com.fulcrumgenomics.testing.{SamBuilder, UnitSpec}
 import com.fulcrumgenomics.util.{Io, Sequences}
 import htsjdk.samtools.SAMFileHeader.GroupOrder
-import htsjdk.samtools.SamPairUtil
+import htsjdk.samtools.{SAMFileHeader, SamPairUtil}
 import htsjdk.samtools.SamPairUtil.PairOrientation
 import htsjdk.samtools.reference.{ReferenceSequence, ReferenceSequenceFile, ReferenceSequenceFileWalker}
 
@@ -329,6 +328,17 @@ class BamsTest extends UnitSpec {
 
     Bams.sortByTransformedTag[Int,Float](iterator=builder.iterator, header=builder.header, tag="ZZ", transform=f)
       .map(r => r[Int]("ZZ")).toSeq should contain theSameElementsInOrderAs Seq(4, 3, 2, 2, 1)
+  }
+
+  "Bams.requireTemplateGrouped" should "require the header to be queryname sorted or query grouped" in {
+    def header(order: SamOrder): SAMFileHeader = {
+      val h = new SAMFileHeader()
+      order.applyTo(h)
+      h
+    }
+    Bams.requireQueryGrouped(header=header(SamOrder.Queryname), "test")
+    Bams.requireQueryGrouped(header=header(SamOrder.RandomQuery), "test") // this is group ordered
+    an[Exception] should be thrownBy Bams.requireQueryGrouped(header=header(SamOrder.Coordinate), "test")
   }
 
   "Template.primaryReads" should "return an iterator over just the primary reads" in {

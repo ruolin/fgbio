@@ -31,9 +31,8 @@ import com.fulcrumgenomics.commons.util.LazyLogging
 import com.fulcrumgenomics.sopt.{arg, clp}
 import com.fulcrumgenomics.util.{Io, Metric, ProgressLogger}
 import enumeratum.EnumEntry
-import htsjdk.samtools.SAMFileHeader.SortOrder
+import htsjdk.samtools.SAMFileHeader.{GroupOrder, SortOrder}
 import htsjdk.samtools.SamPairUtil
-import htsjdk.samtools.reference.ReferenceSequenceFileWalker
 
 import scala.collection.immutable.IndexedSeq
 
@@ -51,11 +50,18 @@ import scala.collection.immutable.IndexedSeq
     |Secondary alignments and supplemental alignments are not clipped, but are passed through into the
     |output.
     |
-    |If the input BAM is neither `queryname` sorted nor `query` grouped, it will be sorted into queryname
-    |order so that clipping can be performed on both ends of a pair simultaneously and so that mate
-    |pair information can be reset across all reads for the template.  Post-clipping the reads are
-    |resorted into coordinate order, any existing `NM`, `UQ` and `MD` tags are repaired, and the output is
-    |written in coordinate order.
+    |In order to correctly clip reads by template and update mate information, the input BAM must be either
+    |`queryname` sorted or `query` grouped.  If your input BAM is not in an appropriate order the sort can be
+    |done in streaming fashion with, for example:
+    |
+    |```
+    |samtools sort -n -u in.bam | fgbio ClipBam -i /dev/stdin ...
+    |```
+    |
+    |The output sort order may be specified with `--sort-order`.  If not given, then the output will be in the same
+    |order as input.
+    |
+    |Any existing `NM`, `UQ` and `MD` tags are repaired, and mate-pair information updated.
     |
     |Three clipping modes are supported:
     |1. `Soft` - soft-clip the bases and qualities.
@@ -79,7 +85,9 @@ class ClipBam
   @arg(          doc="Require at least this number of bases to be clipped on the 5' end of R2") val readTwoFivePrime: Int  = 0,
   @arg(          doc="Require at least this number of bases to be clipped on the 3' end of R2") val readTwoThreePrime: Int = 0,
   @arg(          doc="Clip overlapping reads.") val clipOverlappingReads: Boolean = false,
-  @arg(          doc="Clip reads in FR pairs that sequence past the far end of their mate.") val clipBasesPastMate: Boolean = false
+  @arg(          doc="Clip reads in FR pairs that sequence past the far end of their mate.") val clipBasesPastMate: Boolean = false,
+  @arg(flag='S', doc="The sort order of the output. If not given, output will be in the same order as input if the input.")
+  val sortOrder: Option[SamOrder] = None
 ) extends FgBioTool with LazyLogging {
   Io.assertReadable(input)
   Io.assertReadable(ref)
@@ -95,9 +103,12 @@ class ClipBam
   private val clipper = new SamRecordClipper(mode=clippingMode, autoClipAttributes=autoClipAttributes)
 
   override def execute(): Unit = {
-    val in         = SamSource(input)
-    val progress   = ProgressLogger(logger)
-    val sorter     = Bams.sorter(SamOrder.Coordinate, in.header)
+    val in     = SamSource(input)
+    val header = in.header
+    val out    = Bams.nmUqMdTagRegeneratingWriter(writer=SamWriter(output, header.clone(), sort=sortOrder), ref=ref)
+
+    // Require queryname sorted or query grouped
+    Bams.requireQueryGrouped(header=in.header, toolName="ClipBam")
 
     val metricsMap: Map[ReadType, ClippingMetrics] = this.metrics.map { _ =>
       ReadType.values.map { readType => readType -> ClippingMetrics(read_type=readType) }.toMap
@@ -118,25 +129,9 @@ class ClipBam
         case _ => ()
       }
 
-      template.allReads.foreach { r =>
-        sorter += r
-        progress.record(r)
-      }
+      out ++= template.allReads
     }
-
-    // Then go through the coordinate sorted reads and fix up tags
-    logger.info("Re-sorting into coordinate order and writing output.")
-    val header = in.header.clone()
-    SamOrder.Coordinate.applyTo(header)
-    header.setSortOrder(SortOrder.coordinate)
-    val walker = new ReferenceSequenceFileWalker(ref.toFile)
-    val out    = SamWriter(output, header, ref=Some(ref))
-
-    sorter.foreach { rec =>
-      Bams.regenerateNmUqMdTags(rec, walker.get(rec.refIndex))
-      out += rec
-    }
-
+    out.close()
 
     this.metrics.foreach { path =>
       // Update the metrics for "All" and "Pair" read types
@@ -150,7 +145,6 @@ class ClipBam
       Metric.write(path, ReadType.values.map { readType => metricsMap(readType)})
     }
 
-    out.close()
   }
 
   /** Clips a fixed amount from the reads and then clips overlapping reads.

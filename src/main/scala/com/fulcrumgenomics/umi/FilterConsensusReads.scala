@@ -30,13 +30,11 @@ import com.fulcrumgenomics.bam.api.{SamOrder, SamRecord, SamSource, SamWriter}
 import com.fulcrumgenomics.cmdline.{ClpGroups, FgBioTool}
 import com.fulcrumgenomics.commons.io.Writer
 import com.fulcrumgenomics.commons.util.LazyLogging
-import com.fulcrumgenomics.fasta.ReferenceSequenceIterator
 import com.fulcrumgenomics.sopt.{arg, clp}
-import com.fulcrumgenomics.util.NumericTypes.PhredScore
 import com.fulcrumgenomics.util.Io
+import com.fulcrumgenomics.util.NumericTypes.PhredScore
 import htsjdk.samtools.SAMFileHeader
 import htsjdk.samtools.SAMFileHeader.{GroupOrder, SortOrder}
-import htsjdk.samtools.reference.ReferenceSequence
 import htsjdk.samtools.util.SequenceUtil
 
 import java.io.Closeable
@@ -90,11 +88,15 @@ private[umi] case class ConsensusReadFilter(minReads: Int, maxReadErrorRate: Dou
       |single-strand consensus, and the last value to the other single-strand consensus. It is required that if
       |values two and three differ, the _more stringent value comes earlier_.
       |
-      |In order to correctly filter reads in or out by template, if the input BAM is not `queryname` sorted or
-      |query grouped it will be sorted into queryname order prior to filtering.
+      |In order to correctly filter reads in or out by template, the input BAM must be either `queryname` sorted or
+      |`query` grouped.  If your BAM is not already in an appropriate order, this can be done in streaming fashion with:
+      |
+      |```
+      |samtools sort -n -u in.bam | fgbio FilterConsensusReads -i /dev/stdin ...
+      |```
       |
       |The output sort order may be specified with `--sort-order`.  If not given, then the output will be in the same
-      |order as input if the input is queryname sorted or query grouped, otherwise queryname order.
+      |order as input.
       |
       |The `--reverse-tags-per-base` option controls whether per-base tags should be reversed before being used on reads
       |marked as being mapped to the negative strand.  This is necessary if the reads have been mapped and the
@@ -177,12 +179,11 @@ class FilterConsensusReads
   private val EmptyFilterResult = FilterResult(keepRead=true, maskedBases=0)
 
   override def execute(): Unit = {
-    logger.info("Reading the reference fasta into memory")
-    val refMap = ReferenceSequenceIterator(ref, stripComments=true).map { ref => ref.getContigIndex -> ref}.toMap
-    logger.info(f"Read ${refMap.size}%,d contigs.")
-
     val in  = SamSource(input)
-    val out = buildOutputWriter(in.header, refMap)
+    val out = Bams.nmUqMdTagRegeneratingWriter(writer=SamWriter(output, in.header.clone(), sort=sortOrder), ref=ref)
+
+    // Require queryname sorted or query grouped
+    Bams.requireQueryGrouped(header=in.header, toolName="FilterConsensusReads")
 
     // Go through the reads by template and do the filtering
     val templateIterator = Bams.templateIterator(in, maxInMemory=MaxRecordsInMemoryWhenSorting)
@@ -226,65 +227,6 @@ class FilterConsensusReads
     out.close()
     logger.info(f"Output $keptReads%,d of $totalReads%,d primary consensus reads.")
     logger.info(f"Masked $maskedBases%,d of $totalBases%,d bases in retained primary consensus reads.")
-  }
-
-  /** Builds the writer to which filtered records should be written.
-    *
-    *  If the input order is [[SamOrder.Queryname]] or query grouped, then the filtered records will also be in the same
-    *  order.  So if the output order is specified AND does not match the the input order, sorting will occur.
-    *
-    *  If the input order is not [[SamOrder.Queryname]] or query grouped, then the input records will be resorted into
-    *  [[SamOrder.Queryname]].  So if the output order is specified AND is not [[SamOrder.Queryname]], sorting will occur.
-    *
-    *  Otherwise, we can skip sorting!
-    *
-    * */
-  private def buildOutputWriter(inHeader: SAMFileHeader, refMap: Map[Int, ReferenceSequence]): Writer[SamRecord] with Closeable = {
-    val outHeader    = inHeader.clone()
-
-    val inSortOrder  = inHeader.getSortOrder
-    val inGroupOrder = inHeader.getGroupOrder
-    val inSubSort    = Option(inHeader.getAttribute("SS"))
-
-    // Get the sort order, if any, to force the writer to resort.
-    val writerSortOrder = {
-      val canSkipSortingInput = inSortOrder == SortOrder.queryname || inGroupOrder == GroupOrder.query
-      (this.sortOrder, canSkipSortingInput) match {
-        case (None,        false) =>
-          // already sorted to Queryname after filtering, so the output will be Queryname, and so no need to re-sort the output
-          SamOrder.Queryname.applyTo(outHeader)
-          None
-        case (Some(order), false) =>
-          // already sorted to Queryname after filtering, so don't sort the output if the given output sort order matches Queryname
-          order.applyTo(outHeader)
-          if (order != SamOrder.Queryname) Some(order) else None
-        case (None,         true) =>
-          // input did not need to be re-sorted, so do not re-sort the output
-          None
-        case (Some(order), true)  =>
-          // If sorting prior to filtering was not required, then the input was queryname or query grouped.  So sort the
-          // output only if the specified output `sortOrder` does not match the input sort order.
-          if (order.sortOrder == inSortOrder && order.groupOrder == inGroupOrder && order.subSort == inSubSort) {
-            None // input matches the output order, no need to force sorting, keep the header
-          }
-          else { // mismatch in the input order and output order, force sorting the output
-            order.applyTo(outHeader)
-            Some(order)
-          }
-      }
-    }
-
-    val writer = SamWriter(output, outHeader, sort=writerSortOrder, maxRecordsInRam=MaxRecordsInMemoryWhenSorting)
-    writerSortOrder.foreach(o => logger.info(f"Output will be sorted into $o order"))
-
-    // Create the final writer based on if the full reference has been loaded, or not
-    new Writer[SamRecord] with Closeable {
-      override def write(rec: SamRecord): Unit = {
-        Bams.regenerateNmUqMdTags(rec, refMap(rec.refIndex))
-        writer += rec
-      }
-      def close(): Unit = writer.close()
-    }
   }
 
   /**
